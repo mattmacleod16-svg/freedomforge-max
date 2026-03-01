@@ -50,21 +50,21 @@ jobs:
             exit 1
           fi
 
-            BODY="$body" python3 - <<'PY'
-            import json
-            import os
-            import sys
+          BODY="$body" python3 - <<'PY'
+          import json
+          import os
+          import sys
 
-            body = os.environ.get('BODY', '')
-            try:
+          body = os.environ.get('BODY', '')
+          try:
               payload = json.loads(body)
-            except Exception as exc:
+          except Exception as exc:
               print(f"Invalid JSON response: {exc}")
               sys.exit(1)
 
-            if payload.get('ok') is not True:
+          if payload.get('ok') is not True:
               print(f"Ping failed, response: {payload}")
               sys.exit(1)
 
-            print('Ping succeeded and Discord alert was requested.')
-            PY
+          print('Ping succeeded and Discord alert was requested.')
+          PY
