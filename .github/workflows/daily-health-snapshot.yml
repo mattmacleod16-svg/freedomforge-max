@@ -151,11 +151,17 @@ jobs:
               lines.append(f"Snapshot run: {run_url}")
 
           message = '\n'.join(lines)
+          max_len = 1800
+          if len(message) > max_len:
+              message = message[:max_len - 14] + '\n…(truncated)'
           payload = json.dumps({'content': message, 'text': message}).encode('utf-8')
           req = urllib.request.Request(
               webhook_url,
               data=payload,
-              headers={'Content-Type': 'application/json'},
+              headers={
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'freedomforge-daily-health-snapshot/1.0',
+              },
               method='POST',
           )
           try:
