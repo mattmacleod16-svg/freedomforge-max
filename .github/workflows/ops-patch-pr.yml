@@ -37,7 +37,7 @@ jobs:
         run: npm run generate-ops-patch
 
       - name: Create patch pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.OPS_PR_TOKEN || github.token }}
           branch: automation/monthly-ops-patch
