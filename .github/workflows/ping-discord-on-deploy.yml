@@ -8,7 +8,7 @@ jobs:
     if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
     env:
-      ENDPOINT_URL: ${{ vars.ALERT_PING_ENDPOINT_URL || 'https://freedomforge-max.vercel.app/api/status/ping-discord' }}
+      ENDPOINT_URL: ${{ vars.ALERT_PING_ENDPOINT_URL || 'https://freedomforge-max-qt5y.vercel.app/api/status/ping-discord' }}
       ALERT_SECRET: ${{ secrets.ALERT_SECRET }}
       ENVIRONMENT: ${{ github.event.deployment.environment || 'unknown' }}
       TARGET_URL: ${{ github.event.deployment_status.target_url || '' }}

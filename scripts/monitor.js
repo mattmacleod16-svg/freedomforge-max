@@ -15,7 +15,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const DIST_URL = process.env.DISTRIBUTION_URL || 'https://freedomforge-max.vercel.app/api/alchemy/wallet/distribute';
+const DIST_URL = process.env.DISTRIBUTION_URL || 'https://freedomforge-max-qt5y.vercel.app/api/alchemy/wallet/distribute';
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL;
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 const POLL_MS = parseInt(process.env.MONITOR_INTERVAL_MS || '900000', 10); // default 15m

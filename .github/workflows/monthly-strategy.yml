@@ -13,7 +13,7 @@ jobs:
   strategy:
     runs-on: ubuntu-latest
     env:
-      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max-qt5y.vercel.app' }}
       ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
       ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
       STRATEGY_LOOKBACK_HOURS: ${{ vars.STRATEGY_LOOKBACK_HOURS || '720' }}

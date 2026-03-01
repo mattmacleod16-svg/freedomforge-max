@@ -156,9 +156,9 @@ Chained post-merge preview notification:
 		- `AUTO_APPLY_MAX_GAS_TOPUP_AMOUNT=0.2`
 
 Remote dashboard access:
-- Main app: `https://freedomforge-max.vercel.app`
-- Dashboard: `https://freedomforge-max.vercel.app/dashboard`
-- Logs view: `https://freedomforge-max.vercel.app/api/alchemy/wallet/logs?limit=50`
+- Main app: `https://freedomforge-max-qt5y.vercel.app`
+- Dashboard: `https://freedomforge-max-qt5y.vercel.app/dashboard`
+- Logs view: `https://freedomforge-max-qt5y.vercel.app/api/alchemy/wallet/logs?limit=50`
 - Dashboard is protected with HTTP Basic Auth via `DASHBOARD_USER` and `DASHBOARD_PASS`
 - Set strong production credentials in Vercel project environment variables to access it securely from anywhere
 
