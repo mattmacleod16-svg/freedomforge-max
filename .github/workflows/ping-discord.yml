@@ -1,0 +1,70 @@
+name: Ping Discord Alert
+
+on:
+  workflow_dispatch:
+    inputs:
+      endpoint_url:
+        description: Ping endpoint URL
+        required: true
+        default: https://freedomforge-max.vercel.app/api/status/ping-discord
+      source:
+        description: Source label included in alert
+        required: true
+        default: github-actions
+      note:
+        description: Optional note appended to alert
+        required: false
+        default: manual-discord-smoke-test
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    env:
+      ENDPOINT_URL: ${{ inputs.endpoint_url }}
+      SOURCE: ${{ inputs.source }}
+      NOTE: ${{ inputs.note }}
+      ALERT_SECRET: ${{ secrets.ALERT_SECRET }}
+    steps:
+      - name: Validate required secret
+        run: |
+          if [ -z "$ALERT_SECRET" ]; then
+            echo "Missing required GitHub secret: ALERT_SECRET"
+            exit 1
+          fi
+
+      - name: Call ping endpoint
+        run: |
+          response=$(curl -sS -w "\n%{http_code}" -G "$ENDPOINT_URL" \
+            -H "x-alert-secret: $ALERT_SECRET" \
+            --data-urlencode "source=$SOURCE" \
+            --data-urlencode "note=$NOTE")
+
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+
+          echo "HTTP status: $status"
+          echo "Response: $body"
+
+          if [ "$status" -ne 200 ]; then
+            echo "Ping endpoint returned non-200 status"
+            exit 1
+          fi
+
+            BODY="$body" python3 - <<'PY'
+            import json
+            import os
+            import sys
+
+            body = os.environ.get('BODY', '')
+            try:
+              payload = json.loads(body)
+            except Exception as exc:
+              print(f"Invalid JSON response: {exc}")
+              sys.exit(1)
+
+            if payload.get('ok') is not True:
+              print(f"Ping failed, response: {payload}")
+              sys.exit(1)
+
+            print('Ping succeeded and Discord alert was requested.')
+            PY

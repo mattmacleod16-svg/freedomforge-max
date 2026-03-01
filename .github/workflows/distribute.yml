@@ -1,0 +1,88 @@
+name: Distribute revenue
+on:
+  schedule:
+    - cron: "*/15 * * * *"  # every 15 minutes
+  workflow_dispatch:
+
+concurrency:
+  group: distribute-revenue
+  cancel-in-progress: true
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HEALTH_URL: https://freedomforge-max.vercel.app/api/alchemy/health
+      DISTRIBUTION_URL: https://freedomforge-max.vercel.app/api/alchemy/wallet/distribute
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+    steps:
+      - name: Check service health
+        run: |
+          status=$(curl -o /dev/null -sS -w "%{http_code}" --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 --retry-connrefused "$HEALTH_URL")
+          if [ "$status" -ne 200 ]; then
+            echo "health endpoint returned $status"
+            if [ -n "$ALERT_WEBHOOK_URL" ]; then
+              msg="Service health check failed (status $status)"
+              if [ -n "$ALERT_MENTION" ]; then
+                msg="$ALERT_MENTION $msg"
+              fi
+              curl -sSL -X POST -H "Content-Type: application/json" \
+                   -d '{"content":"'"$msg"'","text":"'"$msg"'"}' \
+                   "$ALERT_WEBHOOK_URL"
+            fi
+            exit 1
+          fi
+      - name: Invoke distribution endpoint and check status
+        run: |
+          response=$(curl -sS --connect-timeout 10 --max-time 90 --retry 2 --retry-delay 3 --retry-connrefused -w "\n%{http_code}" "$DISTRIBUTION_URL")
+          body=$(echo "$response" | sed '$d')
+          status=$(echo "$response" | tail -n1)
+
+          if [ "$status" -ne 200 ]; then
+            echo "distribution call failed with status $status"
+            if [ -n "$ALERT_WEBHOOK_URL" ]; then
+              msg="Distribution cron hit failed (status $status)"
+              if [ -n "$ALERT_MENTION" ]; then
+                msg="$ALERT_MENTION $msg"
+              fi
+              curl -sSL -X POST -H "Content-Type: application/json" \
+                   -d '{"content":"'"$msg"'","text":"'"$msg"'"}' \
+                   "$ALERT_WEBHOOK_URL"
+            fi
+            exit 1
+          fi
+
+          BODY="$body" python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          body = os.environ.get('BODY', '')
+          try:
+              payload = json.loads(body)
+          except Exception as exc:
+              print(f"Distribution response is not valid JSON: {exc}")
+              sys.exit(1)
+
+          results = payload.get('results')
+          if results is None:
+              print(f"Distribution returned null results: {payload}")
+              sys.exit(1)
+
+          print('Distribution response validated')
+          PY
+
+          if [ "$?" -ne 0 ]; then
+            if [ -n "$ALERT_WEBHOOK_URL" ]; then
+              msg="Distribution returned invalid payload"
+              if [ -n "$ALERT_MENTION" ]; then
+                msg="$ALERT_MENTION $msg"
+              fi
+              curl -sSL -X POST -H "Content-Type: application/json" \
+                   -d '{"content":"'"$msg"'","text":"'"$msg"'"}' \
+                   "$ALERT_WEBHOOK_URL"
+            fi
+            exit 1
+          fi

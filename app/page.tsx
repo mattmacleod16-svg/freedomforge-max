@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
 export default function Home() {
   const [isListening, setIsListening] = React.useState(false);
@@ -10,20 +11,43 @@ export default function Home() {
   const recognitionRef = React.useRef<any>(null);
 
   // Shared function that processes any input (voice or text)
-  const processInput = (text: string) => {
+  const processInput = async (text: string) => {
     setTranscript(text);
+    setResponse('…loading');
 
-    const maxReply = `Hell yes legend! 🔥 I heard "${text}". This is your turning point — let’s forge something epic together! What do you want to crush next?`;
-    setResponse(maxReply);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      const reply = data.reply || 'No answer';
+      setResponse(reply);
 
-    // Speak the reply out loud
-    const utterance = new SpeechSynthesisUtterance(maxReply);
-    utterance.rate = 1.08;
-    utterance.pitch = 1.1;
-    window.speechSynthesis.speak(utterance);
+      // speak out loud
+      const utterance = new SpeechSynthesisUtterance(reply);
+      utterance.rate = 1.08;
+      utterance.pitch = 1.1;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      setResponse('Error contacting Max');
+    }
 
-    // Clear the text input after sending
     setTextInput('');
+  };
+
+  // Alchemy helpers
+  const [alchemyAddress, setAlchemyAddress] = React.useState('');
+  const [alchemyInfo, setAlchemyInfo] = React.useState('');
+  const [withAddress, setWithAddress] = React.useState('');
+  const [withAmount, setWithAmount] = React.useState('');
+
+  const fetchBalance = async () => {
+    if (!alchemyAddress) return;
+    const res = await fetch(`/api/alchemy/balance?address=${alchemyAddress}`);
+    const data = await res.json();
+    setAlchemyInfo(`Balance of ${alchemyAddress}: ${data.balance}`);
   };
 
   // Voice mode (keeps listening until you click Stop)
@@ -109,6 +133,76 @@ export default function Home() {
       {/* Output */}
       {transcript && <p className="mt-10 text-left text-orange-300 text-2xl max-w-xl">You said: “{transcript}”</p>}
       {response && <p className="mt-6 text-left text-white text-2xl leading-relaxed max-w-xl">Max says: {response}</p>}
+      {response && <p className="mt-2 text-xs text-gray-400 max-w-xl">(metadata will appear in console)</p>}
+
+      {/* Alchemy interaction panel */}
+      <div className="mt-12 w-full max-w-xl bg-gray-800 p-6 rounded-xl">
+        <h2 className="text-xl font-semibold mb-2">Blockchain Tools 🔗</h2>
+        <input
+          type="text"
+          placeholder="Ethereum address (0x...)"
+          className="w-full p-2 rounded bg-gray-900 text-white mb-3"
+          value={alchemyAddress}
+          onChange={(e) => setAlchemyAddress(e.target.value)}
+        />
+        <button
+          onClick={fetchBalance}
+          className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">
+          Get Balance
+        </button>
+        {alchemyInfo && <p className="mt-3 text-green-300">{alchemyInfo}</p>}
+
+        {/* Revenue wallet status */}
+        <div className="mt-6 border-t border-gray-700 pt-4">
+          <h3 className="text-lg font-medium">Revenue Wallet</h3>
+          <button
+            onClick={async () => {
+              const res = await fetch('/api/alchemy/wallet');
+              const data = await res.json();
+              setAlchemyInfo(`Revenue wallet ${data.address} balance ${data.balance}`);
+            }}
+            className="mt-2 px-4 py-2 bg-green-600 rounded hover:bg-green-700"
+          >
+            Refresh Wallet Info
+          </button>
+          <div className="mt-2 flex gap-2">
+            <input
+              type="text"
+              placeholder="Withdraw to address"
+              className="flex-1 p-2 rounded bg-gray-900 text-white"
+              value={withAddress}
+              onChange={(e) => setWithAddress(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Amount ETH"
+              className="w-24 p-2 rounded bg-gray-900 text-white"
+              value={withAmount}
+              onChange={(e) => setWithAmount(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={async () => {
+              if (!withAddress || !withAmount) return;
+              const res = await fetch(`/api/alchemy/wallet/withdraw?to=${withAddress}&amount=${withAmount}`);
+              const data = await res.json();
+              setAlchemyInfo(`Withdraw tx: ${data.txHash}`);
+            }}
+            className="mt-2 px-4 py-2 bg-orange-600 rounded hover:bg-orange-700"
+          >
+            Withdraw
+          </button>
+        </div>
+      </div>
+
+      {/* link to dashboard */}
+      <div className="mt-8">
+        <Link href="/dashboard">
+          <a className="px-6 py-3 bg-purple-600 rounded-xl text-white hover:bg-purple-700">
+            View Revenue Dashboard 📈
+          </a>
+        </Link>
+      </div>
     </div>
   );
 }

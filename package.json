@@ -6,11 +6,26 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "monitor": "node scripts/monitor.js",
+    "subscribe:mined": "node scripts/alchemy-subscribe.js",
+    "self-heal": "node scripts/self-heal.js",
+    "weekly-summary": "node scripts/weekly-summary.js",
+    "monthly-strategy": "node scripts/monthly-strategy.js",
+    "generate-ops-patch": "node scripts/generate-ops-patch.js",
+    "apply-vercel-env": "node scripts/apply-vercel-env.js"
   },
   "dependencies": {
+    "@alch/alchemy-sdk": "^1.2.0",
+    "chart.js": "^4.5.1",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.16.0",
+    "framer-motion": "^12.34.3",
+    "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "react": "19.2.3",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.3",
     "sonner": "^2.0.7"
   },

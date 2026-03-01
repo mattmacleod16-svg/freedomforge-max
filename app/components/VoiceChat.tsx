@@ -5,6 +5,13 @@ import { Mic, MicOff, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 export default function VoiceChat() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -16,7 +23,7 @@ export default function VoiceChat() {
       return;
     }
 
-    const SpeechRecognitionAPI = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionAPI = (typeof window !== 'undefined') ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
     if (!SpeechRecognitionAPI) {
       toast.error("Voice works best in Safari!");
       return;

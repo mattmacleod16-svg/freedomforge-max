@@ -1,0 +1,43 @@
+name: Monthly Strategy Recommendation
+
+on:
+  schedule:
+    - cron: '0 15 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: monthly-strategy
+  cancel-in-progress: true
+
+jobs:
+  strategy:
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+      STRATEGY_LOOKBACK_HOURS: ${{ vars.STRATEGY_LOOKBACK_HOURS || '720' }}
+      STRATEGY_LOG_LIMIT: ${{ vars.STRATEGY_LOG_LIMIT || '4000' }}
+      STRATEGY_SOURCE: github-monthly-strategy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate required secret
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "Missing required GitHub secret: ALERT_WEBHOOK_URL"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and send strategy report
+        run: npm run monthly-strategy

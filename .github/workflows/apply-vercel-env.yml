@@ -1,0 +1,74 @@
+name: Apply Recommended Vercel Env
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Vercel environment target
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - preview
+          - development
+          - all
+      apply_keys:
+        description: Optional comma-separated keys to apply (blank = all from patch file)
+        required: false
+        default: ''
+      dry_run:
+        description: Preview only (no write)
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+      VERCEL_TARGET: ${{ inputs.target }}
+      APPLY_KEYS: ${{ inputs.apply_keys }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      OPS_PATCH_FILE: ops/recommended-env-overrides.env
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate required secrets
+        if: inputs.dry_run == false
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "Missing required secret: VERCEL_TOKEN"
+            exit 1
+          fi
+          if [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "Missing required secret: VERCEL_PROJECT_ID"
+            exit 1
+          fi
+
+      - name: Ensure patch file exists
+        run: |
+          if [ ! -f "$OPS_PATCH_FILE" ]; then
+            echo "Patch file not found: $OPS_PATCH_FILE"
+            echo "Run the Monthly Ops Patch PR workflow first or generate it locally."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply recommended env values
+        run: npm run apply-vercel-env

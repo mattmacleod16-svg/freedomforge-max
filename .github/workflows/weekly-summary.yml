@@ -1,0 +1,43 @@
+name: Weekly Profitability Summary
+
+on:
+  schedule:
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: weekly-profitability-summary
+  cancel-in-progress: true
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+      SUMMARY_LOOKBACK_HOURS: ${{ vars.SUMMARY_LOOKBACK_HOURS || '168' }}
+      SUMMARY_LOG_LIMIT: ${{ vars.SUMMARY_LOG_LIMIT || '2000' }}
+      SUMMARY_SOURCE: github-weekly-summary
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate required secret
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "Missing required GitHub secret: ALERT_WEBHOOK_URL"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and send summary
+        run: npm run weekly-summary

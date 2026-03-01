@@ -1,0 +1,61 @@
+name: Monthly Ops Patch PR
+
+on:
+  schedule:
+    - cron: '20 15 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: monthly-ops-patch-pr
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      PATCH_LOOKBACK_HOURS: ${{ vars.PATCH_LOOKBACK_HOURS || '720' }}
+      PATCH_LOG_LIMIT: ${{ vars.PATCH_LOG_LIMIT || '4000' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate ops patch recommendations
+        run: npm run generate-ops-patch
+
+      - name: Create patch pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/monthly-ops-patch
+          title: "chore(ops): monthly automated parameter patch recommendations"
+          commit-message: "chore(ops): update monthly env patch recommendations"
+          body: |
+            Automated monthly patch recommendations generated from runtime signals.
+
+            Updated files:
+            - `ops/recommended-env-overrides.env`
+            - `ops/strategy-recommendations.md`
+
+            Action items:
+            1. Review proposed env changes.
+            2. Apply selected values to deployment env vars (Vercel/GitHub).
+            3. Monitor weekly summary and self-heal alerts after applying.
+          labels: |
+            automation
+            ops
+          add-paths: |
+            ops/recommended-env-overrides.env
+            ops/strategy-recommendations.md

@@ -1,0 +1,85 @@
+name: Dependabot Auto Merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Classify semver bump
+        id: semver
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.pull_request.title || '';
+            const match = title.match(/ from (\d+)\.(\d+)\.(\d+) to (\d+)\.(\d+)\.(\d+)/i);
+            if (!match) {
+              core.setOutput('type', 'unknown');
+              return;
+            }
+
+            const [_, fromMaj, fromMin, fromPatch, toMaj, toMin, toPatch] = match.map(Number);
+            let type = 'patch';
+            if (toMaj > fromMaj) type = 'major';
+            else if (toMin > fromMin) type = 'minor';
+            else if (toPatch > fromPatch) type = 'patch';
+            else type = 'unknown';
+            core.setOutput('type', type);
+
+      - name: Ensure changed files are package manifests/lockfiles only
+        id: files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              per_page: 100,
+            });
+
+            const allowed = [
+              /^package\.json$/,
+              /^package-lock\.json$/,
+              /^npm-shrinkwrap\.json$/,
+            ];
+
+            const unsafe = files.filter((f) => !allowed.some((rx) => rx.test(f.filename)));
+            core.setOutput('safe', unsafe.length === 0 ? 'true' : 'false');
+
+      - name: Auto approve safe patch/minor PR
+        if: (steps.semver.outputs.type == 'patch' || steps.semver.outputs.type == 'minor') && steps.files.outputs.safe == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              event: 'APPROVE',
+              body: 'Auto-approved safe Dependabot patch/minor update. CI must pass before merge.',
+            });
+
+      - name: Enable auto merge after checks pass
+        if: (steps.semver.outputs.type == 'patch' || steps.semver.outputs.type == 'minor') && steps.files.outputs.safe == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNodeId = context.payload.pull_request.node_id;
+            await github.graphql(`
+              mutation EnableAutoMerge($pullRequestId: ID!) {
+                enablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }) {
+                  pullRequest {
+                    number
+                  }
+                }
+              }
+            `, { pullRequestId: prNodeId });
