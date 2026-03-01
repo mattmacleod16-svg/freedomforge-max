@@ -6,7 +6,7 @@ on:
       endpoint_url:
         description: Ping endpoint URL
         required: true
-        default: https://freedomforge-max.vercel.app/api/status/ping-discord
+        default: https://freedomforge-max-qt5y.vercel.app/api/status/ping-discord
       source:
         description: Source label included in alert
         required: true
