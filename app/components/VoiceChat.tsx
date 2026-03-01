@@ -16,7 +16,7 @@ export default function VoiceChat() {
       return;
     }
 
-    const SpeechRecognitionAPI = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
       toast.error("Voice works best in Safari!");
       return;
