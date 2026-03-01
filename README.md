@@ -106,12 +106,13 @@ Continuous upkeep automation:
 - Auto-merge workflow `.github/workflows/dependabot-automerge.yml` approves and enables merge for safe Dependabot patch/minor updates after checks pass
 
 Weekly profitability reporting:
-- Script: `npm run weekly-summary`
-- Workflow: `.github/workflows/weekly-summary.yml` (runs every Monday at 14:00 UTC + manual trigger)
-- Pulls `/api/alchemy/wallet/logs` and `/api/alchemy/wallet`
-- Posts KPI summary to Discord: balance, payout success rates, amounts sent, gas topups, skips, and failures
-- Optional vars: `SUMMARY_LOOKBACK_HOURS` (default `168`) and `SUMMARY_LOG_LIMIT` (default `2000`)
 
+Daily health snapshot:
+- Workflow: `.github/workflows/daily-health-snapshot.yml` (runs daily at 14:30 UTC + manual trigger)
+- Posts one consolidated Discord update with:
+	- `/api/status` readiness and HTTP status
+	- `/api/alchemy/health` result
+	- latest run outcomes for `ping-discord`, `self-heal`, `weekly-summary`, `monthly-strategy`, and `ops-patch-pr`
 Monthly strategy recommendations:
 - Script: `npm run monthly-strategy`
 - Workflow: `.github/workflows/monthly-strategy.yml` (runs on day 1 of each month at 15:00 UTC + manual trigger)

@@ -1,0 +1,169 @@
+name: Daily Health Snapshot
+
+on:
+  schedule:
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-health-snapshot
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max-qt5y.vercel.app' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Validate required secret
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "Missing required GitHub secret: ALERT_WEBHOOK_URL"
+            exit 1
+          fi
+
+      - name: Build and send Discord snapshot
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+
+          def fetch_json(url, headers=None, timeout=15):
+              req = urllib.request.Request(url, headers=headers or {})
+              with urllib.request.urlopen(req, timeout=timeout) as resp:
+                  body = resp.read().decode('utf-8')
+                  return resp.status, json.loads(body)
+
+
+          def endpoint_status(url):
+              try:
+                  status_code, payload = fetch_json(url)
+                  return status_code, payload, None
+              except Exception as exc:
+                  return None, None, str(exc)
+
+
+          def latest_workflow_run(repo, workflow_file, token):
+              api_url = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow_file}/runs?per_page=1"
+              headers = {
+                  'Authorization': f'Bearer {token}',
+                  'Accept': 'application/vnd.github+json',
+              }
+              try:
+                  _, payload = fetch_json(api_url, headers=headers)
+                  runs = payload.get('workflow_runs', [])
+                  if not runs:
+                      return None
+                  run = runs[0]
+                  return {
+                      'name': run.get('name', workflow_file),
+                      'status': run.get('status', 'unknown'),
+                      'conclusion': run.get('conclusion', ''),
+                      'url': run.get('html_url', ''),
+                  }
+              except Exception as exc:
+                  return {
+                      'name': workflow_file,
+                      'status': 'error',
+                      'conclusion': str(exc),
+                      'url': '',
+                  }
+
+
+          def icon_for_endpoint(ok):
+              return '✅' if ok else '❌'
+
+
+          def icon_for_run(run):
+              if not run:
+                  return '⚪'
+              if run['status'] != 'completed':
+                  return '🟡'
+              return '✅' if run.get('conclusion') == 'success' else '❌'
+
+
+          base_url = os.environ.get('APP_BASE_URL', '').rstrip('/')
+          webhook_url = os.environ['ALERT_WEBHOOK_URL']
+          mention = (os.environ.get('ALERT_MENTION') or '').strip()
+          repo = os.environ['REPO']
+          token = os.environ['GITHUB_TOKEN']
+          run_url = os.environ.get('RUN_URL', '')
+
+          status_url = f"{base_url}/api/status"
+          health_url = f"{base_url}/api/alchemy/health"
+
+          status_code, status_payload, status_err = endpoint_status(status_url)
+          health_code, health_payload, health_err = endpoint_status(health_url)
+
+          app_ok = status_code == 200
+          alchemy_ok = health_code == 200 and (health_payload or {}).get('status') == 'ok'
+          ready = bool((status_payload or {}).get('ready')) if status_payload else False
+
+          workflow_files = [
+              'ping-discord.yml',
+              'self-heal.yml',
+              'weekly-summary.yml',
+              'monthly-strategy.yml',
+              'ops-patch-pr.yml',
+          ]
+          runs = [latest_workflow_run(repo, wf, token) for wf in workflow_files]
+
+          lines = []
+          if mention:
+              lines.append(mention)
+          lines.append('🌅 Daily Health Snapshot')
+          lines.append(f"Repo: `{repo}`")
+          lines.append(f"App status: {icon_for_endpoint(app_ok)} HTTP {status_code if status_code is not None else 'ERR'} (ready={ready})")
+          lines.append(f"Alchemy health: {icon_for_endpoint(alchemy_ok)} HTTP {health_code if health_code is not None else 'ERR'}")
+          if status_err:
+              lines.append(f"status error: {status_err}")
+          if health_err:
+              lines.append(f"alchemy error: {health_err}")
+
+          lines.append('Recent workflow runs:')
+          for run in runs:
+              if not run:
+                  lines.append('- ⚪ no runs yet')
+                  continue
+              summary = run.get('conclusion') or run.get('status')
+              name = run.get('name', 'workflow')
+              url = run.get('url', '')
+              icon = icon_for_run(run)
+              if url:
+                  lines.append(f"- {icon} {name}: {summary} ({url})")
+              else:
+                  lines.append(f"- {icon} {name}: {summary}")
+
+          if run_url:
+              lines.append(f"Snapshot run: {run_url}")
+
+          message = '\n'.join(lines)
+          payload = json.dumps({'content': message, 'text': message}).encode('utf-8')
+          req = urllib.request.Request(
+              webhook_url,
+              data=payload,
+              headers={'Content-Type': 'application/json'},
+              method='POST',
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=20) as resp:
+                  if resp.status < 200 or resp.status >= 300:
+                      raise RuntimeError(f"Webhook returned HTTP {resp.status}")
+              print('Daily snapshot posted to Discord.')
+          except urllib.error.HTTPError as exc:
+              body = exc.read().decode('utf-8', errors='replace')
+              raise RuntimeError(f"Webhook HTTPError {exc.code}: {body}")
+          PY
