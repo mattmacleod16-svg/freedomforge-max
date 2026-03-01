@@ -126,6 +126,7 @@ Automated monthly parameter patch PR:
 	- `ops/strategy-recommendations.md`
 - Opens/updates a pull request with suggested env/config tuning based on runtime reliability and payout data
 - Optional vars: `PATCH_LOOKBACK_HOURS` (default `720`) and `PATCH_LOG_LIMIT` (default `4000`)
+- Optional repo secret: `OPS_PR_TOKEN` (PAT with `repo` scope) to create PRs if default `GITHUB_TOKEN` PR creation is restricted
 
 One-click apply to Vercel envs:
 - Script: `npm run apply-vercel-env`

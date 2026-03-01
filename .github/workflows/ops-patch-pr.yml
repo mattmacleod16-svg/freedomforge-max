@@ -39,6 +39,7 @@ jobs:
       - name: Create patch pull request
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ secrets.OPS_PR_TOKEN || github.token }}
           branch: automation/monthly-ops-patch
           title: "chore(ops): monthly automated parameter patch recommendations"
           commit-message: "chore(ops): update monthly env patch recommendations"
@@ -53,9 +54,6 @@ jobs:
             1. Review proposed env changes.
             2. Apply selected values to deployment env vars (Vercel/GitHub).
             3. Monitor weekly summary and self-heal alerts after applying.
-          labels: |
-            automation
-            ops
           add-paths: |
             ops/recommended-env-overrides.env
             ops/strategy-recommendations.md
