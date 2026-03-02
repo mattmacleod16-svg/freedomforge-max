@@ -94,11 +94,28 @@ export async function GET(req: Request) {
     }
 
     if (path === '/wallet/distribute') {
-      const results = await distributeRevenue();
+      const shardParam = url.searchParams.get('shard');
+      const shardsParam = url.searchParams.get('shards');
+      const botId = url.searchParams.get('botId') || undefined;
+      const parsedShardIndex = shardParam !== null ? parseInt(shardParam, 10) : NaN;
+      const parsedTotalShards = shardsParam !== null ? parseInt(shardsParam, 10) : NaN;
+      const shardIndex = Number.isFinite(parsedShardIndex) ? parsedShardIndex : undefined;
+      const totalShards = Number.isFinite(parsedTotalShards) ? parsedTotalShards : undefined;
+
+      const results = await distributeRevenue({
+        shardIndex,
+        totalShards,
+        botId,
+      });
       if (!results) {
         sendAlert('Revenue distribution returned null (possibly no wallet or no recipients)');
       }
-      return Response.json({ results });
+      return Response.json({
+        results,
+        shardIndex: shardIndex ?? null,
+        totalShards: totalShards ?? null,
+        botId: botId || null,
+      });
     }
 
     return Response.json({ error: 'unknown alchemy path' }, { status: 404 });

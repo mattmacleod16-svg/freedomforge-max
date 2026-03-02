@@ -1,38 +1,53 @@
-name: Distribute revenue
+name: Distribute revenue (horizontal bots)
+
 on:
   schedule:
-    - cron: "*/15 * * * *"  # every 15 minutes
+    - cron: "*/15 * * * *"
   workflow_dispatch:
+    inputs:
+      bot_shards:
+        description: Number of bot shards to run (1-4)
+        required: false
+        default: "2"
 
 concurrency:
-  group: distribute-revenue
+  group: distribute-revenue-horizontal
   cancel-in-progress: true
 
 jobs:
-  send:
+  distribute:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     env:
-      HEALTH_URL: https://freedomforge-max-qt5y.vercel.app/api/alchemy/health
-      DISTRIBUTION_URL: https://freedomforge-max-qt5y.vercel.app/api/alchemy/wallet/distribute
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max-qt5y.vercel.app' }}
+      HEALTH_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max-qt5y.vercel.app' }}/api/alchemy/health
       ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
       ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
-      BOT_SHARDS: ${{ vars.BOT_SHARDS || '1' }}
+      BOT_SHARDS: ${{ inputs.bot_shards || vars.BOT_SHARDS || '2' }}
+      SHARD_INDEX: ${{ matrix.shard }}
     steps:
-      - name: Skip single-bot scheduler when horizontal mode is active
+      - name: Skip shard when out of range
+        id: should_run
         run: |
-          if [ "$BOT_SHARDS" -gt 1 ]; then
-            echo "BOT_SHARDS=$BOT_SHARDS, skipping single-bot distribute workflow"
-            exit 0
+          if [ "$SHARD_INDEX" -ge "$BOT_SHARDS" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping shard $SHARD_INDEX (BOT_SHARDS=$BOT_SHARDS)"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Check service health
+        if: steps.should_run.outputs.run == 'true'
         run: |
           status=$(curl -o /dev/null -sS -w "%{http_code}" --connect-timeout 10 --max-time 45 --retry 2 --retry-delay 2 --retry-connrefused "$HEALTH_URL")
           if [ "$status" -ne 200 ]; then
             echo "health endpoint returned $status"
             if [ -n "$ALERT_WEBHOOK_URL" ]; then
-              msg="Service health check failed (status $status)"
+              msg="Horizontal distribution health check failed (status $status, shard $SHARD_INDEX/$BOT_SHARDS)"
               if [ -n "$ALERT_MENTION" ]; then
                 msg="$ALERT_MENTION $msg"
               fi
@@ -42,16 +57,19 @@ jobs:
             fi
             exit 1
           fi
-      - name: Invoke distribution endpoint and check status
+
+      - name: Invoke shard distribution endpoint
+        if: steps.should_run.outputs.run == 'true'
         run: |
-          response=$(curl -sS --connect-timeout 10 --max-time 90 --retry 2 --retry-delay 3 --retry-connrefused -w "\n%{http_code}" "$DISTRIBUTION_URL")
+          url="$APP_BASE_URL/api/alchemy/wallet/distribute?shard=$SHARD_INDEX&shards=$BOT_SHARDS&botId=gh-bot-$SHARD_INDEX"
+          response=$(curl -sS --connect-timeout 10 --max-time 90 --retry 2 --retry-delay 3 --retry-connrefused -w "\n%{http_code}" "$url")
           body=$(echo "$response" | sed '$d')
           status=$(echo "$response" | tail -n1)
 
           if [ "$status" -ne 200 ]; then
             echo "distribution call failed with status $status"
             if [ -n "$ALERT_WEBHOOK_URL" ]; then
-              msg="Distribution cron hit failed (status $status)"
+              msg="Horizontal distribution failed (status $status, shard $SHARD_INDEX/$BOT_SHARDS)"
               if [ -n "$ALERT_MENTION" ]; then
                 msg="$ALERT_MENTION $msg"
               fi
@@ -74,23 +92,9 @@ jobs:
               print(f"Distribution response is not valid JSON: {exc}")
               sys.exit(1)
 
-          results = payload.get('results')
-          if results is None:
-              print(f"Distribution returned null results: {payload}")
+          if 'results' not in payload:
+              print(f"Distribution payload missing results: {payload}")
               sys.exit(1)
 
-          print('Distribution response validated')
+          print('Shard distribution response validated')
           PY
-
-          if [ "$?" -ne 0 ]; then
-            if [ -n "$ALERT_WEBHOOK_URL" ]; then
-              msg="Distribution returned invalid payload"
-              if [ -n "$ALERT_MENTION" ]; then
-                msg="$ALERT_MENTION $msg"
-              fi
-              curl -sSL -X POST -H "Content-Type: application/json" \
-                   -d '{"content":"'"$msg"'","text":"'"$msg"'"}' \
-                   "$ALERT_WEBHOOK_URL"
-            fi
-            exit 1
-          fi

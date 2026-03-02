@@ -10,6 +10,12 @@ import { sendAlert } from '../alerts';
 import { ensureRevenueWalletHasGas } from '../gasTopup';
 import { logEvent } from '../logger';
 
+type DistributionOptions = {
+  shardIndex?: number;
+  totalShards?: number;
+  botId?: string;
+};
+
 let alchemy: any | null = null;
 let rpcProvider: JsonRpcProvider | null = null;
 
@@ -210,16 +216,30 @@ export async function withdrawFromRevenue(to: string, amountEther: string): Prom
  * Utility to disperse funds automatically to configured recipients.
  * Splits the full wallet balance evenly across all authorized addresses.
  */
-export async function distributeRevenue(): Promise<{[address:string]: string | null} | null> {
-  const recipients = getAuthorizedRecipients();
+export async function distributeRevenue(options: DistributionOptions = {}): Promise<{[address:string]: string | null} | null> {
+  const allRecipients = getAuthorizedRecipients();
+  const totalShardsRaw = options.totalShards ?? parseInt(process.env.BOT_SHARDS || '1', 10);
+  const totalShards = Number.isFinite(totalShardsRaw) ? Math.max(1, totalShardsRaw) : 1;
+  const shardIndexRaw = options.shardIndex ?? parseInt(process.env.BOT_SHARD_INDEX || '0', 10);
+  const shardIndex = Number.isFinite(shardIndexRaw) ? Math.max(0, Math.min(totalShards - 1, shardIndexRaw)) : 0;
+  const botId = options.botId || process.env.BOT_ID || `bot-${shardIndex}`;
+
+  const recipients = allRecipients.filter((_, idx) => (idx % totalShards) === shardIndex);
+
   const w = initRevenueWallet();
   if (!w) {
     sendAlert('Revenue wallet initialization failed before distribution');
     return null;
   }
-  if (recipients.length === 0) {
+
+  if (allRecipients.length === 0) {
     sendAlert('No recipients configured for revenue distribution');
     return null;
+  }
+
+  if (recipients.length === 0) {
+    await logEvent('distribution_skipped_empty_shard', { wallet: w.address, botId, shardIndex, totalShards, allRecipientsCount: allRecipients.length });
+    return {};
   }
 
   const provider = w.provider;
@@ -231,11 +251,19 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
   const maxRetries = Math.max(1, parseInt(process.env.DISTRIBUTION_MAX_RETRIES || '3', 10));
   const retryBaseMs = Math.max(100, parseInt(process.env.DISTRIBUTION_RETRY_BASE_MS || '1000', 10));
   const alertOnSuccess = String(process.env.ALERT_ON_SUCCESS || 'false').toLowerCase() === 'true';
+  const gasReserveEth = process.env.GAS_RESERVE_ETH || process.env.SELF_SUSTAIN_RESERVE_ETH || '0.02';
+  const reinvestBpsRaw = parseInt(process.env.SELF_SUSTAIN_REINVEST_BPS || '2000', 10);
+  const reinvestBps = Math.max(0, Math.min(9000, Number.isFinite(reinvestBpsRaw) ? reinvestBpsRaw : 2000));
+  const keepBps = 10000 - reinvestBps;
 
   // ensure revenue wallet has gas before attempting distribution
   try {
     const topupOk = await ensureRevenueWalletHasGas(w.address);
-    await logEvent('gas_check', { wallet: w.address, topupOk });
+    await logEvent('gas_check', { wallet: w.address, topupOk, botId, shardIndex, totalShards });
+    if (!topupOk) {
+      await logEvent('distribution_skipped_no_gas', { wallet: w.address, botId, shardIndex, totalShards });
+      return {};
+    }
   } catch (err) {
     console.error('Gas top-up check failed', err);
     sendAlert(`Gas top-up check failed: ${err}`);
@@ -281,8 +309,31 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
       return null;
     }
 
+    const nativeBalance = await provider.getBalance(w.address);
+    const gasReserve = parseEther(gasReserveEth);
+    if (nativeBalance < gasReserve) {
+      await logEvent('distribution_skipped_token_gas_reserve', {
+        wallet: w.address,
+        botId,
+        shardIndex,
+        totalShards,
+        token: payoutToken,
+        nativeBalance: nativeBalance.toString(),
+        gasReserve: gasReserve.toString(),
+      });
+      return {};
+    }
+
     const tokenResults: {[address:string]: string | null} = {};
-    await logEvent('distribution_start_token', { wallet: w.address, token: payoutToken, available: tokenBalance.toString(), recipients });
+    await logEvent('distribution_start_token', {
+      wallet: w.address,
+      botId,
+      shardIndex,
+      totalShards,
+      token: payoutToken,
+      available: tokenBalance.toString(),
+      recipients,
+    });
 
     for (const addr of recipients) {
       let success = false;
@@ -293,7 +344,7 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
           await tx.wait();
           tokenResults[addr] = tx.hash;
           success = true;
-          await logEvent('transfer_token', { to: addr, token: payoutToken, amount: tokenShare.toString(), txHash: tx.hash, wallet: w.address });
+          await logEvent('transfer_token', { to: addr, token: payoutToken, amount: tokenShare.toString(), txHash: tx.hash, wallet: w.address, botId, shardIndex, totalShards });
           if (alertOnSuccess) {
             sendAlert(`Token payout sent to ${addr}: ${tokenShare.toString()} wei of ${payoutToken} (tx ${tx.hash})`);
           }
@@ -308,7 +359,7 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
         console.error('token distribute error to', addr, lastError);
         tokenResults[addr] = null;
         sendAlert(`Failed token payout to ${addr} after multiple attempts: ${lastError}`);
-        await logEvent('transfer_token_failed', { to: addr, token: payoutToken, error: String(lastError), wallet: w.address });
+        await logEvent('transfer_token_failed', { to: addr, token: payoutToken, error: String(lastError), wallet: w.address, botId, shardIndex, totalShards });
       }
     }
 
@@ -325,12 +376,24 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
     return null;
   }
 
-  // subtract a small fee reserve (0.001 ETH)
-  const feeReserve = parseEther('0.001');
-  if (balanceWei <= feeReserve) return null;
+  const gasReserve = parseEther(gasReserveEth);
+  if (balanceWei <= gasReserve) {
+    await logEvent('distribution_skipped_native_gas_reserve', {
+      wallet: w.address,
+      botId,
+      shardIndex,
+      totalShards,
+      balanceWei: balanceWei.toString(),
+      gasReserveWei: gasReserve.toString(),
+    });
+    return {};
+  }
 
-  const available = balanceWei - feeReserve;
-  const share = available / BigInt(recipients.length);
+  const availableAfterReserve = balanceWei - gasReserve;
+  const distributable = (availableAfterReserve * BigInt(keepBps)) / BigInt(10000);
+  if (distributable <= BigInt(0)) return {};
+
+  const share = distributable / BigInt(recipients.length);
   if (share <= BigInt(0)) return null;
 
   const minPayoutEth = process.env.MIN_PAYOUT_ETH || '0';
@@ -338,6 +401,9 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
   if (share < minPayoutWei) {
     await logEvent('distribution_skipped_threshold', {
       wallet: w.address,
+      botId,
+      shardIndex,
+      totalShards,
       share: share.toString(),
       minPayoutWei: minPayoutWei.toString(),
     });
@@ -346,7 +412,17 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
 
   const results: {[address:string]: string | null} = {};
 
-  await logEvent('distribution_start', { wallet: w.address, available: available.toString(), recipients });
+  await logEvent('distribution_start', {
+    wallet: w.address,
+    botId,
+    shardIndex,
+    totalShards,
+    availableAfterReserve: availableAfterReserve.toString(),
+    distributable: distributable.toString(),
+    gasReserveWei: gasReserve.toString(),
+    reinvestBps,
+    recipients,
+  });
 
   for (const addr of recipients) {
     let success = false;
@@ -357,7 +433,7 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
         await tx.wait();
         results[addr] = tx.hash;
         success = true;
-        await logEvent('transfer', { to: addr, amount: share.toString(), txHash: tx.hash, wallet: w.address });
+        await logEvent('transfer', { to: addr, amount: share.toString(), txHash: tx.hash, wallet: w.address, botId, shardIndex, totalShards });
         if (alertOnSuccess) {
           sendAlert(`Revenue payout sent to ${addr}: ${share.toString()} wei native ETH (tx ${tx.hash})`);
         }
@@ -372,7 +448,7 @@ export async function distributeRevenue(): Promise<{[address:string]: string | n
       console.error('distribute error to', addr, lastError);
       results[addr] = null;
       sendAlert(`Failed to send revenue share to ${addr} after multiple attempts: ${lastError}`);
-      await logEvent('transfer_failed', { to: addr, error: String(lastError), wallet: w.address });
+      await logEvent('transfer_failed', { to: addr, error: String(lastError), wallet: w.address, botId, shardIndex, totalShards });
     }
   }
 

@@ -43,6 +43,15 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 	- `MIN_PAYOUT_TOKEN_WEI` minimum per-recipient token payout in raw wei (default `0`)
 	- `DISTRIBUTION_MAX_RETRIES` and `DISTRIBUTION_RETRY_BASE_MS` for retry/backoff behavior
 	- `ALERT_ON_SUCCESS=true` to send webhook notifications for successful payouts
+- Self-sustaining payout mode (no constant manual topups):
+	- `GAS_RESERVE_ETH` native ETH kept in the revenue wallet before payouts (default `0.02`)
+	- `SELF_SUSTAIN_REINVEST_BPS` basis points of post-reserve funds retained for growth (default `2000` = 20%)
+	- `FUNDING_PRIVATE_KEY` optional treasury key for automatic gas topups when below threshold
+- Horizontal scaling:
+	- Distribution endpoint accepts shard params: `/api/alchemy/wallet/distribute?shard=0&shards=2&botId=bot-0`
+	- Workflow `.github/workflows/distribute-horizontal.yml` runs up to 4 shard bots in parallel
+	- Configure `BOT_SHARDS` repo variable (or manual workflow input) for active shard count
+- Optional future AA sponsorship config: `ALCHEMY_GAS_POLICY_ID` (reserved for smart-account migration path)
 - Optional alerting: set `ALERT_WEBHOOK_URL` (and optionally `ALERT_SECRET`) to receive notifications if distributions fail or the wallet misbehaves
 - Optional Discord ping: set `ALERT_MENTION` to `<@USER_ID>` or `<@&ROLE_ID>` to prepend mentions on Discord webhook alerts
 - `HEALTH_URL` (used in cron workflows) should point to `<your‑app>/api/alchemy/health` so uptime jobs can detect downtime
@@ -106,6 +115,9 @@ Continuous upkeep automation:
 - Dependabot `.github/dependabot.yml` opens weekly update PRs for npm + GitHub Actions
 - Dependabot groups patch/minor npm updates to reduce PR noise
 - Auto-merge workflow `.github/workflows/dependabot-automerge.yml` approves and enables merge for safe Dependabot patch/minor updates after checks pass
+- Revenue distribution workflows:
+	- `.github/workflows/distribute.yml` single-bot scheduler
+	- `.github/workflows/distribute-horizontal.yml` parallel shard bots for horizontal scaling
 
 Weekly profitability reporting:
 
