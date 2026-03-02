@@ -33,8 +33,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Data ingestion from Wikipedia, ArXiv, GitHub, etc.
 - Alchemy blockchain integration (Opera support) with a dedicated revenue wallet
 - Optional ERC‑20 token tracking: set `TRACKED_TOKENS` (comma-separated contract addresses) and the dashboard will show balances
-- The revenue wallet is auto‑generated if no `WALLET_PRIVATE_KEY` is supplied; fund the displayed address with Base ETH (use `/api/alchemy/wallet` to fetch it or `/api/alchemy/wallet/create` to generate a new one) to start revenue collection and distribution.
-- Revenue wallet can automatically distribute funds to a configurable list of addresses (`REVENUE_RECIPIENTS`)
+- Set `WALLET_PRIVATE_KEY` to keep one stable production revenue wallet address across deploys.
+- `WALLET_AUTO_GENERATE=true` is for local testing only (ephemeral wallet); keep it unset/false in production.
+- Revenue wallet can automatically distribute funds to a configurable list of addresses (`REVENUE_RECIPIENTS`). Use a single recipient value if you want one destination wallet.
+- Optional gas self-funding: set `FUNDING_PRIVATE_KEY` so the bot auto-topups gas when revenue wallet balance drops below `GAS_TOPUP_THRESHOLD`.
 - Optional token payouts: set `PAYOUT_TOKEN_ADDRESS` to distribute an ERC-20 token balance instead of native ETH (for Base bridged WETH use `0x4200000000000000000000000000000000000006` and set `ALCHEMY_NETWORK=base-mainnet`)
 - Distribution tuning:
 	- `MIN_PAYOUT_ETH` minimum per-recipient native ETH payout (default `0`)

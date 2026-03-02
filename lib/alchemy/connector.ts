@@ -135,6 +135,7 @@ export async function getTokenBalances(address: string, tokens?: string[]): Prom
 
 let revenueWallet: Wallet | null = null;
 let generatedWalletAddress: string | null = null;
+let missingWalletConfigAlerted = false;
 
 export function getGeneratedWalletAddress(): string | null {
   return generatedWalletAddress;
@@ -143,16 +144,25 @@ export function getGeneratedWalletAddress(): string | null {
 export function initRevenueWallet(): Wallet | null {
   if (revenueWallet) return revenueWallet;
   let privateKey = process.env.WALLET_PRIVATE_KEY;
+  const autoGenerateWallet = String(process.env.WALLET_AUTO_GENERATE || 'false').toLowerCase() === 'true';
 
   if (!privateKey) {
-    // auto-generate a random wallet if none provided
+    if (!autoGenerateWallet) {
+      if (!missingWalletConfigAlerted) {
+        const msg = 'No WALLET_PRIVATE_KEY configured; revenue wallet disabled. Set WALLET_PRIVATE_KEY to use one stable address. Set WALLET_AUTO_GENERATE=true only for local testing.';
+        console.error(msg);
+        sendAlert(msg);
+        missingWalletConfigAlerted = true;
+      }
+      return null;
+    }
+
     const generated = Wallet.createRandom();
     privateKey = generated.privateKey;
     generatedWalletAddress = generated.address;
-    console.warn("🤖 No WALLET_PRIVATE_KEY env set; agent generated random wallet:", generated.address);
-    console.warn("💰 Fund this address on Base network and it will start distributing revenue");
-    sendAlert(`🤖 Agent auto-generated wallet: ${generated.address} — fund this address on Base and revenue will flow`);
-    return null;
+    console.warn("🤖 WALLET_AUTO_GENERATE=true and no WALLET_PRIVATE_KEY set; generated temporary wallet:", generated.address);
+    console.warn("⚠️ This wallet is ephemeral and should only be used for local testing");
+    sendAlert(`🤖 Temporary wallet generated (WALLET_AUTO_GENERATE=true): ${generated.address} — set WALLET_PRIVATE_KEY for a stable production address`);
   }
   const provider = getRpcProvider();
   if (!provider) return null;
