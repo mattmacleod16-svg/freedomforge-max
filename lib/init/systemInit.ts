@@ -7,6 +7,9 @@ import { initializeSynthesis } from '@/lib/synthesis/orchestrator';
 import { loadBuiltInDatasets, fetchAndIngestWikipediaCategory, fetchAndIngestArXivPapers, fetchAndIngestGitHubTrending } from '@/lib/ingestion/dataLoader';
 import { initAlchemy } from '@/lib/alchemy/connector';
 import { initializeAutonomyDirector } from '@/lib/intelligence/autonomyDirector';
+import { initializeMarketFeatureStore, maybeRefreshMarketFeatureStore } from '@/lib/intelligence/marketFeatureStore';
+import { ensureMarketForecast, initializeForecastEngine, resolveDueForecasts } from '@/lib/intelligence/forecastEngine';
+import { initializeChampionPolicy } from '@/lib/intelligence/championPolicy';
 
 let isInitialized = false;
 let initializationPromise: Promise<void> | null = null;
@@ -46,6 +49,21 @@ async function performInitialization(): Promise<void> {
     console.log('1️⃣.5️⃣  Initializing autonomy director...');
     initializeAutonomyDirector();
     console.log('   ✅ Autonomy director ready\n');
+
+    console.log('1️⃣.7️⃣  Initializing market intelligence...');
+    initializeMarketFeatureStore();
+    await maybeRefreshMarketFeatureStore();
+    console.log('   ✅ Market intelligence ready\n');
+
+    console.log('1️⃣.8️⃣  Initializing forecast engine...');
+    initializeForecastEngine();
+    await resolveDueForecasts();
+    await ensureMarketForecast();
+    console.log('   ✅ Forecast engine ready\n');
+
+    console.log('1️⃣.9️⃣  Initializing model policy...');
+    initializeChampionPolicy();
+    console.log('   ✅ Champion/challenger policy ready\n');
 
     // 2. Load initial knowledge base
     console.log('2️⃣  Loading knowledge base...');

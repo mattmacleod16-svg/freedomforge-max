@@ -3,12 +3,18 @@
  * Combines multiple sources (web search, RAG, models) into coherent responses
  */
 
-import { getMultiModelResponse, initializeModels } from '../models/modelOrchestrator';
+import { getAvailableModels, getMultiModelResponse, initializeModels } from '../models/modelOrchestrator';
 import { enhancePromptWithWebSearch } from '../search/webSearch';
 import { enhancePromptWithKnowledgeBase, initializeRAG } from '../rag/vectorStore';
 import { getLatestBlock, getBalance } from '../alchemy/connector';
 import { initializeAdaptiveIntelligence, runAdaptiveDecisionLoop } from '@/lib/intelligence/adaptiveCortex';
 import { initializeAutonomyDirector, runAutonomyDirector } from '@/lib/intelligence/autonomyDirector';
+import { initializeMarketFeatureStore, maybeRefreshMarketFeatureStore } from '@/lib/intelligence/marketFeatureStore';
+import { ensureMarketForecast, initializeForecastEngine, resolveDueForecasts, getForecastSummary } from '@/lib/intelligence/forecastEngine';
+import { initializeChampionPolicy, recordChampionOutcome, selectChampionChallengerRouting } from '@/lib/intelligence/championPolicy';
+import { initializeMemoryEngine, recallMemories, rememberEpisode } from '@/lib/intelligence/memoryEngine';
+import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
+import { buildVendorStrategyContext } from '@/lib/intelligence/vendorStack';
 
 interface SynthesisResult {
   response: string;
@@ -77,6 +83,10 @@ interface SynthesisResult {
 export async function initializeSynthesis() {
   await initializeModels();
   await initializeRAG();
+  initializeMarketFeatureStore();
+  initializeForecastEngine();
+  initializeChampionPolicy();
+  initializeMemoryEngine();
   initializeAdaptiveIntelligence();
   initializeAutonomyDirector();
   console.log('Knowledge synthesis engine initialized');
@@ -91,6 +101,14 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
   let enhancedPrompt = userQuery;
   let searchResultCount = 0;
   let kbHitCount = 0;
+  let marketContext: Awaited<ReturnType<typeof maybeRefreshMarketFeatureStore>> = null;
+  let recalledMemories: ReturnType<typeof recallMemories> = [];
+  const forecastContext = {
+    probability: 0.5,
+    confidence: 0.5,
+    brier: 0.25,
+  };
+  const vendorContext = buildVendorStrategyContext();
 
   try {
     // Step 0: Optionally fetch alchemy data if relevant
@@ -121,6 +139,49 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     searchResultCount = webContext.sources.length;
     sources.push(...webContext.sources.map((s) => s.url));
 
+    // Step 1.5: Add market regime context
+    marketContext = await maybeRefreshMarketFeatureStore();
+    if (marketContext) {
+      enhancedPrompt += `\n\n[market regime: ${marketContext.regime}; confidence: ${marketContext.confidence.toFixed(2)}; signals: ${(marketContext.signals || []).join(', ') || 'none'}; btc_24h_change: ${marketContext.btcChange24h.toFixed(3)}]`;
+      sources.push(`market://regime/${marketContext.regime}`);
+    }
+
+    recalledMemories = recallMemories(userQuery, {
+      topK: 5,
+      regime: marketContext?.regime || 'unknown',
+    });
+    if (recalledMemories.length > 0) {
+      enhancedPrompt += `\n\n[memory recall]\n${recalledMemories
+        .map((item, index) => `${index + 1}. q="${item.query.slice(0, 120)}" reward=${item.reward.toFixed(2)} risk=${item.riskScore.toFixed(2)} note="${item.responseSummary.slice(0, 140)}"`)
+        .join('\n')}`;
+      sources.push(...recalledMemories.map((item) => `memory://${item.id}`));
+    }
+
+    await resolveDueForecasts();
+    const forecast = await ensureMarketForecast();
+    const forecastSummary = getForecastSummary();
+    if (forecast) {
+      forecastContext.probability = forecast.probability;
+      forecastContext.confidence = forecast.confidence;
+      enhancedPrompt += `\n\n[forecast: ${forecast.question}; probability=${forecast.probability.toFixed(3)}; confidence=${forecast.confidence.toFixed(3)}]`;
+      sources.push(`forecast://${forecast.id}`);
+    }
+    if (typeof forecastSummary.averageBrierScore === 'number') {
+      forecastContext.brier = forecastSummary.averageBrierScore;
+      enhancedPrompt += `\n\n[forecast calibration brier=${forecastSummary.averageBrierScore.toFixed(4)}]`;
+    }
+
+    const opportunityPlan = getAdaptiveOpportunityPlan(userQuery);
+    if (opportunityPlan.opportunities.length > 0) {
+      const primary = opportunityPlan.opportunities[0];
+      enhancedPrompt += `\n\n[opportunity signal]\nprimary=${primary.title}; direction=${primary.direction}; score=${primary.score.toFixed(3)}; conviction=${primary.conviction.toFixed(3)}; rationale=${primary.rationale}`;
+      sources.push(`opportunity://${primary.id}`);
+    }
+
+    enhancedPrompt += `\n\n[text interaction policy]\nmode=${vendorContext.textFirst.mode}; rules=${vendorContext.textFirst.policy.join(' | ')}`;
+    enhancedPrompt += `\n\n[external strategy capabilities]\nbenefits=${vendorContext.topBenefits.slice(0, 10).join('; ')}\nhooks=${vendorContext.topHooks.slice(0, 12).join('; ')}`;
+    sources.push('vendor://strategy-stack');
+
     // Step 2: Enhance with knowledge base
     console.log('📚 Checking knowledge base...');
     const kbEnhancedPrompt = await enhancePromptWithKnowledgeBase(enhancedPrompt);
@@ -130,7 +191,17 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
 
     // Step 3: Get responses from multiple models
     console.log('🤖 Querying multiple AI models...');
-    const modelResponses = await getMultiModelResponse(enhancedPrompt, 2);
+    const routing = selectChampionChallengerRouting({
+      availableModels: getAvailableModels(),
+      regime: marketContext?.regime || 'unknown',
+      forecastBrierScore: forecastContext.brier,
+      forecastConfidence: forecastContext.confidence,
+      marketConfidence: marketContext?.confidence ?? 0.5,
+    });
+
+    const modelResponses = await getMultiModelResponse(enhancedPrompt, routing.modelCount, {
+      preferredModels: routing.preferredModels,
+    });
     const modelsUsed = modelResponses.map((r) => r.model);
 
     const adaptiveDecision = await runAdaptiveDecisionLoop({
@@ -142,6 +213,8 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     const selectedResponse = adaptiveDecision?.response ||
       (modelResponses.length > 0 ? modelResponses[0].response : 'Unable to generate response');
 
+    const selectedModel = adaptiveDecision?.modelsUsed?.[0] || modelResponses[0]?.model;
+
     const autonomyDecision = await runAutonomyDirector({
       userQuery,
       selectedResponse,
@@ -149,6 +222,36 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       sources,
       riskScore: adaptiveDecision?.riskScore ?? 0.5,
       driftScore: adaptiveDecision?.driftScore ?? 0,
+      marketRegime: marketContext?.regime || 'unknown',
+      marketConfidence: marketContext?.confidence ?? 0.5,
+      marketSignals: marketContext?.signals || [],
+      forecastProbability: forecastContext.probability,
+      forecastConfidence: forecastContext.confidence,
+      forecastBrierScore: forecastContext.brier,
+    });
+
+    if (selectedModel) {
+      recordChampionOutcome({
+        regime: marketContext?.regime || 'unknown',
+        queriedModels: modelsUsed,
+        selectedModel,
+        reward: adaptiveDecision?.reward ?? autonomyDecision.confidence,
+        riskScore: adaptiveDecision?.riskScore ?? 0.5,
+        forecastBrierScore: forecastContext.brier,
+      });
+    }
+
+    rememberEpisode({
+      query: userQuery,
+      responseSummary: autonomyDecision.finalResponse,
+      regime: marketContext?.regime || 'unknown',
+      reward: adaptiveDecision?.reward ?? autonomyDecision.confidence,
+      confidence: autonomyDecision.confidence,
+      riskScore: adaptiveDecision?.riskScore ?? 0.5,
+      forecastProbability: forecastContext.probability,
+      forecastBrier: forecastContext.brier,
+      sources,
+      tags: ['synthesis', 'adaptive'],
     });
 
     // Step 4: Synthesize best response

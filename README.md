@@ -55,7 +55,52 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Optional alerting: set `ALERT_WEBHOOK_URL` (and optionally `ALERT_SECRET`) to receive notifications if distributions fail or the wallet misbehaves
 - Optional Discord ping: set `ALERT_MENTION` to `<@USER_ID>` or `<@&ROLE_ID>` to prepend mentions on Discord webhook alerts
 - `HEALTH_URL` (used in cron workflows) should point to `<your‑app>/api/alchemy/health` so uptime jobs can detect downtime
-- Dashboard access is protected by a simple login; set `DASHBOARD_USER` and `DASHBOARD_PASS` in your environment and those credentials will be required when visiting `/dashboard`.  The UI also displays any ERC‑20 token balances if you define `TRACKED_TOKENS`.
+- Dashboard access uses an in-app login page at `/login`; set `DASHBOARD_USER`, `DASHBOARD_PASS`, and `DASHBOARD_SESSION_SECRET` in your environment for secure session-based access to `/dashboard`.
+- Optional protocol integrations:
+	- `ZORA_RPC_URL` enables Zora protocol health checks (`/api/status/protocols`)
+	- `VVV_AI_HEALTH_URL` enables VVV AI protocol health checks (optional `VVV_AI_API_KEY` bearer auth)
+	- Agent protocol stack (all visible in `/api/status/protocols`):
+		- `MCP_ENABLED=true` + optional `MCP_HEALTH_URL` (Model Context Protocol)
+		- `ACP_ENABLED=true` + optional `ACP_HEALTH_URL` (Agent Communication Protocol)
+		- `A2A_ENABLED=true` + optional `A2A_HEALTH_URL` (Agent-to-Agent Protocol)
+		- `AUI_ENABLED=true` + optional `AUI_HEALTH_URL` (Agent-User Interaction Protocol)
+- Emotion-aware ElevenLabs TTS API: `POST /api/chat/tts`
+	- Required: `ELEVENLABS_API_KEY`
+	- Optional: `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`
+	- Supports `emotion` values: `neutral`, `positive`, `concerned`, `urgent`
+
+Text-first interaction policy:
+- The app prioritizes typed exchanges for reliability/auditability.
+- Voice playback is optional and manual via ElevenLabs endpoint.
+
+Vendor capability stack (benefit capture + optional health checks):
+- Uses strategy primitives inspired by Acorns, SignalStack, Tickeron, TrendSpider, BlackBox Stocks, Forex Fury, Capitalise.ai, EquBot, Kensho, Acuity, 3Commas, OptionsAI, and Kavout.
+- Endpoint: `/api/status/vendor-stack`
+- Optional per-vendor env flags (default disabled):
+	- `<VENDOR>_ENABLED=true` and optional `<VENDOR>_HEALTH_URL`
+	- Vendor keys: `ACORNS`, `SIGNALSTACK`, `TICKERON`, `TRENDSPIDER`, `BLACKBOXSTOCKS`, `FOREXFURY`, `CAPITALISEAI`, `EQUBOT`, `KENSHO`, `ACUITY`, `THREECOMMAS`, `OPTIONSAI`, `KAVOUT`
+
+X audience growth automation (for `@Mac_man17`):
+- Status endpoint: `/api/status/x`
+- Trigger endpoint: `POST /api/x/automation`
+- Script: `npm run x-growth`
+- Workflow: `.github/workflows/x-growth.yml` (every 6 hours, default dry-run)
+- Set GitHub repo variable `X_SCHEDULED_LIVE=true` to make scheduled runs post live (`false`/unset keeps schedule in dry-run)
+
+Required environment for posting:
+- `X_HANDLE=@Mac_man17`
+- `X_ACCESS_TOKEN` (preferred) or `X_BEARER_TOKEN` with tweet-write permissions
+
+Recommended safety controls:
+- `X_DRY_RUN=true` (default) until validated
+- `X_POST_COOLDOWN_MINUTES=120`
+- `X_POST_DAILY_LIMIT=3`
+- `X_AUTOMATION_SECRET=<strong-random-secret>` for endpoint/workflow authorization
+
+Profile automation setup notes:
+- In X account settings for `@Mac_man17`, use your automation/app connection options and authorize the app credentials used above.
+- After credentials are set, run one manual dry-run (`npm run x-growth`) and then one live run (`X_DRY_RUN=false npm run x-growth`) to verify posting.
+- Keep posting policy text-first and informative to avoid spam-like behavior and maximize sustainable reach.
 - Health check endpoint `/api/alchemy/health` returns `{status:'ok'}` for uptime monitors
 - Extensible via APIs under `/api/*` (including `/api/alchemy/wallet` for managing funds and `/api/alchemy/wallet/distribute` to trigger payout)
 
@@ -172,10 +217,10 @@ Chained post-merge preview notification:
 		- `AUTO_APPLY_MAX_GAS_TOPUP_AMOUNT=0.2`
 
 Remote dashboard access:
-- Main app: `https://freedomforge-max-qt5y.vercel.app`
-- Dashboard: `https://freedomforge-max-qt5y.vercel.app/dashboard`
-- Logs view: `https://freedomforge-max-qt5y.vercel.app/api/alchemy/wallet/logs?limit=50`
-- Dashboard is protected with HTTP Basic Auth via `DASHBOARD_USER` and `DASHBOARD_PASS`
+- Main app: `https://freedomforge-max.vercel.app`
+- Dashboard: `https://freedomforge-max.vercel.app/dashboard`
+- Logs view: `https://freedomforge-max.vercel.app/api/alchemy/wallet/logs?limit=50`
+- Dashboard is protected with session authentication via `DASHBOARD_USER` and `DASHBOARD_PASS` (signed with `DASHBOARD_SESSION_SECRET`)
 - Set strong production credentials in Vercel project environment variables to access it securely from anywhere
 
 Revenue automation hardening:

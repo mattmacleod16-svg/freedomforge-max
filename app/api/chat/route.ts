@@ -4,6 +4,12 @@
  */
 
 import { synthesizeAnswer } from '@/lib/synthesis/orchestrator';
+import {
+  buildAgentCommunicationPacket,
+  buildAgentToAgentPacket,
+  buildAgentUserInteractionPacket,
+  buildModelContextPacket,
+} from '@/lib/protocols/agentProtocols';
 
 export const runtime = 'nodejs';
 
@@ -53,6 +59,12 @@ interface ChatResponse {
       finance_autonomy: {
         mode: 'monitor' | 'autopilot';
         actions: string[];
+        riskControls?: {
+          positionSizeBps: number;
+          stopLossPct: number;
+          rollbackTriggered: boolean;
+          reason?: string;
+        };
       };
       prediction_autonomy: {
         readiness: number;
@@ -72,6 +84,13 @@ interface ChatResponse {
         score: number;
       }>;
     };
+    protocols?: {
+      mcp: string;
+      acp: string;
+      a2a: string;
+      aui: string;
+      inferredEmotion: 'neutral' | 'positive' | 'concerned' | 'urgent';
+    };
   };
 }
 
@@ -89,6 +108,31 @@ export async function POST(req: Request): Promise<Response> {
     // Use the enhanced synthesis system
     const result = await synthesizeAnswer(message);
 
+    const mcp = buildModelContextPacket({
+      query: message,
+      sources: result.sources,
+    });
+
+    const acp = buildAgentCommunicationPacket({
+      from: 'orchestrator',
+      to: 'autonomyDirector',
+      intent: 'decision_review',
+      priority: 'normal',
+      body: `confidence=${result.autonomy?.confidence ?? 'n/a'} risk=${result.risk_score ?? 'n/a'}`,
+    });
+
+    const a2a = buildAgentToAgentPacket({
+      senderAgent: 'adaptiveCortex',
+      receiverAgent: 'modelOrchestrator',
+      task: 'route_best_models',
+      constraints: ['latency-aware', 'risk-aware'],
+    });
+
+    const aui = buildAgentUserInteractionPacket({
+      userMessage: message,
+      assistantMessage: result.response,
+    });
+
     const response: ChatResponse = {
       reply: result.response,
       sources: result.sources,
@@ -101,6 +145,13 @@ export async function POST(req: Request): Promise<Response> {
         drift_score: result.drift_score,
         xai: result.xai,
         autonomy: result.autonomy,
+        protocols: {
+          mcp: mcp.id,
+          acp: acp.id,
+          a2a: a2a.id,
+          aui: aui.id,
+          inferredEmotion: aui.payload.inferredEmotion,
+        },
       },
     };
 

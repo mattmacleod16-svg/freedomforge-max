@@ -2,9 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
 import { logEvent } from '@/lib/logger';
+import { autoTuneApprovalThresholds } from '@/lib/intelligence/championPolicy';
 
 type JuryDecision = 'approve' | 'revise' | 'escalate';
 type TeamName = 'goal_planner' | 'execution_team' | 'risk_team' | 'finance_team' | 'prediction_team' | 'ethics_team';
+type ApprovalMode = 'assisted' | 'balanced' | 'autonomous';
 
 type ToolName = 'web_search' | 'knowledge_base' | 'blockchain_context' | 'multi_model';
 
@@ -73,6 +75,12 @@ interface AutonomyState {
     errorBudget: number;
     currentErrorRate: number;
     escalations: number;
+    approvalPolicy: {
+      mode: ApprovalMode;
+      autoApproveMinConfidence: number;
+      maxRiskForAutoApprove: number;
+      alwaysEscalateOnEthicsFlags: boolean;
+    };
   };
   ethics: {
     highRiskKeywords: string[];
@@ -87,6 +95,12 @@ interface AutonomyInput {
   sources: string[];
   riskScore: number;
   driftScore: number;
+  marketRegime?: 'risk_on' | 'risk_off' | 'neutral' | 'unknown';
+  marketConfidence?: number;
+  marketSignals?: string[];
+  forecastProbability?: number;
+  forecastConfidence?: number;
+  forecastBrierScore?: number;
 }
 
 interface AutonomyOutput {
@@ -107,6 +121,12 @@ interface AutonomyOutput {
   financeAutonomy: {
     mode: 'monitor' | 'autopilot';
     actions: string[];
+    riskControls?: {
+      positionSizeBps: number;
+      stopLossPct: number;
+      rollbackTriggered: boolean;
+      reason?: string;
+    };
   };
   predictionAutonomy: {
     readiness: number;
@@ -122,6 +142,17 @@ interface AutonomyOutput {
   };
   teamReviews: TeamReview[];
 }
+
+type FinanceAutonomyDecision = {
+  mode: 'monitor' | 'autopilot';
+  actions: string[];
+  riskControls?: {
+    positionSizeBps: number;
+    stopLossPct: number;
+    rollbackTriggered: boolean;
+    reason?: string;
+  };
+};
 
 const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'autonomy-state.json');
@@ -148,6 +179,12 @@ let state: AutonomyState = {
     errorBudget: Number(process.env.AUTONOMY_ERROR_BUDGET || 0.08),
     currentErrorRate: 0,
     escalations: 0,
+    approvalPolicy: {
+      mode: (process.env.AUTONOMY_APPROVAL_MODE as ApprovalMode) || 'balanced',
+      autoApproveMinConfidence: Number(process.env.AUTONOMY_AUTO_APPROVE_MIN_CONFIDENCE || 0.66),
+      maxRiskForAutoApprove: Number(process.env.AUTONOMY_MAX_RISK_AUTO_APPROVE || 0.45),
+      alwaysEscalateOnEthicsFlags: String(process.env.AUTONOMY_ESCALATE_ETHICS || 'true').toLowerCase() !== 'false',
+    },
   },
   ethics: {
     highRiskKeywords: ['wire transfer', 'custody', 'private key', 'all-in', 'leverage 100x', 'tax evasion'],
@@ -303,6 +340,11 @@ function runTeamOrchestration(input: AutonomyInput, confidence: number): TeamRev
   const uncertainty = 1 - confidence;
   const growthIntent = /scale|growth|profit|prediction|autopilot/i.test(input.userQuery);
   const financeIntent = /budget|spend|saving|cashflow|monarch|cleo/i.test(input.userQuery);
+  const regime = input.marketRegime || 'unknown';
+  const regimeConfidence = clamp(input.marketConfidence ?? 0.5);
+  const forecastConfidence = clamp(input.forecastConfidence ?? 0.5);
+  const calibrationPenalty = clamp((input.forecastBrierScore ?? 0.25) / 0.5);
+  const regimePenalty = regime === 'risk_off' ? 0.15 : 0;
 
   const reviews: TeamReview[] = [
     {
@@ -317,8 +359,8 @@ function runTeamOrchestration(input: AutonomyInput, confidence: number): TeamRev
     },
     {
       team: 'risk_team',
-      verdict: `Risk posture=${input.riskScore.toFixed(2)} drift=${input.driftScore.toFixed(2)}; apply guardrails before autonomous actions.`,
-      score: clamp(0.9 - input.riskScore * 0.5),
+      verdict: `Risk posture=${input.riskScore.toFixed(2)} drift=${input.driftScore.toFixed(2)} market=${regime}(${regimeConfidence.toFixed(2)}); apply guardrails before autonomous actions.`,
+      score: clamp(0.9 - input.riskScore * 0.5 - regimePenalty),
     },
     {
       team: 'finance_team',
@@ -329,8 +371,8 @@ function runTeamOrchestration(input: AutonomyInput, confidence: number): TeamRev
     },
     {
       team: 'prediction_team',
-      verdict: 'Use ground-truth event streams + confidence gating for prediction-market execution.',
-      score: clamp(0.78 - input.riskScore * 0.3),
+      verdict: `Use ground-truth + market regime (${regime}) + calibrated forecast p=${clamp(input.forecastProbability ?? 0.5).toFixed(2)} c=${forecastConfidence.toFixed(2)} brier=${(input.forecastBrierScore ?? 0.25).toFixed(3)}.`,
+      score: clamp(0.78 - input.riskScore * 0.3 + regimeConfidence * 0.08 + forecastConfidence * 0.12 - regimePenalty - calibrationPenalty * 0.1),
     },
     {
       team: 'ethics_team',
@@ -342,10 +384,25 @@ function runTeamOrchestration(input: AutonomyInput, confidence: number): TeamRev
   return reviews;
 }
 
-function runPeerJury(teamReviews: TeamReview[], ethicsFlags: string[], confidence: number): JuryDecision {
+function runPeerJury(teamReviews: TeamReview[], ethicsFlags: string[], confidence: number, riskScore: number): JuryDecision {
   const avgScore = avg(teamReviews.map((review) => review.score));
-  if (ethicsFlags.length > 0) return 'escalate';
-  if (confidence < 0.55 || avgScore < 0.62) return 'revise';
+  const policy = state.governance.approvalPolicy;
+
+  if (ethicsFlags.length > 0 && policy.alwaysEscalateOnEthicsFlags) return 'escalate';
+
+  if (policy.mode === 'assisted') {
+    if (confidence < 0.8 || riskScore > 0.3 || avgScore < 0.7) return 'escalate';
+    return 'approve';
+  }
+
+  if (policy.mode === 'autonomous') {
+    if (confidence < Math.max(0.5, policy.autoApproveMinConfidence - 0.1) || riskScore > Math.min(0.7, policy.maxRiskForAutoApprove + 0.15)) {
+      return 'revise';
+    }
+    return 'approve';
+  }
+
+  if (confidence < policy.autoApproveMinConfidence || riskScore > policy.maxRiskForAutoApprove || avgScore < 0.62) return 'revise';
   return 'approve';
 }
 
@@ -383,7 +440,7 @@ function maybeTriggerRetraining(driftScore: number, confidence: number, juryDeci
   return driftScore >= retrainThreshold || confidence < lowConfidenceThreshold || juryDecision === 'revise';
 }
 
-function getFinanceAutonomy(input: AutonomyInput, confidence: number) {
+function getFinanceAutonomy(input: AutonomyInput, confidence: number): FinanceAutonomyDecision {
   const query = input.userQuery.toLowerCase();
   const mode: 'monitor' | 'autopilot' = confidence >= 0.62 ? 'autopilot' : 'monitor';
   const actions: string[] = [];
@@ -406,6 +463,70 @@ function getFinanceAutonomy(input: AutonomyInput, confidence: number) {
   return { mode, actions };
 }
 
+function deriveRiskControls(input: AutonomyInput, confidence: number) {
+  const forecastProbability = clamp(input.forecastProbability ?? 0.5);
+  const forecastConfidence = clamp(input.forecastConfidence ?? 0.5);
+  const forecastBrier = clamp(input.forecastBrierScore ?? 0.25);
+  const marketConfidence = clamp(input.marketConfidence ?? 0.5);
+
+  const edge = Math.abs(forecastProbability - 0.5) * 2;
+  const reliability = clamp((1 - forecastBrier) * 0.55 + forecastConfidence * 0.25 + confidence * 0.2);
+  const regimePenalty = input.marketRegime === 'risk_off' ? 0.55 : input.marketRegime === 'neutral' ? 0.8 : 1;
+  const riskPenalty = clamp(1 - input.riskScore);
+
+  const basePositionBps = Number(process.env.PREDICTION_BASE_POSITION_BPS || 150);
+  const maxPositionBps = Number(process.env.PREDICTION_MAX_POSITION_BPS || 1200);
+  const minPositionBps = Number(process.env.PREDICTION_MIN_POSITION_BPS || 50);
+
+  const scaled = basePositionBps * (0.4 + edge * 0.8) * reliability * marketConfidence * regimePenalty * riskPenalty;
+  const positionSizeBps = Math.round(Math.max(minPositionBps, Math.min(maxPositionBps, scaled)));
+
+  const minStopLossPct = Number(process.env.PREDICTION_MIN_STOP_LOSS_PCT || 1.25);
+  const maxStopLossPct = Number(process.env.PREDICTION_MAX_STOP_LOSS_PCT || 6.5);
+  const stopLossPct = Number(
+    Math.max(
+      minStopLossPct,
+      Math.min(maxStopLossPct, minStopLossPct + (input.riskScore * 3.2) + ((1 - reliability) * 2.1))
+    ).toFixed(2)
+  );
+
+  return {
+    positionSizeBps,
+    stopLossPct,
+    reliability,
+    forecastBrier,
+  };
+}
+
+function maybeRollbackApprovalMode(input: {
+  currentMode: ApprovalMode;
+  forecastBrier: number;
+  errorRate: number;
+  marketRegime?: 'risk_on' | 'risk_off' | 'neutral' | 'unknown';
+}) {
+  const brierHardFail = Number(process.env.CALIBRATION_BRIER_HARD_FAIL || 0.26);
+  const errorHardFail = Number(process.env.AUTONOMY_ERROR_HARD_FAIL || 0.16);
+  const shouldRollback =
+    input.currentMode === 'autonomous' &&
+    (input.forecastBrier >= brierHardFail || input.errorRate >= errorHardFail || input.marketRegime === 'risk_off');
+
+  if (!shouldRollback) {
+    return { rollbackTriggered: false as const };
+  }
+
+  const reason = input.forecastBrier >= brierHardFail
+    ? `calibration_degraded(brier=${input.forecastBrier.toFixed(3)})`
+    : input.errorRate >= errorHardFail
+      ? `error_budget_breach(rate=${input.errorRate.toFixed(3)})`
+      : 'risk_off_regime';
+
+  return {
+    rollbackTriggered: true as const,
+    rollbackMode: 'assisted' as const,
+    reason,
+  };
+}
+
 function trackReliability(juryDecision: JuryDecision) {
   const recent = state.memory.slice(-100);
   const failures = recent.filter((entry) => entry.decision !== 'approve').length;
@@ -425,6 +546,143 @@ function updateGroundTruth(sources: string[], response: string) {
   state.groundTruth.push(...signals);
   state.groundTruth = state.groundTruth.slice(-MAX_GROUND_TRUTH);
   return signals.length;
+}
+
+async function fetchJsonWithTimeout(url: string, timeoutMs = 10000): Promise<any> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'freedomforge-max/1.0',
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function ingestExternalGroundTruth() {
+  initializeAutonomyDirector();
+  const now = Date.now();
+  const ingested: GroundTruthSignal[] = [];
+  const errors: string[] = [];
+
+  try {
+    const fng = await fetchJsonWithTimeout('https://api.alternative.me/fng/?limit=1&format=json');
+    const value = fng?.data?.[0]?.value;
+    if (value) {
+      ingested.push({
+        source: 'alternative.me/fng',
+        signal: `fear_greed_index=${value}`,
+        confidence: 0.72,
+        ts: now,
+      });
+    }
+  } catch (error) {
+    errors.push(`fng:${error instanceof Error ? error.message : 'unknown'}`);
+  }
+
+  try {
+    const btc = await fetchJsonWithTimeout('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true');
+    const price = btc?.bitcoin?.usd;
+    const change = btc?.bitcoin?.usd_24h_change;
+    if (price) {
+      ingested.push({
+        source: 'coingecko/btc',
+        signal: `btc_usd=${price};change_24h=${Number(change || 0).toFixed(3)}`,
+        confidence: 0.78,
+        ts: now,
+      });
+    }
+  } catch (error) {
+    errors.push(`coingecko:${error instanceof Error ? error.message : 'unknown'}`);
+  }
+
+  try {
+    const polymarket = await fetchJsonWithTimeout('https://gamma-api.polymarket.com/markets?closed=false&limit=5');
+    const markets = Array.isArray(polymarket) ? polymarket.slice(0, 3) : [];
+    markets.forEach((market: any, index: number) => {
+      const title = String(market?.question || market?.title || `market_${index + 1}`).slice(0, 100);
+      const volume = market?.volumeNum ?? market?.volume;
+      ingested.push({
+        source: 'polymarket/markets',
+        signal: `market=${title};volume=${volume ?? 'n/a'}`,
+        confidence: 0.68,
+        ts: now,
+      });
+    });
+  } catch (error) {
+    errors.push(`polymarket:${error instanceof Error ? error.message : 'unknown'}`);
+  }
+
+  if (ingested.length > 0) {
+    state.groundTruth.push(...ingested);
+    state.groundTruth = state.groundTruth.slice(-MAX_GROUND_TRUTH);
+    saveState();
+  }
+
+  await logEvent('autonomy_ground_truth_ingest', {
+    ingested: ingested.length,
+    errors,
+    sources: ingested.map((row) => row.source),
+  });
+
+  return {
+    ingested,
+    errors,
+  };
+}
+
+export async function triggerDriftRetraining(reason = 'scheduled_maintenance') {
+  initializeAutonomyDirector();
+  const recent = state.memory.slice(-120);
+  const driftProxy = avg(recent.map((row) => row.riskScore * (1 - row.confidence)));
+  const retrainThreshold = Number(process.env.DRIFT_RETRAIN_THRESHOLD || 0.35);
+  const shouldRetrain = driftProxy >= retrainThreshold || reason === 'manual_force';
+
+  const payload = {
+    shouldRetrain,
+    reason,
+    driftProxy,
+    threshold: retrainThreshold,
+    samples: recent.length,
+    at: new Date().toISOString(),
+  };
+
+  await logEvent('autonomy_retrain_check', payload);
+  return payload;
+}
+
+export function updateApprovalPolicy(input: {
+  mode?: ApprovalMode;
+  autoApproveMinConfidence?: number;
+  maxRiskForAutoApprove?: number;
+  alwaysEscalateOnEthicsFlags?: boolean;
+}) {
+  initializeAutonomyDirector();
+
+  const nextMode = input.mode || state.governance.approvalPolicy.mode;
+  const nextAutoApproveMinConfidence = typeof input.autoApproveMinConfidence === 'number' && Number.isFinite(input.autoApproveMinConfidence)
+    ? input.autoApproveMinConfidence
+    : state.governance.approvalPolicy.autoApproveMinConfidence;
+  const nextMaxRiskForAutoApprove = typeof input.maxRiskForAutoApprove === 'number' && Number.isFinite(input.maxRiskForAutoApprove)
+    ? input.maxRiskForAutoApprove
+    : state.governance.approvalPolicy.maxRiskForAutoApprove;
+  const nextPolicy = {
+    mode: nextMode,
+    autoApproveMinConfidence: clamp(nextAutoApproveMinConfidence),
+    maxRiskForAutoApprove: clamp(nextMaxRiskForAutoApprove),
+    alwaysEscalateOnEthicsFlags: input.alwaysEscalateOnEthicsFlags ?? state.governance.approvalPolicy.alwaysEscalateOnEthicsFlags,
+  };
+
+  state.governance.approvalPolicy = nextPolicy;
+  saveState();
+
+  return nextPolicy;
 }
 
 export function initializeAutonomyDirector() {
@@ -473,7 +731,7 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
 
   const teamReviews = runTeamOrchestration(input, confidence);
   const ethicsFlags = detectEthicsFlags(input.userQuery, input.selectedResponse);
-  const juryDecision = runPeerJury(teamReviews, ethicsFlags, confidence);
+  const juryDecision = runPeerJury(teamReviews, ethicsFlags, confidence, input.riskScore);
   const responseWithReflection = runReflectionAtScale(input.selectedResponse, juryDecision);
 
   const selfPlayEpisode = runSelfPlay(input.modelResponses, input.riskScore);
@@ -481,6 +739,47 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
   const financeAutonomy = getFinanceAutonomy(input, confidence);
   const reliability = trackReliability(juryDecision);
   const groundTruthSignals = updateGroundTruth(input.sources, responseWithReflection);
+  const marketSignalCount = (input.marketSignals || []).length;
+  const forecastSignalCount = input.forecastConfidence ? 1 : 0;
+  const forecastBrier = clamp(input.forecastBrierScore ?? 0.25, 0, 1);
+  const riskControls = deriveRiskControls(input, confidence);
+
+  const rollback = maybeRollbackApprovalMode({
+    currentMode: state.governance.approvalPolicy.mode,
+    forecastBrier,
+    errorRate: reliability.errorRate,
+    marketRegime: input.marketRegime,
+  });
+
+  if (rollback.rollbackTriggered) {
+    state.governance.approvalPolicy.mode = rollback.rollbackMode;
+  }
+
+  const tunedPolicy = autoTuneApprovalThresholds({
+    mode: state.governance.approvalPolicy.mode,
+    autoApproveMinConfidence: state.governance.approvalPolicy.autoApproveMinConfidence,
+    maxRiskForAutoApprove: state.governance.approvalPolicy.maxRiskForAutoApprove,
+    alwaysEscalateOnEthicsFlags: state.governance.approvalPolicy.alwaysEscalateOnEthicsFlags,
+    currentErrorRate: reliability.errorRate,
+    forecastBrierScore: forecastBrier,
+    marketRegime: input.marketRegime || 'unknown',
+  });
+  state.governance.approvalPolicy = tunedPolicy;
+
+  if (riskControls.positionSizeBps <= 120) {
+    financeAutonomy.mode = 'monitor';
+  }
+  financeAutonomy.actions.push(`set_position_size_bps:${riskControls.positionSizeBps}`);
+  financeAutonomy.actions.push(`set_hard_stop_loss_pct:${riskControls.stopLossPct}`);
+  if (rollback.rollbackTriggered) {
+    financeAutonomy.actions.push(`rollback_approval_mode:${rollback.rollbackMode}`);
+  }
+  financeAutonomy.riskControls = {
+    positionSizeBps: riskControls.positionSizeBps,
+    stopLossPct: riskControls.stopLossPct,
+    rollbackTriggered: rollback.rollbackTriggered,
+    reason: rollback.rollbackTriggered ? rollback.reason : undefined,
+  };
 
   updateToolStats('web_search', confidence, input.sources.length > 0);
   updateToolStats('knowledge_base', confidence, true);
@@ -511,8 +810,24 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
     teamReviews,
     reliability,
     financeAutonomy,
-    predictionReadiness: clamp((1 - input.riskScore) * 0.6 + confidence * 0.4),
+    predictionReadiness: clamp(
+      (1 - input.riskScore) * 0.35 +
+      confidence * 0.25 +
+      clamp(input.marketConfidence ?? 0.5) * 0.15 +
+      clamp(input.forecastConfidence ?? 0.5) * 0.15 +
+      (1 - forecastBrier) * 0.10
+    ),
     groundTruthSignals,
+    marketRegime: input.marketRegime || 'unknown',
+    marketConfidence: clamp(input.marketConfidence ?? 0.5),
+    marketSignals: input.marketSignals || [],
+    riskControls: {
+      positionSizeBps: riskControls.positionSizeBps,
+      stopLossPct: riskControls.stopLossPct,
+      reliability: riskControls.reliability,
+    },
+    rollback,
+    tunedPolicy,
     selfPlayEpisode,
     ethicsFlags,
   });
@@ -527,8 +842,14 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
     reliability,
     financeAutonomy,
     predictionAutonomy: {
-      readiness: clamp((1 - input.riskScore) * 0.6 + confidence * 0.4),
-      signalsUsed: groundTruthSignals,
+      readiness: clamp(
+        (1 - input.riskScore) * 0.35 +
+        confidence * 0.25 +
+        clamp(input.marketConfidence ?? 0.5) * 0.15 +
+        clamp(input.forecastConfidence ?? 0.5) * 0.15 +
+        (1 - forecastBrier) * 0.10
+      ),
+      signalsUsed: groundTruthSignals + marketSignalCount + forecastSignalCount,
     },
     symbiosis: {
       humanRequired: juryDecision === 'escalate',
@@ -553,6 +874,7 @@ export function getAutonomySnapshot() {
     governance: state.governance,
     recentConfidence,
     groundTruthSignals: state.groundTruth.length,
+    recentGroundTruth: state.groundTruth.slice(-10),
     selfPlayEpisodes: state.selfPlay.length,
   };
 }

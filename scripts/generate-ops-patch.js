@@ -17,7 +17,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max-qt5y.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
 const LOOKBACK_HOURS = Math.max(24, parseInt(process.env.PATCH_LOOKBACK_HOURS || '720', 10));
 const LOG_LIMIT = Math.max(100, parseInt(process.env.PATCH_LOG_LIMIT || '4000', 10));
 

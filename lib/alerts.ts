@@ -11,6 +11,7 @@
  */
 
 let lastAlert: { message: string; time: number } | null = null;
+let missingWebhookConfigWarned = false;
 
 export function getLastAlert() {
   return lastAlert;
@@ -31,7 +32,10 @@ export async function sendAlert(message: string) {
 
   const url = process.env.ALERT_WEBHOOK_URL;
   if (!url) {
-    console.warn('Alert webhook not configured');
+    if (!missingWebhookConfigWarned) {
+      console.warn('Alert webhook not configured');
+      missingWebhookConfigWarned = true;
+    }
     return;
   }
   try {

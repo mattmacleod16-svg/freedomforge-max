@@ -4,6 +4,8 @@
  */
 
 import { ingestDocument, loadOpenSourceData } from '../rag/vectorStore';
+import fs from 'fs';
+import path from 'path';
 
 interface DataSource {
   name: string;
@@ -39,6 +41,42 @@ const availableDataSources: DataSource[] = [
   },
 ];
 
+const CURSOR_FILE = path.join(process.cwd(), 'data', 'ingestion-cursors.json');
+const MIN_SOURCE_INTERVAL_MINUTES = Math.max(5, Number(process.env.KB_INGEST_MIN_INTERVAL_MINUTES || 60));
+
+type CursorState = Record<string, { lastRunAt: number }>;
+
+function readCursors(): CursorState {
+  try {
+    if (!fs.existsSync(CURSOR_FILE)) return {};
+    const raw = fs.readFileSync(CURSOR_FILE, 'utf8');
+    return JSON.parse(raw) as CursorState;
+  } catch {
+    return {};
+  }
+}
+
+function writeCursors(next: CursorState) {
+  try {
+    const dir = path.dirname(CURSOR_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CURSOR_FILE, JSON.stringify(next, null, 2), 'utf8');
+  } catch {}
+}
+
+function shouldRunSource(sourceId: string) {
+  const cursors = readCursors();
+  const lastRunAt = cursors[sourceId]?.lastRunAt || 0;
+  const minIntervalMs = MIN_SOURCE_INTERVAL_MINUTES * 60 * 1000;
+  return Date.now() - lastRunAt >= minIntervalMs;
+}
+
+function markSourceRun(sourceId: string) {
+  const cursors = readCursors();
+  cursors[sourceId] = { lastRunAt: Date.now() };
+  writeCursors(cursors);
+}
+
 /**
  * Load built-in datasets
  */
@@ -60,6 +98,11 @@ export function getAvailableDataSources(): DataSource[] {
  * In production, you would use Wikipedia API or dumps
  */
 export async function fetchAndIngestWikipediaCategory(category: string) {
+  if (!shouldRunSource(`wikipedia:${category}`)) {
+    console.log(`⏭️ Skipping Wikipedia ${category}; source cooldown active`);
+    return 0;
+  }
+
   console.log(`📖 Fetching Wikipedia category: ${category}...`);
 
   try {
@@ -91,11 +134,20 @@ export async function fetchAndIngestWikipediaCategory(category: string) {
         // Strip HTML tags
         const cleanContent = pageContent.replace(/<[^>]*>/g, '');
 
-        await ingestDocument(cleanContent, 'Wikipedia', 'Reference');
+        await ingestDocument(cleanContent, 'Wikipedia', 'Reference', {
+          qualityScore: 0.78,
+          sourceReliability: 0.76,
+          metadata: {
+            title: article.title,
+            category,
+            fetchedAt: new Date().toISOString(),
+          },
+        });
         console.log(`  ✓ Ingested: ${article.title}`);
       }
     }
 
+    markSourceRun(`wikipedia:${category}`);
     console.log(`✅ Ingested ${articles.length} articles from ${category}`);
     return articles.length;
   } catch (error) {
@@ -109,6 +161,11 @@ export async function fetchAndIngestWikipediaCategory(category: string) {
  * Fetches recent papers from arXiv API
  */
 export async function fetchAndIngestArXivPapers(category: string = 'cs.AI', limit: number = 5) {
+  if (!shouldRunSource(`arxiv:${category}`)) {
+    console.log(`⏭️ Skipping ArXiv ${category}; source cooldown active`);
+    return 0;
+  }
+
   console.log(`📚 Fetching ArXiv papers from ${category}...`);
 
   try {
@@ -136,13 +193,23 @@ export async function fetchAndIngestArXivPapers(category: string = 'cs.AI', limi
         await ingestDocument(
           `Title: ${title}\n${summary}`,
           'ArXiv',
-          'Research Paper'
+          'Research Paper',
+          {
+            qualityScore: 0.9,
+            sourceReliability: 0.9,
+            metadata: {
+              title,
+              category,
+              fetchedAt: new Date().toISOString(),
+            },
+          }
         );
         console.log(`  ✓ Ingested: ${title.substring(0, 50)}...`);
         count++;
       }
     }
 
+    markSourceRun(`arxiv:${category}`);
     console.log(`✅ Ingested ${count} papers from ArXiv`);
     return count;
   } catch (error) {
@@ -155,6 +222,11 @@ export async function fetchAndIngestArXivPapers(category: string = 'cs.AI', limi
  * Ingest GitHub trending repositories info
  */
 export async function fetchAndIngestGitHubTrending() {
+  if (!shouldRunSource('github:trending')) {
+    console.log('⏭️ Skipping GitHub trending; source cooldown active');
+    return 0;
+  }
+
   console.log('🐙 Fetching GitHub trending repositories...');
 
   try {
@@ -176,10 +248,19 @@ URL: ${repo.html_url}
 Topics: ${repo.topics?.join(', ') || 'N/A'}
 `;
 
-      await ingestDocument(content, 'GitHub', 'Repository');
+      await ingestDocument(content, 'GitHub', 'Repository', {
+        qualityScore: 0.7,
+        sourceReliability: 0.72,
+        metadata: {
+          fullName: repo.full_name,
+          stars: repo.stargazers_count,
+          fetchedAt: new Date().toISOString(),
+        },
+      });
       console.log(`  ✓ Ingested: ${repo.full_name}`);
     }
 
+    markSourceRun('github:trending');
     console.log(`✅ Ingested ${data.items?.length || 0} repositories from GitHub`);
     return data.items?.length || 0;
   } catch (error) {

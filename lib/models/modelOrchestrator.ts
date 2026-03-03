@@ -151,13 +151,25 @@ async function queryAnthropic(prompt: string, apiKey: string): Promise<string> {
 
 export async function getMultiModelResponse(
   prompt: string,
-  count: number = 2
+  count: number = 2,
+  options?: {
+    preferredModels?: string[];
+  }
 ): Promise<ModelResponse[]> {
   if (models.length === 0) {
     throw new Error('No AI models configured');
   }
 
-  const sortedModels = [...models].sort((a, b) => a.priority - b.priority);
+  const preferred = (options?.preferredModels || []).map((item) => item.toLowerCase());
+  const sortedModels = [...models].sort((a, b) => {
+    const aPref = preferred.indexOf(a.name.toLowerCase());
+    const bPref = preferred.indexOf(b.name.toLowerCase());
+
+    if (aPref !== -1 && bPref !== -1) return aPref - bPref;
+    if (aPref !== -1) return -1;
+    if (bPref !== -1) return 1;
+    return a.priority - b.priority;
+  });
   const selectedModels = sortedModels.slice(0, Math.min(count, models.length));
 
   const responses: ModelResponse[] = await Promise.all(

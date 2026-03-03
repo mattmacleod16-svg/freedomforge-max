@@ -111,7 +111,7 @@ export async function getTokenBalances(address: string, tokens?: string[]): Prom
         const balResp = await client.core.getTokenBalances(address, [t]);
         // Alchemy returns tokenBalances array; take first
         const tb = balResp.tokenBalances[0];
-        let balance = tb ? tb.tokenBalance : null;
+        const balance = tb ? tb.tokenBalance : null;
         // attempt to fetch metadata (symbol, decimals) for nicer display
         let symbol: string | undefined;
         let decimals: number | undefined;
@@ -150,12 +150,15 @@ export function getGeneratedWalletAddress(): string | null {
 export function initRevenueWallet(): Wallet | null {
   if (revenueWallet) return revenueWallet;
   let privateKey = process.env.WALLET_PRIVATE_KEY;
-  const autoGenerateWallet = String(process.env.WALLET_AUTO_GENERATE || 'false').toLowerCase() === 'true';
+  const requestedAutoGenerate = String(process.env.WALLET_AUTO_GENERATE || 'false').toLowerCase() === 'true';
+  const autoGenerateWallet = requestedAutoGenerate && process.env.NODE_ENV !== 'production';
 
   if (!privateKey) {
     if (!autoGenerateWallet) {
       if (!missingWalletConfigAlerted) {
-        const msg = 'No WALLET_PRIVATE_KEY configured; revenue wallet disabled. Set WALLET_PRIVATE_KEY to use one stable address. Set WALLET_AUTO_GENERATE=true only for local testing.';
+        const msg = requestedAutoGenerate && process.env.NODE_ENV === 'production'
+          ? 'WALLET_AUTO_GENERATE is ignored in production; set WALLET_PRIVATE_KEY for a stable production wallet.'
+          : 'No WALLET_PRIVATE_KEY configured; revenue wallet disabled. Set WALLET_PRIVATE_KEY to use one stable address. Set WALLET_AUTO_GENERATE=true only for local testing.';
         console.error(msg);
         sendAlert(msg);
         missingWalletConfigAlerted = true;

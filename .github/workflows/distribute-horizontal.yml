@@ -23,8 +23,8 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3]
     env:
-      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max-qt5y.vercel.app' }}
-      HEALTH_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max-qt5y.vercel.app' }}/api/alchemy/health
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      HEALTH_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}/api/alchemy/health
       ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
       ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
       BOT_SHARDS: ${{ inputs.bot_shards || vars.BOT_SHARDS || '2' }}

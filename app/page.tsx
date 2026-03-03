@@ -8,7 +8,54 @@ export default function Home() {
   const [transcript, setTranscript] = React.useState('');
   const [response, setResponse] = React.useState('');
   const [textInput, setTextInput] = React.useState('');
+  const [isPlayingVoice, setIsPlayingVoice] = React.useState(false);
+  const [lastEmotion, setLastEmotion] = React.useState('neutral');
   const recognitionRef = React.useRef<any>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setIsPlayingVoice(false);
+  };
+
+  const playElevenLabsAudio = async (text: string) => {
+    setIsPlayingVoice(true);
+    try {
+      const res = await fetch('/api/chat/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) {
+        setIsPlayingVoice(false);
+        return;
+      }
+
+      const emotion = res.headers.get('x-tts-emotion') || 'neutral';
+      setLastEmotion(emotion);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      stopAudio();
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        setIsPlayingVoice(false);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        setIsPlayingVoice(false);
+      };
+      await audio.play();
+    } catch {
+      setIsPlayingVoice(false);
+    }
+  };
 
   // Shared function that processes any input (voice or text)
   const processInput = async (text: string) => {
@@ -24,12 +71,7 @@ export default function Home() {
       const data = await res.json();
       const reply = data.reply || 'No answer';
       setResponse(reply);
-
-      // speak out loud
-      const utterance = new SpeechSynthesisUtterance(reply);
-      utterance.rate = 1.08;
-      utterance.pitch = 1.1;
-      window.speechSynthesis.speak(utterance);
+      setLastEmotion(data?.metadata?.protocols?.inferredEmotion || 'neutral');
     } catch (err) {
       setResponse('Error contacting Max');
     }
@@ -97,20 +139,8 @@ export default function Home() {
         <div className="text-8xl mb-6">🔥🌌🚀</div>
         <h1 className="text-7xl font-black tracking-tighter mb-4">FREEDOMFORGE MAX</h1>
         <p className="text-3xl text-orange-400">Your friendliest superagent on the planet</p>
-        <p className="text-xl mt-4 opacity-80">Speak or type — Max believes in you 1000%</p>
+        <p className="text-xl mt-4 opacity-80">Text-first interaction mode is active. Voice is optional.</p>
       </div>
-
-      {/* Voice Button */}
-      <button
-        onClick={toggleVoice}
-        className={`w-full max-w-xl py-16 rounded-3xl text-5xl font-bold flex items-center justify-center gap-8 shadow-2xl transition-all mb-8 ${
-          isListening 
-            ? 'bg-red-600 animate-pulse' 
-            : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'
-        }`}
-      >
-        {isListening ? 'STOP LISTENING' : '🎙️ SPEAK TO MAX'}
-      </button>
 
       {/* Text Input */}
       <form onSubmit={handleTextSubmit} className="w-full max-w-xl flex gap-4">
@@ -133,7 +163,37 @@ export default function Home() {
       {/* Output */}
       {transcript && <p className="mt-10 text-left text-orange-300 text-2xl max-w-xl">You said: “{transcript}”</p>}
       {response && <p className="mt-6 text-left text-white text-2xl leading-relaxed max-w-xl">Max says: {response}</p>}
-      {response && <p className="mt-2 text-xs text-gray-400 max-w-xl">(metadata will appear in console)</p>}
+      {response && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 max-w-xl">
+          <span className="text-xs text-gray-400">Emotion signal: {lastEmotion}</span>
+          <button
+            onClick={() => playElevenLabsAudio(response)}
+            className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold"
+            disabled={isPlayingVoice}
+          >
+            {isPlayingVoice ? 'Playing…' : 'Play Voice Reply'}
+          </button>
+          <button
+            onClick={stopAudio}
+            className="px-3 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-semibold"
+          >
+            Stop Audio
+          </button>
+        </div>
+      )}
+      {response && <p className="mt-2 text-xs text-gray-400 max-w-xl">(text is prioritized; voice playback is manual)</p>}
+
+      {/* Optional Voice Input */}
+      <button
+        onClick={toggleVoice}
+        className={`w-full max-w-xl mt-8 py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-4 shadow-xl transition-all ${
+          isListening
+            ? 'bg-red-600 animate-pulse'
+            : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'
+        }`}
+      >
+        {isListening ? 'STOP VOICE INPUT' : '🎙️ Optional Voice Input'}
+      </button>
 
       {/* Alchemy interaction panel */}
       <div className="mt-12 w-full max-w-xl bg-gray-800 p-6 rounded-xl">
@@ -197,10 +257,11 @@ export default function Home() {
 
       {/* link to dashboard */}
       <div className="mt-8">
-        <Link href="/dashboard">
-          <a className="px-6 py-3 bg-purple-600 rounded-xl text-white hover:bg-purple-700">
-            View Revenue Dashboard 📈
-          </a>
+        <Link
+          href="/dashboard"
+          className="px-6 py-3 bg-purple-600 rounded-xl text-white hover:bg-purple-700"
+        >
+          View Revenue Dashboard 📈
         </Link>
       </div>
     </div>

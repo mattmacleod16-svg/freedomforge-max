@@ -74,10 +74,9 @@ export async function GET(req: Request) {
     if (path === '/debug/auth') {
       // debug auth state
       const dashboardUser = process.env.DASHBOARD_USER || 'admin';
-      const dashboardPass = process.env.DASHBOARD_PASS || 'FreedomForge2026';
       const authHeader = req.headers.get('authorization');
       const scheme = authHeader?.split(' ')[0] || null;
-      return Response.json({ dashboardUser, dashboardPass, authHeaderPresent: !!authHeader, scheme });
+      return Response.json({ dashboardUser, authHeaderPresent: !!authHeader, scheme });
     }
 
     if (path === '/wallet/create') {

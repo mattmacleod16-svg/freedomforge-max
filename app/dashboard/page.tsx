@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { formatUnits } from 'ethers';
 
@@ -17,6 +18,7 @@ interface WalletInfo {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [latestAlert, setLatestAlert] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,10 +58,24 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, []);
 
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.replace('/login');
+    router.refresh();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-950 to-black p-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-4xl font-black mb-8 text-orange-400">🚀 FreedomForge Max Revenue Monitor</h1>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <h1 className="text-4xl font-black text-orange-400">🚀 FreedomForge Max Revenue Monitor</h1>
+          <button
+            onClick={handleLogout}
+            className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-semibold text-zinc-200 hover:border-orange-500 hover:text-orange-300"
+          >
+            Logout
+          </button>
+        </div>
 
         <div className="grid gap-6">
           {/* Wallet Info */}

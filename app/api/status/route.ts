@@ -7,23 +7,59 @@
 import { initializeSystem, isSystemInitialized } from '@/lib/init/systemInit';
 import { getAvailableModels } from '@/lib/models/modelOrchestrator';
 import { getKnowledgeBaseStats } from '@/lib/rag/vectorStore';
+import { getMarketIntelligenceSummary, maybeRefreshMarketFeatureStore } from '@/lib/intelligence/marketFeatureStore';
+import { getForecastSummary, resolveDueForecasts } from '@/lib/intelligence/forecastEngine';
+import { getChampionPolicySnapshot } from '@/lib/intelligence/championPolicy';
+import { getRiskStatusSummary } from '@/lib/intelligence/riskMonitor';
+import { getMemorySummary } from '@/lib/intelligence/memoryEngine';
+import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
+import { getProtocolSummary } from '@/lib/protocols/adapters';
+import { getVendorStackStatus } from '@/lib/intelligence/vendorStack';
+import { getXAutomationStatus } from '@/lib/social/xAutomation';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
     const isReady = isSystemInitialized();
+    const [protocolStatus, vendorStack] = await Promise.all([
+      getProtocolSummary(),
+      getVendorStackStatus(),
+    ]);
+    const xAutomation = getXAutomationStatus();
+    if (isReady) {
+      await maybeRefreshMarketFeatureStore();
+      await resolveDueForecasts();
+    }
     
     const status = {
       ready: isReady,
       models: isReady ? getAvailableModels() : [],
       knowledgeBase: isReady ? getKnowledgeBaseStats() : null,
+      market: isReady ? getMarketIntelligenceSummary() : null,
+      forecast: isReady ? getForecastSummary() : null,
+      modelPolicy: isReady ? getChampionPolicySnapshot() : null,
+      risk: isReady ? await getRiskStatusSummary() : null,
+      memory: isReady ? getMemorySummary() : null,
+      opportunities: isReady ? getAdaptiveOpportunityPlan().summary : null,
+      protocols: protocolStatus,
+      vendorStack,
+      xAutomation,
       capabilities: {
         multiModel: true,
         webSearch: !!process.env.TAVILY_API_KEY,
         rag: true,
         dataIngestion: process.env.KB_AUTO_LOAD_DATASETS === 'true',
         alchemy: !!process.env.ALCHEMY_API_KEY,
+        marketIntelligence: true,
+        probabilisticForecasting: true,
+        riskControls: true,
+        episodicMemory: true,
+        adaptiveOpportunities: true,
+        textFirstInteraction: true,
+        xGrowthAutomation: true,
+        zoraProtocol: protocolStatus.protocols.some((item) => item.protocol === 'zora' && item.enabled),
+        vvvProtocol: protocolStatus.protocols.some((item) => item.protocol === 'vvv' && item.enabled),
       },
       message: isReady 
         ? '🚀 FreedomForge Max is online and ready!' 
