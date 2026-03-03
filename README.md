@@ -91,6 +91,7 @@ Required environment for posting:
 - `X_HANDLE=@Mac_man17`
 - Option A (direct token): `X_ACCESS_TOKEN` (preferred) or `X_BEARER_TOKEN` with tweet-write permissions
 - Option B (OAuth refresh flow): `X_CLIENT_ID`, `X_CLIENT_SECRET` (if required by your X app), and `X_REFRESH_TOKEN`
+- Alias names are also accepted: `CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`
 - Optional override: `X_OAUTH_TOKEN_URL` (defaults to `https://api.x.com/2/oauth2/token`)
 
 Recommended safety controls:

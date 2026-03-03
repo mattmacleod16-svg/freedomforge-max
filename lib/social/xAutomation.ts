@@ -97,11 +97,15 @@ function getDailyPostLimit() {
   return Math.max(1, Number(process.env.X_POST_DAILY_LIMIT || 3));
 }
 
+function getEnvValue(primary: string, fallback?: string) {
+  return process.env[primary] || (fallback ? process.env[fallback] : '') || '';
+}
+
 function isConfigured() {
   return Boolean(
     process.env.X_BEARER_TOKEN ||
       process.env.X_ACCESS_TOKEN ||
-      (process.env.X_REFRESH_TOKEN && process.env.X_CLIENT_ID)
+      (getEnvValue('X_REFRESH_TOKEN', 'REFRESH_TOKEN') && getEnvValue('X_CLIENT_ID', 'CLIENT_ID'))
   );
 }
 
@@ -114,8 +118,8 @@ function getOAuthTokenUrl() {
 }
 
 async function getOAuthUserAccessToken() {
-  const clientId = process.env.X_CLIENT_ID;
-  const refreshToken = process.env.X_REFRESH_TOKEN;
+  const clientId = getEnvValue('X_CLIENT_ID', 'CLIENT_ID');
+  const refreshToken = getEnvValue('X_REFRESH_TOKEN', 'REFRESH_TOKEN');
 
   if (!clientId || !refreshToken) return '';
 
@@ -134,8 +138,9 @@ async function getOAuthUserAccessToken() {
     'Content-Type': 'application/x-www-form-urlencoded',
   };
 
-  if (process.env.X_CLIENT_SECRET) {
-    const basic = Buffer.from(`${clientId}:${process.env.X_CLIENT_SECRET}`).toString('base64');
+  const clientSecret = getEnvValue('X_CLIENT_SECRET', 'CLIENT_SECRET');
+  if (clientSecret) {
+    const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     headers.Authorization = `Basic ${basic}`;
   }
 
