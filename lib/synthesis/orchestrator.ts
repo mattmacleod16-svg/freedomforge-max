@@ -3,10 +3,12 @@
  * Combines multiple sources (web search, RAG, models) into coherent responses
  */
 
-import { getMultiModelResponse, getBestResponse, initializeModels } from '../models/modelOrchestrator';
-import { enhancePromptWithWebSearch, formatSearchResultsForPrompt } from '../search/webSearch';
+import { getMultiModelResponse, initializeModels } from '../models/modelOrchestrator';
+import { enhancePromptWithWebSearch } from '../search/webSearch';
 import { enhancePromptWithKnowledgeBase, initializeRAG } from '../rag/vectorStore';
-import { getLatestBlock, getBalance, getNFTs } from '../alchemy/connector';
+import { getLatestBlock, getBalance } from '../alchemy/connector';
+import { initializeAdaptiveIntelligence, runAdaptiveDecisionLoop } from '@/lib/intelligence/adaptiveCortex';
+import { initializeAutonomyDirector, runAutonomyDirector } from '@/lib/intelligence/autonomyDirector';
 
 interface SynthesisResult {
   response: string;
@@ -15,6 +17,57 @@ interface SynthesisResult {
   search_results: number;
   knowledge_base_hits: number;
   reasoning: string;
+  risk_score?: number;
+  drift_score?: number;
+  xai?: {
+    decision_id: string;
+    selected_action: string;
+    epsilon: number;
+    contributions: Record<string, number>;
+    agent_outputs: Record<string, string>;
+  };
+  autonomy?: {
+    confidence: number;
+    jury_decision: 'approve' | 'revise' | 'escalate';
+    retrain_triggered: boolean;
+    goals: Array<{
+      id: string;
+      label: string;
+      objective: string;
+      priority: number;
+      horizon: string;
+    }>;
+    cost_estimate: {
+      tokens_approx: number;
+      estimated_usd: number;
+    };
+    reliability: {
+      error_rate: number;
+      within_budget: boolean;
+      recovery_mode: boolean;
+    };
+    finance_autonomy: {
+      mode: 'monitor' | 'autopilot';
+      actions: string[];
+    };
+    prediction_autonomy: {
+      readiness: number;
+      signals_used: number;
+    };
+    symbiosis: {
+      human_required: boolean;
+      reason?: string;
+    };
+    ethical_alignment: {
+      score: number;
+      flags: string[];
+    };
+    team_reviews: Array<{
+      team: string;
+      verdict: string;
+      score: number;
+    }>;
+  };
   timestamp: number;
 }
 
@@ -24,6 +77,8 @@ interface SynthesisResult {
 export async function initializeSynthesis() {
   await initializeModels();
   await initializeRAG();
+  initializeAdaptiveIntelligence();
+  initializeAutonomyDirector();
   console.log('Knowledge synthesis engine initialized');
 }
 
@@ -78,9 +133,26 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     const modelResponses = await getMultiModelResponse(enhancedPrompt, 2);
     const modelsUsed = modelResponses.map((r) => r.model);
 
+    const adaptiveDecision = await runAdaptiveDecisionLoop({
+      userQuery,
+      modelResponses,
+      sources,
+    });
+
+    const selectedResponse = adaptiveDecision?.response ||
+      (modelResponses.length > 0 ? modelResponses[0].response : 'Unable to generate response');
+
+    const autonomyDecision = await runAutonomyDirector({
+      userQuery,
+      selectedResponse,
+      modelResponses,
+      sources,
+      riskScore: adaptiveDecision?.riskScore ?? 0.5,
+      driftScore: adaptiveDecision?.driftScore ?? 0,
+    });
+
     // Step 4: Synthesize best response
-    const bestResponse =
-      modelResponses.length > 0 ? modelResponses[0].response : 'Unable to generate response';
+    const bestResponse = autonomyDecision.finalResponse;
 
     // Step 5: Add sources to response
     const finalResponse = formatFinalResponse(bestResponse, sources);
@@ -93,7 +165,46 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       models_used: modelsUsed,
       search_results: searchResultCount,
       knowledge_base_hits: kbHitCount,
-      reasoning: `Synthesis completed in ${synthesisTime}ms. Used ${modelsUsed.length} models, ${searchResultCount} web results, ${kbHitCount} KB hits.`,
+      reasoning: adaptiveDecision
+        ? `${adaptiveDecision.reasoning} Synthesis completed in ${synthesisTime}ms. Used ${modelsUsed.length} models, ${searchResultCount} web results, ${kbHitCount} KB hits.`
+        : `Synthesis completed in ${synthesisTime}ms. Used ${modelsUsed.length} models, ${searchResultCount} web results, ${kbHitCount} KB hits.`,
+      risk_score: adaptiveDecision?.riskScore,
+      drift_score: adaptiveDecision?.driftScore,
+      xai: adaptiveDecision
+        ? {
+            decision_id: adaptiveDecision.xai.decisionId,
+            selected_action: adaptiveDecision.xai.selectedAction,
+            epsilon: adaptiveDecision.xai.epsilon,
+            contributions: adaptiveDecision.xai.contributions,
+            agent_outputs: adaptiveDecision.xai.agentOutputs,
+          }
+        : undefined,
+      autonomy: {
+        confidence: autonomyDecision.confidence,
+        jury_decision: autonomyDecision.juryDecision,
+        retrain_triggered: autonomyDecision.retrainTriggered,
+        goals: autonomyDecision.goals,
+        cost_estimate: {
+          tokens_approx: autonomyDecision.costEstimate.tokensApprox,
+          estimated_usd: autonomyDecision.costEstimate.estimatedUsd,
+        },
+        reliability: {
+          error_rate: autonomyDecision.reliability.errorRate,
+          within_budget: autonomyDecision.reliability.withinBudget,
+          recovery_mode: autonomyDecision.reliability.recoveryMode,
+        },
+        finance_autonomy: autonomyDecision.financeAutonomy,
+        prediction_autonomy: {
+          readiness: autonomyDecision.predictionAutonomy.readiness,
+          signals_used: autonomyDecision.predictionAutonomy.signalsUsed,
+        },
+        symbiosis: {
+          human_required: autonomyDecision.symbiosis.humanRequired,
+          reason: autonomyDecision.symbiosis.reason,
+        },
+        ethical_alignment: autonomyDecision.ethicalAlignment,
+        team_reviews: autonomyDecision.teamReviews,
+      },
       timestamp: Date.now(),
     };
   } catch (error) {
@@ -137,7 +248,7 @@ export async function* synthesizeAnswerStreaming(userQuery: string) {
     const webContext = await enhancePromptWithWebSearch(userQuery);
 
     yield { status: 'knowledge_base', message: '📚 Querying knowledge base...' };
-    const enhancedPrompt = await enhancePromptWithKnowledgeBase(webContext.withContext);
+    await enhancePromptWithKnowledgeBase(webContext.withContext);
 
     yield { status: 'model_query', message: '🤖 Querying AI models...' };
     const result = await synthesizeAnswer(userQuery);

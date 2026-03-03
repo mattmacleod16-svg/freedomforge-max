@@ -6,6 +6,7 @@
 import { initializeSynthesis } from '@/lib/synthesis/orchestrator';
 import { loadBuiltInDatasets, fetchAndIngestWikipediaCategory, fetchAndIngestArXivPapers, fetchAndIngestGitHubTrending } from '@/lib/ingestion/dataLoader';
 import { initAlchemy } from '@/lib/alchemy/connector';
+import { initializeAutonomyDirector } from '@/lib/intelligence/autonomyDirector';
 
 let isInitialized = false;
 let initializationPromise: Promise<void> | null = null;
@@ -41,6 +42,10 @@ async function performInitialization(): Promise<void> {
     console.log('1️⃣  Initializing synthesis engine...');
     await initializeSynthesis();
     console.log('   ✅ Synthesis engine ready\n');
+
+    console.log('1️⃣.5️⃣  Initializing autonomy director...');
+    initializeAutonomyDirector();
+    console.log('   ✅ Autonomy director ready\n');
 
     // 2. Load initial knowledge base
     console.log('2️⃣  Loading knowledge base...');
