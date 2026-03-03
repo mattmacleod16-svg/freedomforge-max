@@ -62,8 +62,16 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 	- Agent protocol stack (all visible in `/api/status/protocols`):
 		- `MCP_ENABLED=true` + optional `MCP_HEALTH_URL` (Model Context Protocol)
 		- `ACP_ENABLED=true` + optional `ACP_HEALTH_URL` (Agent Communication Protocol)
-		- `A2A_ENABLED=true` + optional `A2A_HEALTH_URL` (Agent-to-Agent Protocol)
-		- `AUI_ENABLED=true` + optional `AUI_HEALTH_URL` (Agent-User Interaction Protocol)
+
+Max intelligence + autonomy profile:
+	- Set `MAX_INTELLIGENCE_MODE=true` and `AUTONOMY_MAX_MODE=true` to enable high-rigor ensemble behavior.
+	- In this mode, routing uses deeper champion/challenger ensembles (up to `CHAMPION_MAX_MODEL_COUNT`, default 5 in max mode).
+	- Adaptive decisioning lowers random exploration, increases evidence weighting, and appends investment-committee style critique constraints.
+	- Trading controls become stricter via:
+		- `PREDICTION_MIN_EDGE_FOR_ACTION` (recommended `0.24`)
+		- `PREDICTION_MIN_RELIABILITY_FOR_ACTION` (recommended `0.64`)
+		- `PREDICTION_CALIBRATION_GUARD_BRIER` (recommended `0.21`)
+	- If these quality gates fail, autonomy downgrades to monitor mode and suspends new entries until quality recovers.
 - Emotion-aware ElevenLabs TTS API: `POST /api/chat/tts`
 	- Required: `ELEVENLABS_API_KEY`
 	- Optional: `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`

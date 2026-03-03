@@ -56,6 +56,10 @@ const MAX_MEMORY = 250;
 const SHORT_WINDOW = 25;
 const LONG_WINDOW = 100;
 
+function isMaxModeEnabled() {
+  return String(process.env.MAX_INTELLIGENCE_MODE || process.env.AUTONOMY_MAX_MODE || 'false').toLowerCase() === 'true';
+}
+
 let loaded = false;
 let state: AdaptiveState = {
   qValues: {},
@@ -182,8 +186,10 @@ function computeRisk(modelResponses: ModelResponseLike[], driftScore: number) {
 }
 
 function epsilonForDrift(driftScore: number) {
-  const baseEpsilon = 0.1;
-  return clip(baseEpsilon + driftScore * 0.5, 0.05, 0.6);
+  const maxMode = isMaxModeEnabled();
+  const baseEpsilon = maxMode ? 0.04 : 0.1;
+  const scaled = baseEpsilon + driftScore * (maxMode ? 0.22 : 0.5);
+  return clip(scaled, maxMode ? 0.02 : 0.05, maxMode ? 0.28 : 0.6);
 }
 
 function getActionKey(response: ModelResponseLike, idx: number) {
@@ -191,6 +197,7 @@ function getActionKey(response: ModelResponseLike, idx: number) {
 }
 
 function chooseAction(modelResponses: ModelResponseLike[], epsilon: number) {
+  const maxMode = isMaxModeEnabled();
   const actions = modelResponses.map((response, idx) => ({
     key: getActionKey(response, idx),
     response,
@@ -207,9 +214,12 @@ function chooseAction(modelResponses: ModelResponseLike[], epsilon: number) {
 
   let best = actions[0];
   let bestScore = -Infinity;
+  const meanConfidence = avg(actions.map((action) => clip(action.response.confidence)));
   for (const action of actions) {
     const q = state.qValues[action.key] ?? 0.5;
-    const exploitationBonus = 0.2 * clip(action.response.confidence);
+    const confidence = clip(action.response.confidence);
+    const confidenceDelta = Math.max(0, confidence - meanConfidence);
+    const exploitationBonus = maxMode ? (0.24 * confidence + 0.09 * confidenceDelta) : (0.2 * confidence);
     const score = q + exploitationBonus;
     if (score > bestScore) {
       best = action;
@@ -231,6 +241,9 @@ function reflectionLoop(
     riskScore >= 0.6
       ? `Critique: high uncertainty detected; include caveats and propose verification steps.`
       : `Critique: uncertainty acceptable; keep concise but precise.`;
+  const committee = isMaxModeEnabled()
+    ? `Investment committee mode: cross-check for downside protection, margin of safety, and regime sensitivity before any autonomous action.`
+    : '';
 
   const revised =
     riskScore >= 0.7
@@ -242,15 +255,19 @@ function reflectionLoop(
     researcher,
     critic: `${critic} Finalized response length=${revised.length}. Query hash seed=${
       createHash('sha256').update(userQuery).digest('hex').slice(0, 8)
-    }`,
+    }${committee ? ` ${committee}` : ''}`,
   };
 }
 
 function computeReward(selected: ModelResponseLike, riskScore: number, sourcesCount: number) {
+  const maxMode = isMaxModeEnabled();
   const confidenceComponent = clip(selected.confidence);
-  const evidenceComponent = clip(Math.min(1, sourcesCount / 5));
+  const evidenceTarget = maxMode ? 8 : 5;
+  const evidenceComponent = clip(Math.min(1, sourcesCount / evidenceTarget));
   const riskPenalty = clip(riskScore);
-  return clip(0.55 * confidenceComponent + 0.25 * evidenceComponent + 0.2 * (1 - riskPenalty));
+  return maxMode
+    ? clip(0.45 * confidenceComponent + 0.35 * evidenceComponent + 0.2 * (1 - riskPenalty))
+    : clip(0.55 * confidenceComponent + 0.25 * evidenceComponent + 0.2 * (1 - riskPenalty));
 }
 
 function updateBandit(actionKey: string, reward: number) {

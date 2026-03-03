@@ -37,6 +37,10 @@ const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(pr
 const STATE_FILE = path.join(DATA_DIR, 'champion-policy.json');
 const MIN_USES_FOR_CHAMPION = Math.max(3, Number(process.env.CHAMPION_MIN_USES || 6));
 
+function isMaxModeEnabled() {
+  return String(process.env.MAX_INTELLIGENCE_MODE || process.env.AUTONOMY_MAX_MODE || 'false').toLowerCase() === 'true';
+}
+
 let initialized = false;
 let state: ChampionPolicyState = {
   byRegime: {
@@ -117,6 +121,7 @@ export function initializeChampionPolicy() {
 
 export function selectChampionChallengerRouting(input: RoutingInput) {
   initializeChampionPolicy();
+  const maxMode = isMaxModeEnabled();
 
   const regime = input.regime;
   const available = input.availableModels.map((name) => name.toLowerCase());
@@ -142,6 +147,12 @@ export function selectChampionChallengerRouting(input: RoutingInput) {
   if (input.regime === 'risk_off') modelCount = 3;
   if (input.forecastBrierScore > 0.22) modelCount = Math.max(modelCount, 3);
   if (input.forecastConfidence < 0.5 || input.marketConfidence < 0.45) modelCount = Math.max(modelCount, 3);
+  if (maxMode) {
+    modelCount = Math.max(modelCount, Number(process.env.CHAMPION_MAX_MODEL_COUNT || 4));
+    if (input.regime === 'risk_off' || input.forecastBrierScore > 0.2 || input.forecastConfidence < 0.52) {
+      modelCount = Math.max(modelCount, 5);
+    }
+  }
   modelCount = Math.min(Math.max(1, modelCount), Math.max(1, available.length));
 
   return {
@@ -150,8 +161,8 @@ export function selectChampionChallengerRouting(input: RoutingInput) {
     champion: preferredModels[0] || null,
     challenger: preferredModels[1] || null,
     rationale: enoughData
-      ? `regime=${regime}, champion performance-ranked with calibration-aware scoring`
-      : `regime=${regime}, insufficient history so fallback to configured model priority`,
+      ? `regime=${regime}, champion performance-ranked with calibration-aware scoring${maxMode ? '; max_mode=ensemble' : ''}`
+      : `regime=${regime}, insufficient history so fallback to configured model priority${maxMode ? '; max_mode=ensemble' : ''}`,
   };
 }
 

@@ -16,6 +16,10 @@ import { initializeMemoryEngine, recallMemories, rememberEpisode } from '@/lib/i
 import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
 import { buildVendorStrategyContext } from '@/lib/intelligence/vendorStack';
 
+function isMaxModeEnabled() {
+  return String(process.env.MAX_INTELLIGENCE_MODE || process.env.AUTONOMY_MAX_MODE || 'false').toLowerCase() === 'true';
+}
+
 interface SynthesisResult {
   response: string;
   sources: string[];
@@ -97,6 +101,7 @@ export async function initializeSynthesis() {
  */
 export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResult> {
   const startTime = Date.now();
+  const maxMode = isMaxModeEnabled();
   const sources: string[] = [];
   let enhancedPrompt = userQuery;
   let searchResultCount = 0;
@@ -180,6 +185,11 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
 
     enhancedPrompt += `\n\n[text interaction policy]\nmode=${vendorContext.textFirst.mode}; rules=${vendorContext.textFirst.policy.join(' | ')}`;
     enhancedPrompt += `\n\n[external strategy capabilities]\nbenefits=${vendorContext.topBenefits.slice(0, 10).join('; ')}\nhooks=${vendorContext.topHooks.slice(0, 12).join('; ')}`;
+    if (maxMode) {
+      enhancedPrompt += `\n\n[investment committee policy]\nprioritize capital preservation, asymmetric upside, calibration discipline, and explicit downside scenarios. Require a margin-of-safety framing before autonomous actions.`;
+      enhancedPrompt += `\n\n[max intelligence mode]\nuse deeper ensemble comparison, emphasize conflicting signals, and degrade autonomy when signal quality is weak.`;
+      sources.push('policy://max-intelligence-mode');
+    }
     sources.push('vendor://strategy-stack');
 
     // Step 2: Enhance with knowledge base
@@ -198,6 +208,10 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       forecastConfidence: forecastContext.confidence,
       marketConfidence: marketContext?.confidence ?? 0.5,
     });
+
+    if (maxMode) {
+      routing.modelCount = Math.max(routing.modelCount, Math.min(5, Math.max(3, getAvailableModels().length)));
+    }
 
     const modelResponses = await getMultiModelResponse(enhancedPrompt, routing.modelCount, {
       preferredModels: routing.preferredModels,

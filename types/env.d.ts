@@ -34,6 +34,10 @@ declare namespace NodeJS {
     PREDICTION_MIN_EDGE_FOR_ACTION?: string;
     PREDICTION_MIN_RELIABILITY_FOR_ACTION?: string;
     PREDICTION_CALIBRATION_GUARD_BRIER?: string;
+    MAX_INTELLIGENCE_MODE?: string;
+    AUTONOMY_MAX_MODE?: string;
+    CHAMPION_MAX_MODEL_COUNT?: string;
+    CHAMPION_MIN_USES?: string;
     VERCEL?: string;
   }
 }
