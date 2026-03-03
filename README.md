@@ -62,6 +62,8 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 	- Agent protocol stack (all visible in `/api/status/protocols`):
 		- `MCP_ENABLED=true` + optional `MCP_HEALTH_URL` (Model Context Protocol)
 		- `ACP_ENABLED=true` + optional `ACP_HEALTH_URL` (Agent Communication Protocol)
+		- `A2A_ENABLED=true` + optional `A2A_HEALTH_URL` (Agent-to-Agent Protocol)
+		- `AUI_ENABLED=true` + optional `AUI_HEALTH_URL` (Agent-User Interaction Protocol)
 
 Max intelligence + autonomy profile:
 	- Set `MAX_INTELLIGENCE_MODE=true` and `AUTONOMY_MAX_MODE=true` to enable high-rigor ensemble behavior.
