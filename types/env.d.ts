@@ -22,6 +22,10 @@ declare namespace NodeJS {
     X_HANDLE?: string;
     X_BEARER_TOKEN?: string;
     X_ACCESS_TOKEN?: string;
+    X_CLIENT_ID?: string;
+    X_CLIENT_SECRET?: string;
+    X_REFRESH_TOKEN?: string;
+    X_OAUTH_TOKEN_URL?: string;
     X_AUTOMATION_SECRET?: string;
     X_DRY_RUN?: string;
     X_FORCE?: string;

@@ -20,6 +20,13 @@ const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(pr
 const STATE_FILE = path.join(DATA_DIR, 'x-automation.json');
 const MAX_HISTORY = 300;
 
+type XOAuthTokenCache = {
+  accessToken: string;
+  expiresAt: number;
+};
+
+let oauthTokenCache: XOAuthTokenCache | null = null;
+
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 }
@@ -91,11 +98,77 @@ function getDailyPostLimit() {
 }
 
 function isConfigured() {
-  return Boolean(process.env.X_BEARER_TOKEN || process.env.X_ACCESS_TOKEN);
+  return Boolean(
+    process.env.X_BEARER_TOKEN ||
+      process.env.X_ACCESS_TOKEN ||
+      (process.env.X_REFRESH_TOKEN && process.env.X_CLIENT_ID)
+  );
 }
 
-function getAuthToken() {
+function getAuthTokenFromEnv() {
   return process.env.X_ACCESS_TOKEN || process.env.X_BEARER_TOKEN || '';
+}
+
+function getOAuthTokenUrl() {
+  return process.env.X_OAUTH_TOKEN_URL || 'https://api.x.com/2/oauth2/token';
+}
+
+async function getOAuthUserAccessToken() {
+  const clientId = process.env.X_CLIENT_ID;
+  const refreshToken = process.env.X_REFRESH_TOKEN;
+
+  if (!clientId || !refreshToken) return '';
+
+  const nowTs = Date.now();
+  if (oauthTokenCache && oauthTokenCache.expiresAt > nowTs + 60_000) {
+    return oauthTokenCache.accessToken;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: refreshToken,
+    client_id: clientId,
+  });
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  };
+
+  if (process.env.X_CLIENT_SECRET) {
+    const basic = Buffer.from(`${clientId}:${process.env.X_CLIENT_SECRET}`).toString('base64');
+    headers.Authorization = `Basic ${basic}`;
+  }
+
+  const response = await fetch(getOAuthTokenUrl(), {
+    method: 'POST',
+    headers,
+    body: body.toString(),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`X OAuth token refresh failed ${response.status}: ${JSON.stringify(payload)}`);
+  }
+
+  const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : '';
+  const expiresInSeconds = Number(payload?.expires_in || 3600);
+
+  if (!accessToken) {
+    throw new Error('X OAuth token refresh failed: missing access_token');
+  }
+
+  oauthTokenCache = {
+    accessToken,
+    expiresAt: nowTs + Math.max(300, expiresInSeconds) * 1000,
+  };
+
+  return accessToken;
+}
+
+async function getAuthToken() {
+  const staticToken = getAuthTokenFromEnv();
+  if (staticToken) return staticToken;
+  return getOAuthUserAccessToken();
 }
 
 function getBaseUrl() {
@@ -151,7 +224,11 @@ export function generateXGrowthPost(trend?: string) {
 }
 
 async function postTweet(text: string) {
-  const token = getAuthToken();
+  const token = await getAuthToken();
+  if (!token) {
+    throw new Error('X token not configured');
+  }
+
   const response = await fetch('https://api.x.com/2/tweets', {
     method: 'POST',
     headers: {

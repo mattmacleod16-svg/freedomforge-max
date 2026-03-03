@@ -89,7 +89,9 @@ X audience growth automation (for `@Mac_man17`):
 
 Required environment for posting:
 - `X_HANDLE=@Mac_man17`
-- `X_ACCESS_TOKEN` (preferred) or `X_BEARER_TOKEN` with tweet-write permissions
+- Option A (direct token): `X_ACCESS_TOKEN` (preferred) or `X_BEARER_TOKEN` with tweet-write permissions
+- Option B (OAuth refresh flow): `X_CLIENT_ID`, `X_CLIENT_SECRET` (if required by your X app), and `X_REFRESH_TOKEN`
+- Optional override: `X_OAUTH_TOKEN_URL` (defaults to `https://api.x.com/2/oauth2/token`)
 
 Recommended safety controls:
 - `X_DRY_RUN=true` (default) until validated
