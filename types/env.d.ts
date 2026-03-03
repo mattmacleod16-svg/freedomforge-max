@@ -31,6 +31,9 @@ declare namespace NodeJS {
     X_FORCE?: string;
     X_POST_COOLDOWN_MINUTES?: string;
     X_POST_DAILY_LIMIT?: string;
+    PREDICTION_MIN_EDGE_FOR_ACTION?: string;
+    PREDICTION_MIN_RELIABILITY_FOR_ACTION?: string;
+    PREDICTION_CALIBRATION_GUARD_BRIER?: string;
     VERCEL?: string;
   }
 }

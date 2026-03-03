@@ -7,6 +7,10 @@ interface RiskControlsPayload {
   positionSizeBps?: number;
   stopLossPct?: number;
   reliability?: number;
+  qualityScore?: number;
+  edge?: number;
+  shouldTrade?: boolean;
+  throttleReason?: string;
 }
 
 interface RollbackPayload {
@@ -69,6 +73,10 @@ export async function getRiskStatusSummary() {
       positionSizeBps: riskControls?.positionSizeBps ?? null,
       hardStopLossPct: riskControls?.stopLossPct ?? null,
       reliability: riskControls?.reliability ?? null,
+      qualityScore: riskControls?.qualityScore ?? null,
+      edge: riskControls?.edge ?? null,
+      shouldTrade: riskControls?.shouldTrade ?? null,
+      throttleReason: riskControls?.throttleReason ?? null,
     },
     rollback: {
       triggered: rollback?.rollbackTriggered ?? false,

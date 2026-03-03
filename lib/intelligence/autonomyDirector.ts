@@ -469,17 +469,44 @@ function deriveRiskControls(input: AutonomyInput, confidence: number) {
   const forecastBrier = clamp(input.forecastBrierScore ?? 0.25);
   const marketConfidence = clamp(input.marketConfidence ?? 0.5);
 
+  const signedEdge = (forecastProbability - 0.5) * 2;
   const edge = Math.abs(forecastProbability - 0.5) * 2;
   const reliability = clamp((1 - forecastBrier) * 0.55 + forecastConfidence * 0.25 + confidence * 0.2);
   const regimePenalty = input.marketRegime === 'risk_off' ? 0.55 : input.marketRegime === 'neutral' ? 0.8 : 1;
   const riskPenalty = clamp(1 - input.riskScore);
+  const calibrationPenalty = clamp((forecastBrier - 0.1) / 0.3);
+
+  const minimumEdgeForAction = clamp(Number(process.env.PREDICTION_MIN_EDGE_FOR_ACTION || 0.18));
+  const minimumReliabilityForAction = clamp(Number(process.env.PREDICTION_MIN_RELIABILITY_FOR_ACTION || 0.58));
+  const calibrationGuardBrier = clamp(Number(process.env.PREDICTION_CALIBRATION_GUARD_BRIER || 0.24));
+
+  const qualityScore = clamp(
+    edge * 0.34 +
+    reliability * 0.30 +
+    marketConfidence * 0.16 +
+    (1 - input.riskScore) * 0.12 +
+    (1 - calibrationPenalty) * 0.08
+  );
+
+  const weakEdge = edge < minimumEdgeForAction;
+  const weakReliability = reliability < minimumReliabilityForAction;
+  const weakCalibration = forecastBrier >= calibrationGuardBrier;
+  const shouldTrade = !(weakEdge || weakReliability || weakCalibration);
+
+  let throttleReason = '';
+  if (weakCalibration) throttleReason = `calibration_guard(brier=${forecastBrier.toFixed(3)})`;
+  else if (weakReliability) throttleReason = `reliability_guard(score=${reliability.toFixed(3)})`;
+  else if (weakEdge) throttleReason = `edge_guard(edge=${edge.toFixed(3)})`;
 
   const basePositionBps = Number(process.env.PREDICTION_BASE_POSITION_BPS || 150);
   const maxPositionBps = Number(process.env.PREDICTION_MAX_POSITION_BPS || 1200);
   const minPositionBps = Number(process.env.PREDICTION_MIN_POSITION_BPS || 50);
 
   const scaled = basePositionBps * (0.4 + edge * 0.8) * reliability * marketConfidence * regimePenalty * riskPenalty;
-  const positionSizeBps = Math.round(Math.max(minPositionBps, Math.min(maxPositionBps, scaled)));
+  const guardedSize = shouldTrade ? scaled : Math.min(scaled * 0.25, minPositionBps);
+  const positionSizeBps = shouldTrade
+    ? Math.round(Math.max(minPositionBps, Math.min(maxPositionBps, guardedSize)))
+    : 0;
 
   const minStopLossPct = Number(process.env.PREDICTION_MIN_STOP_LOSS_PCT || 1.25);
   const maxStopLossPct = Number(process.env.PREDICTION_MAX_STOP_LOSS_PCT || 6.5);
@@ -495,6 +522,11 @@ function deriveRiskControls(input: AutonomyInput, confidence: number) {
     stopLossPct,
     reliability,
     forecastBrier,
+    edge,
+    signedEdge: Number(signedEdge.toFixed(4)),
+    qualityScore,
+    shouldTrade,
+    throttleReason: shouldTrade ? undefined : throttleReason,
   };
 }
 
@@ -769,8 +801,14 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
   if (riskControls.positionSizeBps <= 120) {
     financeAutonomy.mode = 'monitor';
   }
+  if (!riskControls.shouldTrade) {
+    financeAutonomy.mode = 'monitor';
+    financeAutonomy.actions.push(`suspend_new_entries:${riskControls.throttleReason || 'quality_guard'}`);
+  }
   financeAutonomy.actions.push(`set_position_size_bps:${riskControls.positionSizeBps}`);
   financeAutonomy.actions.push(`set_hard_stop_loss_pct:${riskControls.stopLossPct}`);
+  financeAutonomy.actions.push(`signal_edge:${riskControls.signedEdge}`);
+  financeAutonomy.actions.push(`trade_quality_score:${riskControls.qualityScore.toFixed(3)}`);
   if (rollback.rollbackTriggered) {
     financeAutonomy.actions.push(`rollback_approval_mode:${rollback.rollbackMode}`);
   }
@@ -778,7 +816,7 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
     positionSizeBps: riskControls.positionSizeBps,
     stopLossPct: riskControls.stopLossPct,
     rollbackTriggered: rollback.rollbackTriggered,
-    reason: rollback.rollbackTriggered ? rollback.reason : undefined,
+    reason: rollback.rollbackTriggered ? rollback.reason : riskControls.throttleReason,
   };
 
   updateToolStats('web_search', confidence, input.sources.length > 0);
@@ -825,6 +863,10 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
       positionSizeBps: riskControls.positionSizeBps,
       stopLossPct: riskControls.stopLossPct,
       reliability: riskControls.reliability,
+      qualityScore: riskControls.qualityScore,
+      edge: riskControls.edge,
+      shouldTrade: riskControls.shouldTrade,
+      throttleReason: riskControls.throttleReason,
     },
     rollback,
     tunedPolicy,
