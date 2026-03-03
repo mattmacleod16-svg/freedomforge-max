@@ -1,0 +1,63 @@
+name: Nightly Daily Check
+
+on:
+  schedule:
+    - cron: '30 7 * * *' # nightly check (07:30 UTC)
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-daily-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run daily check
+        id: daily
+        continue-on-error: true
+        run: npm run daily-check
+
+      - name: Notify Discord
+        if: always()
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "ALERT_WEBHOOK_URL not set; skipping notification"
+            exit 0
+          fi
+
+          if [ "${{ steps.daily.outcome }}" = "success" ]; then
+            status="✅ PASS"
+            text="Nightly daily-check passed for $APP_BASE_URL"
+          else
+            status="❌ FAIL"
+            text="Nightly daily-check failed for $APP_BASE_URL. Check workflow logs + break-glass runbook."
+          fi
+
+          if [ -n "$ALERT_MENTION" ]; then
+            text="$ALERT_MENTION $text"
+          fi
+
+          payload=$(printf '{"content":"%s %s","text":"%s %s"}' "$status" "$text" "$status" "$text")
+          curl -sSL -X POST -H "Content-Type: application/json" -d "$payload" "$ALERT_WEBHOOK_URL"
+
+      - name: Fail workflow on check failure
+        if: steps.daily.outcome != 'success'
+        run: exit 1

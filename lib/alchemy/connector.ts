@@ -48,7 +48,7 @@ function getAlchemyRpcUrl(): string | null {
   return `https://${network}.g.alchemy.com/v2/${apiKey}`;
 }
 
-function getRpcProvider(): JsonRpcProvider | null {
+export function getRpcProvider(): JsonRpcProvider | null {
   if (rpcProvider) return rpcProvider;
   const rpcUrl = getAlchemyRpcUrl();
   if (!rpcUrl) return null;
@@ -251,7 +251,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   const maxRetries = Math.max(1, parseInt(process.env.DISTRIBUTION_MAX_RETRIES || '3', 10));
   const retryBaseMs = Math.max(100, parseInt(process.env.DISTRIBUTION_RETRY_BASE_MS || '1000', 10));
   const alertOnSuccess = String(process.env.ALERT_ON_SUCCESS || 'false').toLowerCase() === 'true';
-  const gasReserveEth = process.env.GAS_RESERVE_ETH || process.env.SELF_SUSTAIN_RESERVE_ETH || '0.02';
+  const gasReserveEth = (process.env.GAS_RESERVE_ETH || process.env.SELF_SUSTAIN_RESERVE_ETH || '0.02').trim();
   const reinvestBpsRaw = parseInt(process.env.SELF_SUSTAIN_REINVEST_BPS || '2000', 10);
   const reinvestBps = Math.max(0, Math.min(9000, Number.isFinite(reinvestBpsRaw) ? reinvestBpsRaw : 2000));
   const keepBps = 10000 - reinvestBps;
@@ -298,7 +298,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     const tokenShare = tokenBalance / BigInt(recipients.length);
     if (tokenShare <= BigInt(0)) return null;
 
-    const minTokenShareWei = BigInt(process.env.MIN_PAYOUT_TOKEN_WEI || '0');
+    const minTokenShareWei = BigInt((process.env.MIN_PAYOUT_TOKEN_WEI || '0').trim());
     if (tokenShare < minTokenShareWei) {
       await logEvent('distribution_skipped_token_threshold', {
         wallet: w.address,
@@ -396,7 +396,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   const share = distributable / BigInt(recipients.length);
   if (share <= BigInt(0)) return null;
 
-  const minPayoutEth = process.env.MIN_PAYOUT_ETH || '0';
+  const minPayoutEth = (process.env.MIN_PAYOUT_ETH || '0').trim();
   const minPayoutWei = parseEther(minPayoutEth);
   if (share < minPayoutWei) {
     await logEvent('distribution_skipped_threshold', {
