@@ -254,7 +254,9 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   const gasReserveEth = (process.env.GAS_RESERVE_ETH || process.env.SELF_SUSTAIN_RESERVE_ETH || '0.02').trim();
   const reinvestBpsRaw = parseInt(process.env.SELF_SUSTAIN_REINVEST_BPS || '2000', 10);
   const reinvestBps = Math.max(0, Math.min(9000, Number.isFinite(reinvestBpsRaw) ? reinvestBpsRaw : 2000));
-  const keepBps = 10000 - reinvestBps;
+  const treasuryTargetEth = (process.env.TREASURY_TARGET_ETH || '0.03').trim();
+  const treasuryMaxReinvestBpsRaw = parseInt(process.env.TREASURY_MAX_REINVEST_BPS || '9000', 10);
+  const treasuryMaxReinvestBps = Math.max(reinvestBps, Math.min(9000, Number.isFinite(treasuryMaxReinvestBpsRaw) ? treasuryMaxReinvestBpsRaw : 9000));
 
   // ensure revenue wallet has gas before attempting distribution
   try {
@@ -295,7 +297,18 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
 
     if (tokenBalance <= BigInt(0)) return null;
 
-    const tokenShare = tokenBalance / BigInt(recipients.length);
+    const nativeBalanceForPolicy = await provider.getBalance(w.address);
+    const treasuryTargetWei = parseEther(treasuryTargetEth);
+    let effectiveReinvestBps = reinvestBps;
+    if (treasuryTargetWei > BigInt(0) && nativeBalanceForPolicy < treasuryTargetWei) {
+      const deficit = treasuryTargetWei - nativeBalanceForPolicy;
+      const dynamicBoost = Number((deficit * BigInt(treasuryMaxReinvestBps - reinvestBps)) / treasuryTargetWei);
+      effectiveReinvestBps = Math.min(treasuryMaxReinvestBps, reinvestBps + Math.max(0, dynamicBoost));
+    }
+    const effectiveKeepBps = 10000 - effectiveReinvestBps;
+    const distributableToken = (tokenBalance * BigInt(effectiveKeepBps)) / BigInt(10000);
+
+    const tokenShare = distributableToken / BigInt(recipients.length);
     if (tokenShare <= BigInt(0)) return null;
 
     const minTokenShareWei = BigInt((process.env.MIN_PAYOUT_TOKEN_WEI || '0').trim());
@@ -309,7 +322,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
       return null;
     }
 
-    const nativeBalance = await provider.getBalance(w.address);
+    const nativeBalance = nativeBalanceForPolicy;
     const gasReserve = parseEther(gasReserveEth);
     if (nativeBalance < gasReserve) {
       await logEvent('distribution_skipped_token_gas_reserve', {
@@ -332,6 +345,9 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
       totalShards,
       token: payoutToken,
       available: tokenBalance.toString(),
+      distributableToken: distributableToken.toString(),
+      baseReinvestBps: reinvestBps,
+      effectiveReinvestBps,
       recipients,
     });
 
@@ -376,6 +392,15 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     return null;
   }
 
+  const treasuryTargetWei = parseEther(treasuryTargetEth);
+  let effectiveReinvestBps = reinvestBps;
+  if (treasuryTargetWei > BigInt(0) && balanceWei < treasuryTargetWei) {
+    const deficit = treasuryTargetWei - balanceWei;
+    const dynamicBoost = Number((deficit * BigInt(treasuryMaxReinvestBps - reinvestBps)) / treasuryTargetWei);
+    effectiveReinvestBps = Math.min(treasuryMaxReinvestBps, reinvestBps + Math.max(0, dynamicBoost));
+  }
+  const effectiveKeepBps = 10000 - effectiveReinvestBps;
+
   const gasReserve = parseEther(gasReserveEth);
   if (balanceWei <= gasReserve) {
     await logEvent('distribution_skipped_native_gas_reserve', {
@@ -390,7 +415,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   }
 
   const availableAfterReserve = balanceWei - gasReserve;
-  const distributable = (availableAfterReserve * BigInt(keepBps)) / BigInt(10000);
+  const distributable = (availableAfterReserve * BigInt(effectiveKeepBps)) / BigInt(10000);
   if (distributable <= BigInt(0)) return {};
 
   const share = distributable / BigInt(recipients.length);
@@ -420,7 +445,8 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     availableAfterReserve: availableAfterReserve.toString(),
     distributable: distributable.toString(),
     gasReserveWei: gasReserve.toString(),
-    reinvestBps,
+    baseReinvestBps: reinvestBps,
+    effectiveReinvestBps,
     recipients,
   });
 
