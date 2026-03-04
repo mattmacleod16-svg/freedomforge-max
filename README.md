@@ -205,12 +205,16 @@ SMS morning summary (Twilio):
 - Script: `node scripts/send-sms-summary.js`
 - Workflow: `.github/workflows/sms-morning-summary.yml` (runs daily at 13:15 UTC + manual trigger)
 - Sends wallet balance, last payout transfer, recipient, and X posting guard status to your phone
+- Verifies final Twilio delivery status after send and fails on `failed` / `undelivered` / timeout
 - Required GitHub secrets:
 	- `TWILIO_ACCOUNT_SID`
 	- `TWILIO_AUTH_TOKEN`
 	- `TWILIO_FROM_NUMBER`
 	- `TWILIO_TO_NUMBER`
-- Optional GitHub variable: `SMS_MAX_LEN` (default `1200`)
+- Optional GitHub variables:
+	- `SMS_MAX_LEN` (default `1200`)
+	- `SMS_DELIVERY_TIMEOUT_MS` (default `120000`)
+	- `SMS_DELIVERY_POLL_MS` (default `5000`)
 Monthly strategy recommendations:
 - Script: `npm run monthly-strategy`
 - Workflow: `.github/workflows/monthly-strategy.yml` (runs on day 1 of each month at 15:00 UTC + manual trigger)

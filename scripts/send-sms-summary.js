@@ -83,7 +83,60 @@ async function sendSms(body) {
   }
 
   const payload = JSON.parse(text);
-  console.log(`SMS sent: sid=${payload.sid}`);
+  console.log(`SMS accepted: sid=${payload.sid} status=${payload.status}`);
+  return { sid: payload.sid, accountSid, authToken };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTerminalStatus(status) {
+  return ['delivered', 'failed', 'undelivered'].includes(status);
+}
+
+async function fetchTwilioMessageStatus({ accountSid, authToken, sid }) {
+  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${sid}.json`;
+  const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  const response = await fetch(endpoint, {
+    headers: {
+      Authorization: `Basic ${auth}`,
+    },
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Twilio status check failed: HTTP ${response.status} ${text}`);
+  }
+
+  return JSON.parse(text);
+}
+
+async function waitForDeliveryStatus(params) {
+  const timeoutMs = Number(process.env.SMS_DELIVERY_TIMEOUT_MS || 120000);
+  const intervalMs = Number(process.env.SMS_DELIVERY_POLL_MS || 5000);
+  const started = Date.now();
+  let lastStatus = 'unknown';
+
+  while (Date.now() - started <= timeoutMs) {
+    const message = await fetchTwilioMessageStatus(params);
+    const status = String(message.status || 'unknown').toLowerCase();
+    lastStatus = status;
+    console.log(`SMS delivery check: sid=${params.sid} status=${status}`);
+
+    if (isTerminalStatus(status)) {
+      if (status === 'delivered') {
+        return;
+      }
+      const code = message.error_code || 'n/a';
+      const error = message.error_message || 'n/a';
+      throw new Error(`SMS delivery ${status}: sid=${params.sid} code=${code} message=${error}`);
+    }
+
+    await sleep(intervalMs);
+  }
+
+  throw new Error(`SMS delivery status timeout: sid=${params.sid} lastStatus=${lastStatus} timeoutMs=${timeoutMs}`);
 }
 
 async function main() {
@@ -94,7 +147,8 @@ async function main() {
   ]);
 
   const body = buildSummary({ wallet, logs, xStatus });
-  await sendSms(body);
+  const sendResult = await sendSms(body);
+  await waitForDeliveryStatus(sendResult);
 }
 
 main().catch((error) => {

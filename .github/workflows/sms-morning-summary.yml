@@ -19,6 +19,8 @@ jobs:
       TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
       TWILIO_TO_NUMBER: ${{ secrets.TWILIO_TO_NUMBER }}
       SMS_MAX_LEN: ${{ vars.SMS_MAX_LEN || '1200' }}
+      SMS_DELIVERY_TIMEOUT_MS: ${{ vars.SMS_DELIVERY_TIMEOUT_MS || '120000' }}
+      SMS_DELIVERY_POLL_MS: ${{ vars.SMS_DELIVERY_POLL_MS || '5000' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
