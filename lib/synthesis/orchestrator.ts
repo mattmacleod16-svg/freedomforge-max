@@ -16,6 +16,7 @@ import { initializeMemoryEngine, recallMemories, rememberEpisode } from '@/lib/i
 import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
 import { buildVendorStrategyContext } from '@/lib/intelligence/vendorStack';
 import { buildBehavioralContext } from '@/lib/intelligence/behavioralIntel';
+import { logEvent } from '@/lib/logger';
 
 function isMaxModeEnabled() {
   return String(process.env.MAX_INTELLIGENCE_MODE || process.env.AUTONOMY_MAX_MODE || 'false').toLowerCase() === 'true';
@@ -42,6 +43,49 @@ function extractKeyLines(text: string, limit = 2) {
   return lines.slice(0, limit);
 }
 
+function classifyResponseIssue(text: string) {
+  const value = (text || '').trim().toLowerCase();
+  if (!value) return 'empty';
+  if (value === 'no response') return 'no_response';
+  if (value.startsWith('error:')) return 'provider_error';
+  if (value.length < 24) return 'too_short';
+  return 'filtered_by_consensus';
+}
+
+function tokenSet(text: string) {
+  return new Set(
+    (text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((token) => token.length > 2)
+  );
+}
+
+function jaccard(a: Set<string>, b: Set<string>) {
+  const union = new Set([...a, ...b]);
+  if (union.size === 0) return 0;
+  let intersection = 0;
+  a.forEach((token) => {
+    if (b.has(token)) intersection += 1;
+  });
+  return intersection / union.size;
+}
+
+function computeAgreementScore(items: Array<{ response: string }>) {
+  if (items.length <= 1) return 1;
+  const sets = items.map((item) => tokenSet(item.response));
+  const pairs: number[] = [];
+  for (let i = 0; i < sets.length; i += 1) {
+    for (let j = i + 1; j < sets.length; j += 1) {
+      pairs.push(jaccard(sets[i], sets[j]));
+    }
+  }
+  if (pairs.length === 0) return 1;
+  const avg = pairs.reduce((sum, value) => sum + value, 0) / pairs.length;
+  return Number(avg.toFixed(4));
+}
+
 function buildEnsembleConsensus(input: {
   responses: Array<{ model: string; response: string; confidence: number }>;
   maxMode: boolean;
@@ -55,6 +99,11 @@ function buildEnsembleConsensus(input: {
       response: '',
       participatingModels: [] as string[],
       droppedModels: input.responses.map((row) => row.model),
+      droppedDetails: input.responses.map((row) => ({
+        model: row.model,
+        reason: classifyResponseIssue(row.response),
+      })),
+      agreementScore: 0,
     };
   }
 
@@ -63,6 +112,13 @@ function buildEnsembleConsensus(input: {
       response: usable[0].response,
       participatingModels: [usable[0].model],
       droppedModels: input.responses.filter((row) => row.model !== usable[0].model).map((row) => row.model),
+      droppedDetails: input.responses
+        .filter((row) => row.model !== usable[0].model)
+        .map((row) => ({
+          model: row.model,
+          reason: classifyResponseIssue(row.response),
+        })),
+      agreementScore: 1,
     };
   }
 
@@ -90,6 +146,13 @@ function buildEnsembleConsensus(input: {
     droppedModels: input.responses
       .map((row) => row.model)
       .filter((name) => !picked.some((row) => row.model === name)),
+    droppedDetails: input.responses
+      .filter((row) => !picked.some((candidate) => candidate.model === row.model))
+      .map((row) => ({
+        model: row.model,
+        reason: classifyResponseIssue(row.response),
+      })),
+    agreementScore: computeAgreementScore(picked),
   };
 }
 
@@ -302,6 +365,14 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     const modelsUsed = modelResponses.map((r) => r.model);
     const consensus = buildEnsembleConsensus({
       responses: modelResponses,
+      maxMode,
+    });
+    await logEvent('ensemble_decision', {
+      queriedModels: modelsUsed,
+      participatingModels: consensus.participatingModels,
+      droppedModels: consensus.droppedModels,
+      droppedDetails: consensus.droppedDetails,
+      agreementScore: consensus.agreementScore,
       maxMode,
     });
     if (consensus.participatingModels.length > 1) {
