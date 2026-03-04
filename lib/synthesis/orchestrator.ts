@@ -110,6 +110,15 @@ function isBottomLineCriticalQuery(query: string) {
   );
 }
 
+function isLowStakesQuery(query: string) {
+  const text = (query || '').trim();
+  if (!text) return true;
+  const words = countWords(text);
+  if (words <= 3) return true;
+  if (/^(hi|hello|hey|yo|ping|status\??|gm|gn)$/i.test(text)) return true;
+  return false;
+}
+
 function estimateComplexityScore(input: {
   userQuery: string;
   maxMode: boolean;
@@ -241,6 +250,13 @@ function shouldEscalateModelPass(input: {
   }
 
   const reasons: string[] = [];
+  const lowStakes = isLowStakesQuery(input.userQuery);
+  const highImpact = /(autopilot|transfer|wire|execute|allocation|portfolio|prediction market|leverage|all-in)/i.test(input.userQuery);
+
+  if (lowStakes && !input.profile.bottomLineProtected && !highImpact) {
+    return { escalate: false, reasons: [] };
+  }
+
   if (input.consensusAgreement < input.profile.escalationAgreementThreshold) {
     reasons.push(`low_agreement(${input.consensusAgreement.toFixed(3)})`);
   }
@@ -248,7 +264,7 @@ function shouldEscalateModelPass(input: {
     reasons.push(`low_confidence(${input.maxConfidence.toFixed(3)})`);
   }
 
-  if (/(autopilot|transfer|wire|execute|allocation|portfolio|prediction market|leverage|all-in)/i.test(input.userQuery)) {
+  if (highImpact) {
     reasons.push('high_impact_query');
   }
 
