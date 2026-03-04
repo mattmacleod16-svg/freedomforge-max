@@ -201,6 +201,12 @@ Automated monthly parameter patch PR:
 - Optional vars: `PATCH_LOOKBACK_HOURS` (default `720`) and `PATCH_LOG_LIMIT` (default `4000`)
 - Optional repo secret: `OPS_PR_TOKEN` (PAT with `repo` scope) to create PRs if default `GITHUB_TOKEN` PR creation is restricted
 
+Automated ensemble policy tuning:
+- Endpoint: `POST /api/status/ensemble/policy`
+- Workflow: `.github/workflows/ensemble-policy-tuner.yml` (runs hourly at minute 10 UTC + manual trigger)
+- Scheduled runs use `regime=neutral` and `limit=1200` (bounded to `100..5000`)
+- Manual inputs: `regime` (`neutral`, `risk_on`, `risk_off`, `unknown`) and `limit`
+
 One-click apply to Vercel envs:
 - Script: `npm run apply-vercel-env`
 - Workflow: `.github/workflows/apply-vercel-env.yml`
