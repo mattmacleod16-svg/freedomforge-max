@@ -12,6 +12,12 @@ export interface PredictionMarketContract {
   bullishHits: number;
 }
 
+export interface PredictionMarketTopRiskContract {
+  title: string;
+  probability: number;
+  riskContribution: number;
+}
+
 export interface MarketFeaturePoint {
   ts: number;
   btcUsd: number;
@@ -105,6 +111,24 @@ function normalizePredictionMarketContracts(value: unknown): PredictionMarketCon
       return null;
     })
     .filter((entry): entry is PredictionMarketContract => Boolean(entry));
+}
+
+function getTopRiskContracts(
+  contracts: PredictionMarketContract[],
+  limit = 3
+): PredictionMarketTopRiskContract[] {
+  if (!Array.isArray(contracts) || contracts.length === 0) return [];
+
+  const safeLimit = Math.max(1, Math.min(10, Math.floor(limit)));
+
+  return [...contracts]
+    .sort((left, right) => right.riskContribution - left.riskContribution)
+    .slice(0, safeLimit)
+    .map((contract) => ({
+      title: contract.title,
+      probability: contract.probability,
+      riskContribution: contract.riskContribution,
+    }));
 }
 
 function countMatches(text: string, terms: string[]) {
@@ -532,12 +556,18 @@ export function getMarketIntelligenceSummary() {
   const latest = getLatestMarketSnapshot();
   const recent = state.history.slice(-48);
   const avgConfidence = avg(recent.map((point) => point.confidence));
+  const latestWithTopRisk = latest
+    ? {
+      ...latest,
+      topRiskContracts: getTopRiskContracts(latest.predictionMarketTopContracts),
+    }
+    : null;
 
   return {
-    available: Boolean(latest),
+    available: Boolean(latestWithTopRisk),
     updatedAt: state.updatedAt || null,
     samples: state.history.length,
     avgConfidence: Number(avgConfidence.toFixed(4)),
-    latest,
+    latest: latestWithTopRisk,
   };
 }
