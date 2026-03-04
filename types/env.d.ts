@@ -108,6 +108,12 @@ declare namespace NodeJS {
     AUTONOMY_MAX_MODE?: string;
     CHAMPION_MAX_MODEL_COUNT?: string;
     CHAMPION_MIN_USES?: string;
+    AI_QUERY_BUDGET_USD?: string;
+    AI_MODEL_COST_PER_1K_TOKENS?: string;
+    AI_MIN_MODEL_COUNT?: string;
+    AI_MAX_MODEL_COUNT?: string;
+    AI_ESCALATION_AGREEMENT_THRESHOLD?: string;
+    AI_ESCALATION_CONFIDENCE_THRESHOLD?: string;
     VERCEL?: string;
   }
 }

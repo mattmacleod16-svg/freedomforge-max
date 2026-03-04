@@ -86,6 +86,159 @@ function computeAgreementScore(items: Array<{ response: string }>) {
   return Number(avg.toFixed(4));
 }
 
+interface ReasoningProfile {
+  mode: 'lean' | 'balanced' | 'deep';
+  complexityScore: number;
+  budgetUsd: number;
+  estimatedTokensPerModel: number;
+  modelBudgetCap: number;
+  initialModelCount: number;
+  maxModelCount: number;
+  escalationEnabled: boolean;
+  escalationAgreementThreshold: number;
+  escalationConfidenceThreshold: number;
+}
+
+function countWords(text: string) {
+  return (text || '').trim().split(/\s+/).filter(Boolean).length;
+}
+
+function estimateComplexityScore(input: {
+  userQuery: string;
+  maxMode: boolean;
+  marketRegime?: 'risk_on' | 'risk_off' | 'neutral' | 'unknown';
+  marketConfidence?: number;
+  forecastConfidence?: number;
+  forecastBrier?: number;
+}) {
+  const words = countWords(input.userQuery);
+  const query = input.userQuery.toLowerCase();
+  const strategyIntent = /(strategy|plan|roadmap|allocation|portfolio|risk|trade|forecast|reason|optimi|architecture|compare|autonomy)/i.test(query);
+  const highImpactIntent = /(transfer|wire|execute|autopilot|all-in|leverage|rebalance|deploy|live)/i.test(query);
+  const uncertainMarket = (input.marketConfidence ?? 0.5) < 0.5 || (input.forecastConfidence ?? 0.5) < 0.52 || (input.forecastBrier ?? 0.2) > 0.22;
+  const riskOff = input.marketRegime === 'risk_off';
+
+  let score = 0.2;
+  score += Math.min(0.25, words / 140);
+  if (strategyIntent) score += 0.2;
+  if (highImpactIntent) score += 0.2;
+  if (uncertainMarket) score += 0.15;
+  if (riskOff) score += 0.1;
+  if (input.maxMode) score += 0.15;
+
+  return Math.max(0, Math.min(1, Number(score.toFixed(4))));
+}
+
+function buildReasoningProfile(input: {
+  userQuery: string;
+  maxMode: boolean;
+  availableModelCount: number;
+  baselineModelCount: number;
+  marketRegime?: 'risk_on' | 'risk_off' | 'neutral' | 'unknown';
+  marketConfidence?: number;
+  forecastConfidence?: number;
+  forecastBrier?: number;
+}): ReasoningProfile {
+  const complexityScore = estimateComplexityScore({
+    userQuery: input.userQuery,
+    maxMode: input.maxMode,
+    marketRegime: input.marketRegime,
+    marketConfidence: input.marketConfidence,
+    forecastConfidence: input.forecastConfidence,
+    forecastBrier: input.forecastBrier,
+  });
+
+  const budgetUsdDefault = input.maxMode ? 0.028 : 0.012;
+  const budgetUsd = Math.max(0.002, Number(process.env.AI_QUERY_BUDGET_USD || budgetUsdDefault));
+  const costPer1kTokens = Math.max(0.0001, Number(process.env.AI_MODEL_COST_PER_1K_TOKENS || 0.0022));
+
+  const estimatedTokensPerModel =
+    complexityScore >= 0.75 ? 1300
+      : complexityScore >= 0.45 ? 950
+        : 650;
+
+  const estimatedCostPerModel = (estimatedTokensPerModel / 1000) * costPer1kTokens;
+  const computedBudgetCap = Math.floor(budgetUsd / Math.max(0.000001, estimatedCostPerModel));
+  const modelBudgetCap = Math.max(1, Math.min(input.availableModelCount, computedBudgetCap));
+
+  const minModels = Math.max(1, Number(process.env.AI_MIN_MODEL_COUNT || 1));
+  const maxModelsEnv = Math.max(1, Number(process.env.AI_MAX_MODEL_COUNT || (input.maxMode ? 5 : 4)));
+
+  const mode: ReasoningProfile['mode'] =
+    complexityScore >= 0.75 ? 'deep'
+      : complexityScore >= 0.4 ? 'balanced'
+        : 'lean';
+
+  const initialFromComplexity =
+    mode === 'deep' ? 3
+      : mode === 'balanced' ? 2
+        : 1;
+
+  const initialModelCount = Math.max(
+    minModels,
+    Math.min(input.availableModelCount, input.baselineModelCount, initialFromComplexity, modelBudgetCap)
+  );
+
+  const targetMaxFromMode =
+    mode === 'deep' ? Math.max(input.baselineModelCount, input.maxMode ? 5 : 4)
+      : mode === 'balanced' ? Math.max(initialModelCount + 1, input.baselineModelCount)
+        : initialModelCount;
+
+  const maxModelCount = Math.max(
+    initialModelCount,
+    Math.min(input.availableModelCount, maxModelsEnv, modelBudgetCap, targetMaxFromMode)
+  );
+
+  const escalationEnabled = maxModelCount > initialModelCount;
+  const escalationAgreementThreshold = Math.max(0.08, Math.min(0.7, Number(process.env.AI_ESCALATION_AGREEMENT_THRESHOLD || 0.23)));
+  const escalationConfidenceThreshold = Math.max(0.3, Math.min(0.9, Number(process.env.AI_ESCALATION_CONFIDENCE_THRESHOLD || 0.56)));
+
+  return {
+    mode,
+    complexityScore,
+    budgetUsd,
+    estimatedTokensPerModel,
+    modelBudgetCap,
+    initialModelCount,
+    maxModelCount,
+    escalationEnabled,
+    escalationAgreementThreshold,
+    escalationConfidenceThreshold,
+  };
+}
+
+function shouldEscalateModelPass(input: {
+  profile: ReasoningProfile;
+  consensusAgreement: number;
+  maxConfidence: number;
+  userQuery: string;
+}): { escalate: boolean; reasons: string[] } {
+  if (!input.profile.escalationEnabled) {
+    return { escalate: false, reasons: [] };
+  }
+
+  const reasons: string[] = [];
+  if (input.consensusAgreement < input.profile.escalationAgreementThreshold) {
+    reasons.push(`low_agreement(${input.consensusAgreement.toFixed(3)})`);
+  }
+  if (input.maxConfidence < input.profile.escalationConfidenceThreshold) {
+    reasons.push(`low_confidence(${input.maxConfidence.toFixed(3)})`);
+  }
+
+  if (/(autopilot|transfer|wire|execute|allocation|portfolio|prediction market|leverage|all-in)/i.test(input.userQuery)) {
+    reasons.push('high_impact_query');
+  }
+
+  if (input.profile.mode === 'deep' && reasons.length === 0) {
+    reasons.push('deep_mode_committee');
+  }
+
+  return {
+    escalate: reasons.length > 0,
+    reasons,
+  };
+}
+
 function buildEnsembleConsensus(input: {
   responses: Array<{ model: string; response: string; confidence: number }>;
   maxMode: boolean;
@@ -213,6 +366,18 @@ interface SynthesisResult {
       verdict: string;
       score: number;
     }>;
+  };
+  routing_profile?: {
+    mode: 'lean' | 'balanced' | 'deep';
+    complexity_score: number;
+    budget_usd: number;
+    estimated_tokens_per_model: number;
+    model_budget_cap: number;
+    initial_models: number;
+    final_models: number;
+    escalated: boolean;
+    escalation_reasons: string[];
+    agreement_score: number;
   };
   timestamp: number;
 }
@@ -361,21 +526,65 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       routing.modelCount = Math.max(routing.modelCount, Math.min(5, Math.max(3, getAvailableModels().length)));
     }
 
-    const modelResponses = await getMultiModelResponse(enhancedPrompt, routing.modelCount, {
+    const reasoningProfile = buildReasoningProfile({
+      userQuery,
+      maxMode,
+      availableModelCount: getAvailableModels().length,
+      baselineModelCount: routing.modelCount,
+      marketRegime: marketContext?.regime || 'unknown',
+      marketConfidence: marketContext?.confidence ?? 0.5,
+      forecastConfidence: forecastContext.confidence,
+      forecastBrier: forecastContext.brier,
+    });
+
+    let modelResponses = await getMultiModelResponse(enhancedPrompt, reasoningProfile.initialModelCount, {
       preferredModels: routing.preferredModels,
     });
-    const modelsUsed = modelResponses.map((r) => r.model);
-    const consensus = buildEnsembleConsensus({
+
+    let consensus = buildEnsembleConsensus({
       responses: modelResponses,
       maxMode,
     });
+
+    const passOneModelsUsed = modelResponses.map((row) => row.model);
+    const passOneMaxConfidence = modelResponses.length
+      ? Math.max(...modelResponses.map((row) => row.confidence))
+      : 0;
+
+    const escalationDecision = shouldEscalateModelPass({
+      profile: reasoningProfile,
+      consensusAgreement: consensus.agreementScore,
+      maxConfidence: passOneMaxConfidence,
+      userQuery,
+    });
+
+    if (escalationDecision.escalate && reasoningProfile.maxModelCount > reasoningProfile.initialModelCount) {
+      const escalatedResponses = await getMultiModelResponse(enhancedPrompt, reasoningProfile.maxModelCount, {
+        preferredModels: routing.preferredModels,
+      });
+
+      if (escalatedResponses.length > modelResponses.length) {
+        modelResponses = escalatedResponses;
+        consensus = buildEnsembleConsensus({
+          responses: modelResponses,
+          maxMode,
+        });
+      }
+    }
+
+    const modelsUsed = modelResponses.map((r) => r.model);
     await logEvent('ensemble_decision', {
       queriedModels: modelsUsed,
+      passOneModels: passOneModelsUsed,
       participatingModels: consensus.participatingModels,
       droppedModels: consensus.droppedModels,
       droppedDetails: consensus.droppedDetails,
       agreementScore: consensus.agreementScore,
       maxMode,
+      routingRationale: routing.rationale,
+      reasoningProfile,
+      escalated: escalationDecision.escalate,
+      escalationReasons: escalationDecision.reasons,
     });
     if (consensus.participatingModels.length > 1) {
       sources.push('model://ensemble-consensus');
@@ -449,8 +658,8 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       search_results: searchResultCount,
       knowledge_base_hits: kbHitCount,
       reasoning: adaptiveDecision
-        ? `${adaptiveDecision.reasoning} Synthesis completed in ${synthesisTime}ms. Used ${modelsUsed.length} models, ${searchResultCount} web results, ${kbHitCount} KB hits.`
-        : `Synthesis completed in ${synthesisTime}ms. Used ${modelsUsed.length} models, ${searchResultCount} web results, ${kbHitCount} KB hits.`,
+        ? `${adaptiveDecision.reasoning} Synthesis completed in ${synthesisTime}ms. Used ${modelsUsed.length} models, ${searchResultCount} web results, ${kbHitCount} KB hits. Routing=${reasoningProfile.mode}; escalated=${escalationDecision.escalate}; agreement=${consensus.agreementScore.toFixed(3)}.`
+        : `Synthesis completed in ${synthesisTime}ms. Used ${modelsUsed.length} models, ${searchResultCount} web results, ${kbHitCount} KB hits. Routing=${reasoningProfile.mode}; escalated=${escalationDecision.escalate}; agreement=${consensus.agreementScore.toFixed(3)}.`,
       risk_score: adaptiveDecision?.riskScore,
       drift_score: adaptiveDecision?.driftScore,
       xai: adaptiveDecision
@@ -487,6 +696,18 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
         },
         ethical_alignment: autonomyDecision.ethicalAlignment,
         team_reviews: autonomyDecision.teamReviews,
+      },
+      routing_profile: {
+        mode: reasoningProfile.mode,
+        complexity_score: reasoningProfile.complexityScore,
+        budget_usd: Number(reasoningProfile.budgetUsd.toFixed(4)),
+        estimated_tokens_per_model: reasoningProfile.estimatedTokensPerModel,
+        model_budget_cap: reasoningProfile.modelBudgetCap,
+        initial_models: reasoningProfile.initialModelCount,
+        final_models: modelsUsed.length,
+        escalated: escalationDecision.escalate,
+        escalation_reasons: escalationDecision.reasons,
+        agreement_score: consensus.agreementScore,
       },
       timestamp: Date.now(),
     };

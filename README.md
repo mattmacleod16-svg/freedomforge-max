@@ -68,6 +68,14 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 Max intelligence + autonomy profile:
 	- Set `MAX_INTELLIGENCE_MODE=true` and `AUTONOMY_MAX_MODE=true` to enable high-rigor ensemble behavior.
 	- In this mode, routing uses deeper champion/challenger ensembles (up to `CHAMPION_MAX_MODEL_COUNT`, default 5 in max mode).
+	- Adaptive reasoning now uses a two-pass committee policy: lean first pass, then escalation only when agreement/confidence is weak or query impact is high.
+	- Cost-aware routing knobs for "maximum brainpower within budget":
+		- `AI_QUERY_BUDGET_USD` (default `0.012`, max-mode default `0.028`)
+		- `AI_MODEL_COST_PER_1K_TOKENS` (default `0.0022`)
+		- `AI_MIN_MODEL_COUNT` / `AI_MAX_MODEL_COUNT` (defaults `1` / `4`, max mode cap `5`)
+		- `AI_ESCALATION_AGREEMENT_THRESHOLD` (default `0.23`)
+		- `AI_ESCALATION_CONFIDENCE_THRESHOLD` (default `0.56`)
+	- Chat metadata now includes `routing_profile` so you can audit mode, budget cap, escalation reason(s), and agreement score per query.
 	- Adaptive decisioning lowers random exploration, increases evidence weighting, and appends investment-committee style critique constraints.
 	- Trading controls become stricter via:
 		- `PREDICTION_MIN_EDGE_FOR_ACTION` (recommended `0.24`)

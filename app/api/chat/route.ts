@@ -91,6 +91,18 @@ interface ChatResponse {
       aui: string;
       inferredEmotion: 'neutral' | 'positive' | 'concerned' | 'urgent';
     };
+    routing_profile?: {
+      mode: 'lean' | 'balanced' | 'deep';
+      complexity_score: number;
+      budget_usd: number;
+      estimated_tokens_per_model: number;
+      model_budget_cap: number;
+      initial_models: number;
+      final_models: number;
+      escalated: boolean;
+      escalation_reasons: string[];
+      agreement_score: number;
+    };
   };
 }
 
@@ -145,6 +157,7 @@ export async function POST(req: Request): Promise<Response> {
         drift_score: result.drift_score,
         xai: result.xai,
         autonomy: result.autonomy,
+        routing_profile: result.routing_profile,
         protocols: {
           mcp: mcp.id,
           acp: acp.id,
