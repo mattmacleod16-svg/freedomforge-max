@@ -15,9 +15,82 @@ import { initializeChampionPolicy, recordChampionOutcome, selectChampionChalleng
 import { initializeMemoryEngine, recallMemories, rememberEpisode } from '@/lib/intelligence/memoryEngine';
 import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
 import { buildVendorStrategyContext } from '@/lib/intelligence/vendorStack';
+import { buildBehavioralContext } from '@/lib/intelligence/behavioralIntel';
 
 function isMaxModeEnabled() {
   return String(process.env.MAX_INTELLIGENCE_MODE || process.env.AUTONOMY_MAX_MODE || 'false').toLowerCase() === 'true';
+}
+
+function isUsableResponse(text: string) {
+  const value = (text || '').trim().toLowerCase();
+  if (!value) return false;
+  if (value === 'no response') return false;
+  if (value.startsWith('error:')) return false;
+  return value.length >= 24;
+}
+
+function firstUsableResponse(responses: Array<{ response: string }>) {
+  return responses.find((item) => isUsableResponse(item.response))?.response || '';
+}
+
+function extractKeyLines(text: string, limit = 2) {
+  const lines = (text || '')
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 18)
+    .filter((line) => !/^sources?:/i.test(line));
+  return lines.slice(0, limit);
+}
+
+function buildEnsembleConsensus(input: {
+  responses: Array<{ model: string; response: string; confidence: number }>;
+  maxMode: boolean;
+}) {
+  const usable = input.responses
+    .filter((row) => isUsableResponse(row.response))
+    .sort((a, b) => b.confidence - a.confidence);
+
+  if (usable.length === 0) {
+    return {
+      response: '',
+      participatingModels: [] as string[],
+      droppedModels: input.responses.map((row) => row.model),
+    };
+  }
+
+  if (usable.length === 1) {
+    return {
+      response: usable[0].response,
+      participatingModels: [usable[0].model],
+      droppedModels: input.responses.filter((row) => row.model !== usable[0].model).map((row) => row.model),
+    };
+  }
+
+  const topN = input.maxMode ? Math.min(4, usable.length) : Math.min(3, usable.length);
+  const picked = usable.slice(0, topN);
+  const lines = picked.flatMap((row) => extractKeyLines(row.response, 2));
+
+  const seen = new Set<string>();
+  const dedupedLines = lines.filter((line) => {
+    const key = line.toLowerCase().slice(0, 120);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, input.maxMode ? 6 : 4);
+
+  const response = [
+    'Ensemble consensus:',
+    ...dedupedLines.map((line) => `- ${line}`),
+    `Committee coverage: ${picked.map((row) => row.model).join(', ')}`,
+  ].join('\n');
+
+  return {
+    response,
+    participatingModels: picked.map((row) => row.model),
+    droppedModels: input.responses
+      .map((row) => row.model)
+      .filter((name) => !picked.some((row) => row.model === name)),
+  };
 }
 
 interface SynthesisResult {
@@ -155,6 +228,16 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       topK: 5,
       regime: marketContext?.regime || 'unknown',
     });
+
+    const behavioralContext = buildBehavioralContext({
+      userQuery,
+      market: marketContext,
+      recalledMemories,
+    });
+
+    enhancedPrompt += `\n\n${behavioralContext.promptBlock}`;
+    sources.push('behavioral://context');
+
     if (recalledMemories.length > 0) {
       enhancedPrompt += `\n\n[memory recall]\n${recalledMemories
         .map((item, index) => `${index + 1}. q="${item.query.slice(0, 120)}" reward=${item.reward.toFixed(2)} risk=${item.riskScore.toFixed(2)} note="${item.responseSummary.slice(0, 140)}"`)
@@ -217,6 +300,13 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       preferredModels: routing.preferredModels,
     });
     const modelsUsed = modelResponses.map((r) => r.model);
+    const consensus = buildEnsembleConsensus({
+      responses: modelResponses,
+      maxMode,
+    });
+    if (consensus.participatingModels.length > 1) {
+      sources.push('model://ensemble-consensus');
+    }
 
     const adaptiveDecision = await runAdaptiveDecisionLoop({
       userQuery,
@@ -224,8 +314,11 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       sources,
     });
 
-    const selectedResponse = adaptiveDecision?.response ||
-      (modelResponses.length > 0 ? modelResponses[0].response : 'Unable to generate response');
+    const selectedResponse =
+      (adaptiveDecision?.response && isUsableResponse(adaptiveDecision.response) ? adaptiveDecision.response : '') ||
+      (consensus.response && isUsableResponse(consensus.response) ? consensus.response : '') ||
+      firstUsableResponse(modelResponses) ||
+      'Unable to generate response';
 
     const selectedModel = adaptiveDecision?.modelsUsed?.[0] || modelResponses[0]?.model;
 

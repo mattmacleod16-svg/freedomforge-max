@@ -205,6 +205,33 @@ function ensureModelsInitialized() {
   }
 }
 
+function normalizeResponseText(text: string) {
+  return (text || '').trim();
+}
+
+function isWeakResponse(text: string) {
+  const value = normalizeResponseText(text).toLowerCase();
+  if (!value) return true;
+  if (value === 'no response') return true;
+  if (value.startsWith('error:')) return true;
+  if (value.includes('invalid api key')) return true;
+  if (value.includes('insufficient_quota')) return true;
+  if (value.includes('rate limit')) return true;
+  if (value.length < 24) return true;
+  return false;
+}
+
+function scoreResponseConfidence(text: string) {
+  const value = normalizeResponseText(text);
+  if (isWeakResponse(value)) return 0;
+
+  const lengthScore = Math.min(1, value.length / 900);
+  const structureBonus = /\n|\.|;|:/.test(value) ? 0.08 : 0;
+  const uncertaintyPenalty = /(not sure|unsure|cannot determine|insufficient data)/i.test(value) ? 0.12 : 0;
+  const score = 0.52 + (lengthScore * 0.32) + structureBonus - uncertaintyPenalty;
+  return Math.max(0, Math.min(0.98, Number(score.toFixed(4))));
+}
+
 async function queryGrok(prompt: string, config: ModelConfig): Promise<string> {
   const response = await fetch(config.endpoint || 'https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -286,21 +313,6 @@ async function queryGemini(prompt: string, config: ModelConfig): Promise<string>
   const parts = data.candidates?.[0]?.content?.parts || [];
   const text = parts.map((item: { text?: string }) => item?.text || '').join('\n').trim();
   return text || data.error?.message || 'No response';
-}
-
-async function queryOllama(prompt: string, endpoint: string): Promise<string> {
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'mistral',
-      prompt: prompt,
-      stream: false,
-    }),
-  });
-
-  const data = await response.json();
-  return data.response || 'No response';
 }
 
 async function queryOllamaWithConfig(prompt: string, config: ModelConfig): Promise<string> {
@@ -411,8 +423,8 @@ export async function getMultiModelResponse(
 
         return {
           model: model.name,
-          response,
-          confidence: 0.85,
+          response: normalizeResponseText(response),
+          confidence: scoreResponseConfidence(response),
           timestamp: Date.now(),
         };
       } catch (error) {
