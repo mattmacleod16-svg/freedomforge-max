@@ -235,6 +235,17 @@ export async function updateMarketFeatureStore() {
   if (btcUsd <= 0) {
     const latest = getLatestMarketSnapshot();
     if (latest) {
+      if (typeof latest.geopoliticalRisk !== 'number' || !Array.isArray(latest.geopoliticalSignals)) {
+        const migrated: MarketFeaturePoint = {
+          ...latest,
+          geopoliticalRisk: typeof latest.geopoliticalRisk === 'number' ? latest.geopoliticalRisk : 0,
+          geopoliticalSignals: Array.isArray(latest.geopoliticalSignals) ? latest.geopoliticalSignals : ['geo_backfill_default'],
+          geopoliticalHeadlines: Array.isArray(latest.geopoliticalHeadlines) ? latest.geopoliticalHeadlines : [],
+        };
+        state.history[state.history.length - 1] = migrated;
+        saveState();
+        return migrated;
+      }
       return latest;
     }
     return null;
