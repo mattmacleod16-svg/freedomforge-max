@@ -71,7 +71,7 @@ export async function initializeModels() {
   }
 
   // Anthropic Claude (fallback)
-  const anthropicKey = firstEnv('ANTHROPIC_API_KEY');
+  const anthropicKey = firstEnv('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY');
   if (anthropicKey) {
     upsertModel({
       name: 'anthropic',
@@ -205,15 +205,15 @@ function ensureModelsInitialized() {
   }
 }
 
-async function queryGrok(prompt: string, apiKey: string): Promise<string> {
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
+async function queryGrok(prompt: string, config: ModelConfig): Promise<string> {
+  const response = await fetch(config.endpoint || 'https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify({
-      model: 'grok-beta',
+      model: config.model || 'grok-beta',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 1000,
@@ -244,15 +244,15 @@ async function queryOpenAICompatible(prompt: string, config: ModelConfig): Promi
   return data.choices?.[0]?.message?.content || data.error?.message || 'No response';
 }
 
-async function queryOpenAI(prompt: string, apiKey: string): Promise<string> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+async function queryOpenAI(prompt: string, config: ModelConfig): Promise<string> {
+  const response = await fetch(config.endpoint || 'https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4-turbo',
+      model: config.model || 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       max_tokens: 1000,
@@ -303,6 +303,21 @@ async function queryOllama(prompt: string, endpoint: string): Promise<string> {
   return data.response || 'No response';
 }
 
+async function queryOllamaWithConfig(prompt: string, config: ModelConfig): Promise<string> {
+  const response = await fetch(config.endpoint || 'http://localhost:11434/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: config.model || 'mistral',
+      prompt,
+      stream: false,
+    }),
+  });
+
+  const data = await response.json();
+  return data.response || 'No response';
+}
+
 async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<string> {
   const model = config.model || 'mistralai/Mistral-7B-Instruct-v0.2';
   const endpointBase = config.endpoint || 'https://api-inference.huggingface.co/models/';
@@ -330,16 +345,16 @@ async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<st
   return data?.error || 'No response';
 }
 
-async function queryAnthropic(prompt: string, apiKey: string): Promise<string> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+async function queryAnthropic(prompt: string, config: ModelConfig): Promise<string> {
+  const response = await fetch(config.endpoint || 'https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': config.apiKey,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-3-sonnet-20240229',
+      model: config.model || 'claude-3-5-sonnet-latest',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -379,17 +394,17 @@ export async function getMultiModelResponse(
         let response = '';
 
         if (model.type === 'grok') {
-          response = await queryGrok(prompt, model.apiKey);
+          response = await queryGrok(prompt, model);
         } else if (model.type === 'openai') {
-          response = await queryOpenAI(prompt, model.apiKey);
+          response = await queryOpenAI(prompt, model);
         } else if (model.type === 'anthropic') {
-          response = await queryAnthropic(prompt, model.apiKey);
+          response = await queryAnthropic(prompt, model);
         } else if (model.type === 'openai-compatible') {
           response = await queryOpenAICompatible(prompt, model);
         } else if (model.type === 'gemini') {
           response = await queryGemini(prompt, model);
         } else if (model.type === 'local') {
-          response = await queryOllama(prompt, model.endpoint || 'http://localhost:11434/api/generate');
+          response = await queryOllamaWithConfig(prompt, model);
         } else if (model.type === 'huggingface') {
           response = await queryHuggingFace(prompt, model);
         }

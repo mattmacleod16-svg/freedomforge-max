@@ -21,7 +21,8 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const isReady = isSystemInitialized();
+    const detectedModels = getAvailableModels();
+    const isReady = isSystemInitialized() || detectedModels.length > 0;
     const [protocolStatus, vendorStack] = await Promise.all([
       getProtocolSummary(),
       getVendorStackStatus(),
@@ -34,7 +35,7 @@ export async function GET() {
     
     const status = {
       ready: isReady,
-      models: isReady ? getAvailableModels() : [],
+      models: detectedModels,
       knowledgeBase: isReady ? getKnowledgeBaseStats() : null,
       market: isReady ? getMarketIntelligenceSummary() : null,
       forecast: isReady ? getForecastSummary() : null,

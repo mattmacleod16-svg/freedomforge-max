@@ -26,6 +26,7 @@ declare namespace NodeJS {
     OPENAI_ENDPOINT?: string;
     OPENAI_MODEL?: string;
     ANTHROPIC_API_KEY?: string;
+    CLAUDE_API_KEY?: string;
     ANTHROPIC_ENDPOINT?: string;
     ANTHROPIC_MODEL?: string;
     OPENROUTER_API_KEY?: string;
