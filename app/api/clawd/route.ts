@@ -74,6 +74,45 @@ function runClawdQuery(prompt: string) {
   });
 }
 
+async function runClawdHttpQuery(prompt: string) {
+  const endpoint = process.env.CLAWD_HTTP_ENDPOINT;
+  if (!endpoint) {
+    throw new Error('CLAWD_HTTP_ENDPOINT is not configured');
+  }
+
+  const timeoutMs = Math.max(1000, Math.min(120000, Number(process.env.CLAWD_TIMEOUT_MS || '25000')));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.CLAWD_HTTP_TOKEN ? { Authorization: `Bearer ${process.env.CLAWD_HTTP_TOKEN}` } : {}),
+      },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal,
+    });
+
+    const text = await response.text();
+    let payload: { response?: string; error?: string } = {};
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = { response: text };
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.error || `clawd http backend status ${response.status}`);
+    }
+
+    return (payload.response || '').trim();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function POST(req: Request) {
   if (!isAuthorized(req)) {
     return Response.json({ status: 'error', error: 'unauthorized' }, { status: 401 });
@@ -86,7 +125,9 @@ export async function POST(req: Request) {
       return Response.json({ status: 'error', error: 'prompt is required' }, { status: 400 });
     }
 
-    const response = await runClawdQuery(prompt);
+    const response = process.env.CLAWD_HTTP_ENDPOINT
+      ? await runClawdHttpQuery(prompt)
+      : await runClawdQuery(prompt);
     return Response.json(
       {
         status: 'ok',

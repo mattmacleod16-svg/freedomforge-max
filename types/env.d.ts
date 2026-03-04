@@ -69,6 +69,8 @@ declare namespace NodeJS {
     CLAWD_ENABLED?: string;
     CLAWD_ENDPOINT?: string;
     CLAWD_API_SECRET?: string;
+    CLAWD_HTTP_ENDPOINT?: string;
+    CLAWD_HTTP_TOKEN?: string;
     CLAWD_TIMEOUT_MS?: string;
     CLAWD_PROMPT_COMMAND_TEMPLATE?: string;
     PICOCLAW_CLIENT_SOURCE?: string;

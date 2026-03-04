@@ -122,6 +122,7 @@ Optional Clawd bot bridge (extra ensemble firepower):
 - Enable in ensemble: `CLAWD_ENABLED=true`
 - Provider endpoint (optional override): `CLAWD_ENDPOINT` (defaults to `${APP_BASE_URL}/api/clawd`)
 - Optional auth: `CLAWD_API_SECRET` (used by orchestrator as `x-clawd-secret`)
+- Production mode (recommended on Vercel): set `CLAWD_HTTP_ENDPOINT` to your hosted Clawd service and optional `CLAWD_HTTP_TOKEN`
 - Set `PICOCLAW_CLIENT_SOURCE` to your real `picoclaw_client.py` path if it is outside this repo
 - Optional command template for paid bot invocation: `CLAWD_PROMPT_COMMAND_TEMPLATE`, using `{prompt}` placeholder
 	- Example: `CLAWD_PROMPT_COMMAND_TEMPLATE=clawd --prompt "{prompt}"`
