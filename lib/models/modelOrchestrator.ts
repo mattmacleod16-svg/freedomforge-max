@@ -22,6 +22,8 @@ interface ModelResponse {
 
 const models: ModelConfig[] = [];
 let initialized = false;
+let lastInitializedAt = 0;
+const MODEL_REFRESH_MS = Math.max(5000, Number(process.env.MODEL_REFRESH_MS || '15000'));
 
 function firstEnv(...keys: string[]) {
   for (const key of keys) {
@@ -46,6 +48,7 @@ function asBool(value: string | undefined) {
 
 export async function initializeModels() {
   initialized = true;
+  lastInitializedAt = Date.now();
   models.length = 0;
 
   // Grok (primary - Grok API)
@@ -217,7 +220,7 @@ export async function initializeModels() {
 }
 
 function ensureModelsInitialized() {
-  if (!initialized || models.length === 0) {
+  if (!initialized || models.length === 0 || (Date.now() - lastInitializedAt) > MODEL_REFRESH_MS) {
     void initializeModels();
   }
 }
@@ -418,6 +421,9 @@ export async function getMultiModelResponse(
     preferredModels?: string[];
   }
 ): Promise<ModelResponse[]> {
+  if (!initialized || models.length === 0 || (Date.now() - lastInitializedAt) > MODEL_REFRESH_MS) {
+    await initializeModels();
+  }
   ensureModelsInitialized();
   if (models.length === 0) {
     throw new Error('No AI models configured');

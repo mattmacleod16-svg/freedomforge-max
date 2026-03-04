@@ -104,7 +104,7 @@ async function runClawdHttpQuery(prompt: string) {
     });
 
     const text = await response.text();
-    let payload: { response?: string; error?: string } = {};
+    let payload: { response?: string; output?: string; error?: string } = {};
     try {
       payload = JSON.parse(text);
     } catch {
