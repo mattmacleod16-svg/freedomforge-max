@@ -131,6 +131,13 @@ function formatTopPredictionContracts(contracts) {
     .join(' | ') || 'n/a';
 }
 
+function resolveTopContractsForReport(market) {
+  if (Array.isArray(market?.topRiskContracts) && market.topRiskContracts.length > 0) {
+    return market.topRiskContracts;
+  }
+  return market?.predictionMarketTopContracts;
+}
+
 function buildMessage(input) {
   const {
     status,
@@ -153,7 +160,7 @@ function buildMessage(input) {
     `Skips 24h: threshold=${transfer.skippedThreshold} reserve=${transfer.skippedReserve}`,
     `Market: regime=${market.regime || 'unknown'} conf=${market.confidence ?? 'n/a'} geoRisk=${market.geopoliticalRisk ?? 'n/a'}`,
     `Prediction markets: impliedRisk=${market.predictionMarketImpliedRisk ?? 'n/a'} signals=${(market.predictionMarketSignals || []).join(', ') || 'none'}`,
-    `Top PM contracts: ${formatTopPredictionContracts(market.predictionMarketTopContracts)}`,
+    `Top PM contracts: ${formatTopPredictionContracts(resolveTopContractsForReport(market))}`,
     `Forecast: p=${forecast.weightedProbability ?? 'n/a'} c=${forecast.weightedConfidence ?? 'n/a'} edge=${forecast.edge ?? 'n/a'} shock=${forecast.shockRisk ?? 'n/a'} horizons=${(forecast.horizons || []).join(',') || 'n/a'}`,
     `Calibration: brier=${forecast.avgBrier ?? 'n/a'} accuracy=${forecast.directionalAccuracy ?? 'n/a'} calErr=${forecast.calibrationError ?? 'n/a'}`,
     `Signals: ${(market.signals || []).join(', ') || 'none'} | forecastNotes=${(forecast.notes || []).join(', ') || 'none'}`,
