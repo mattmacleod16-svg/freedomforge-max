@@ -1,0 +1,42 @@
+name: Repository Backup Snapshot
+
+on:
+  schedule:
+    - cron: '20 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: repository-backup-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create backup artifacts
+        run: |
+          set -euo pipefail
+          ts="$(date -u +%Y%m%dT%H%M%SZ)"
+          mkdir -p backups
+
+          git bundle create "backups/freedomforge-max-${ts}.bundle" --all
+          git archive --format=tar.gz --output "backups/freedomforge-max-${ts}-src.tar.gz" HEAD
+
+          sha256sum backups/* > "backups/SHA256SUMS-${ts}.txt"
+
+      - name: Upload backup snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: freedomforge-max-backup-${{ github.run_id }}
+          path: backups/
+          if-no-files-found: error
+          retention-days: 90

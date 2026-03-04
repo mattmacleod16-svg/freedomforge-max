@@ -183,6 +183,11 @@ Continuous upkeep automation:
 - Dependabot `.github/dependabot.yml` opens weekly update PRs for npm + GitHub Actions
 - Dependabot groups patch/minor npm updates to reduce PR noise
 - Auto-merge workflow `.github/workflows/dependabot-automerge.yml` approves and enables merge for safe Dependabot patch/minor updates after checks pass
+- Daily repository backup workflow `.github/workflows/repo-backup.yml` creates:
+	- full git history bundle (`*.bundle`) for complete restore
+	- source snapshot archive (`*-src.tar.gz`) for quick recovery
+	- checksum manifest (`SHA256SUMS-*.txt`)
+	- stored as GitHub Actions artifacts for 90 days
 - Revenue distribution workflows:
 	- `.github/workflows/distribute.yml` single-bot scheduler
 	- `.github/workflows/distribute-horizontal.yml` parallel shard bots for horizontal scaling
