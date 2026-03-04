@@ -96,6 +96,11 @@ declare namespace NodeJS {
     POLICY_LOOKBACK_HOURS?: string;
     POLICY_AUTO_REDEPLOY?: string;
     VERCEL_PROJECT_SLUG?: string;
+    AUTONOMY_ADMIN_KEY?: string;
+    CONTINUOUS_FORECAST_HORIZONS?: string;
+    CONTINUOUS_POLICY_LIMIT?: string;
+    CONTINUOUS_ENABLE_INGEST?: string;
+    CONTINUOUS_INGEST_MIN_INTERVAL_HOURS?: string;
     MAX_INTELLIGENCE_MODE?: string;
     AUTONOMY_MAX_MODE?: string;
     CHAMPION_MAX_MODEL_COUNT?: string;

@@ -251,6 +251,22 @@ Geopolitical risk spike alerting:
 - Sends Discord alert when `geopoliticalRisk` crosses threshold
 - Optional var: `GEO_RISK_ALERT_THRESHOLD` (default `0.6`)
 
+Continuous background learning:
+- Script: `npm run continuous-learning`
+- Workflow: `.github/workflows/continuous-learning.yml` (runs every 30 minutes + manual trigger)
+- Each cycle performs:
+	- Autonomy + market status pull
+	- Multi-horizon forecast refresh (`6h,24h,72h` by default)
+	- Ensemble policy tuning using live market regime
+	- Ground-truth ingestion + retrain check
+	- Periodic deep data ingestion (`/api/ingest`) with minimum interval gate
+- Optional vars:
+	- `CONTINUOUS_FORECAST_HORIZONS` (default `6,24,72`)
+	- `CONTINUOUS_POLICY_LIMIT` (default `1800`)
+	- `CONTINUOUS_ENABLE_INGEST` (default `true`)
+	- `CONTINUOUS_INGEST_MIN_INTERVAL_HOURS` (default `12`)
+- Optional secret: `AUTONOMY_ADMIN_KEY`
+
 Automated monthly parameter patch PR:
 - Script: `npm run generate-ops-patch`
 - Workflow: `.github/workflows/ops-patch-pr.yml` (runs on day 1 of each month at 15:20 UTC + manual trigger)

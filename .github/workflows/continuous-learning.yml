@@ -1,0 +1,36 @@
+name: Continuous Learning Loop
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: continuous-learning-loop
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  learn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      AUTONOMY_ADMIN_KEY: ${{ secrets.AUTONOMY_ADMIN_KEY }}
+      CONTINUOUS_FORECAST_HORIZONS: ${{ vars.CONTINUOUS_FORECAST_HORIZONS || '6,24,72' }}
+      CONTINUOUS_POLICY_LIMIT: ${{ vars.CONTINUOUS_POLICY_LIMIT || '1800' }}
+      CONTINUOUS_ENABLE_INGEST: ${{ vars.CONTINUOUS_ENABLE_INGEST || 'true' }}
+      CONTINUOUS_INGEST_MIN_INTERVAL_HOURS: ${{ vars.CONTINUOUS_INGEST_MIN_INTERVAL_HOURS || '12' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run continuous learning cycle
+        run: node scripts/continuous-learning.js
