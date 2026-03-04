@@ -114,7 +114,7 @@ function summarizeForecast(forecastPayload) {
 function formatTopPredictionContracts(contracts) {
   if (!Array.isArray(contracts) || contracts.length === 0) return 'n/a';
   return contracts
-    .slice(0, 4)
+    .slice(0, 2)
     .map((contract) => {
       if (typeof contract === 'string') return contract;
       const title = String(contract?.title || '').trim();
