@@ -88,6 +88,7 @@ function computeAgreementScore(items: Array<{ response: string }>) {
 
 interface ReasoningProfile {
   mode: 'lean' | 'balanced' | 'deep';
+  bottomLineProtected: boolean;
   complexityScore: number;
   budgetUsd: number;
   estimatedTokensPerModel: number;
@@ -103,6 +104,12 @@ function countWords(text: string) {
   return (text || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
+function isBottomLineCriticalQuery(query: string) {
+  return /(portfolio|allocation|position size|rebalance|drawdown|risk|autopilot|prediction market|trade|entry|exit|capital|cashflow|budget|revenue|payout|transfer|wire|execute|bottom line|profit|loss)/i.test(
+    query
+  );
+}
+
 function estimateComplexityScore(input: {
   userQuery: string;
   maxMode: boolean;
@@ -114,7 +121,7 @@ function estimateComplexityScore(input: {
   const words = countWords(input.userQuery);
   const query = input.userQuery.toLowerCase();
   const strategyIntent = /(strategy|plan|roadmap|allocation|portfolio|risk|trade|forecast|reason|optimi|architecture|compare|autonomy)/i.test(query);
-  const highImpactIntent = /(transfer|wire|execute|autopilot|all-in|leverage|rebalance|deploy|live)/i.test(query);
+  const highImpactIntent = /(transfer|wire|execute|autopilot|all-in|leverage|rebalance|deploy|live)/i.test(query) || isBottomLineCriticalQuery(query);
   const uncertainMarket = (input.marketConfidence ?? 0.5) < 0.5 || (input.forecastConfidence ?? 0.5) < 0.52 || (input.forecastBrier ?? 0.2) > 0.22;
   const riskOff = input.marketRegime === 'risk_off';
 
@@ -139,6 +146,8 @@ function buildReasoningProfile(input: {
   forecastConfidence?: number;
   forecastBrier?: number;
 }): ReasoningProfile {
+  const bottomLineProtected = isBottomLineCriticalQuery(input.userQuery);
+
   const complexityScore = estimateComplexityScore({
     userQuery: input.userQuery,
     maxMode: input.maxMode,
@@ -149,7 +158,10 @@ function buildReasoningProfile(input: {
   });
 
   const budgetUsdDefault = input.maxMode ? 0.028 : 0.012;
-  const budgetUsd = Math.max(0.002, Number(process.env.AI_QUERY_BUDGET_USD || budgetUsdDefault));
+  const criticalBudgetDefault = input.maxMode ? 0.04 : 0.025;
+  const baseBudget = Math.max(0.002, Number(process.env.AI_QUERY_BUDGET_USD || budgetUsdDefault));
+  const criticalBudget = Math.max(baseBudget, Number(process.env.AI_CRITICAL_QUERY_BUDGET_USD || criticalBudgetDefault));
+  const budgetUsd = bottomLineProtected ? criticalBudget : baseBudget;
   const costPer1kTokens = Math.max(0.0001, Number(process.env.AI_MODEL_COST_PER_1K_TOKENS || 0.0022));
 
   const estimatedTokensPerModel =
@@ -161,8 +173,11 @@ function buildReasoningProfile(input: {
   const computedBudgetCap = Math.floor(budgetUsd / Math.max(0.000001, estimatedCostPerModel));
   const modelBudgetCap = Math.max(1, Math.min(input.availableModelCount, computedBudgetCap));
 
-  const minModels = Math.max(1, Number(process.env.AI_MIN_MODEL_COUNT || 1));
+  const minModelsBase = Math.max(1, Number(process.env.AI_MIN_MODEL_COUNT || 1));
+  const criticalMinModels = Math.max(minModelsBase, Number(process.env.AI_CRITICAL_MIN_MODEL_COUNT || 3));
+  const minModels = bottomLineProtected ? criticalMinModels : minModelsBase;
   const maxModelsEnv = Math.max(1, Number(process.env.AI_MAX_MODEL_COUNT || (input.maxMode ? 5 : 4)));
+  const criticalMaxFloor = Math.max(minModels, Number(process.env.AI_CRITICAL_MAX_MODEL_COUNT || 4));
 
   const mode: ReasoningProfile['mode'] =
     complexityScore >= 0.75 ? 'deep'
@@ -184,10 +199,17 @@ function buildReasoningProfile(input: {
       : mode === 'balanced' ? Math.max(initialModelCount + 1, input.baselineModelCount)
         : initialModelCount;
 
-  const maxModelCount = Math.max(
+  let maxModelCount = Math.max(
     initialModelCount,
     Math.min(input.availableModelCount, maxModelsEnv, modelBudgetCap, targetMaxFromMode)
   );
+
+  if (bottomLineProtected) {
+    maxModelCount = Math.max(
+      maxModelCount,
+      Math.min(input.availableModelCount, maxModelsEnv, criticalMaxFloor, modelBudgetCap)
+    );
+  }
 
   const escalationEnabled = maxModelCount > initialModelCount;
   const escalationAgreementThreshold = Math.max(0.08, Math.min(0.7, Number(process.env.AI_ESCALATION_AGREEMENT_THRESHOLD || 0.23)));
@@ -195,6 +217,7 @@ function buildReasoningProfile(input: {
 
   return {
     mode,
+    bottomLineProtected,
     complexityScore,
     budgetUsd,
     estimatedTokensPerModel,
@@ -227,6 +250,10 @@ function shouldEscalateModelPass(input: {
 
   if (/(autopilot|transfer|wire|execute|allocation|portfolio|prediction market|leverage|all-in)/i.test(input.userQuery)) {
     reasons.push('high_impact_query');
+  }
+
+  if (input.profile.bottomLineProtected) {
+    reasons.push('bottom_line_protection');
   }
 
   if (input.profile.mode === 'deep' && reasons.length === 0) {
@@ -369,6 +396,7 @@ interface SynthesisResult {
   };
   routing_profile?: {
     mode: 'lean' | 'balanced' | 'deep';
+    bottom_line_protected: boolean;
     complexity_score: number;
     budget_usd: number;
     estimated_tokens_per_model: number;
@@ -699,6 +727,7 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       },
       routing_profile: {
         mode: reasoningProfile.mode,
+        bottom_line_protected: reasoningProfile.bottomLineProtected,
         complexity_score: reasoningProfile.complexityScore,
         budget_usd: Number(reasoningProfile.budgetUsd.toFixed(4)),
         estimated_tokens_per_model: reasoningProfile.estimatedTokensPerModel,

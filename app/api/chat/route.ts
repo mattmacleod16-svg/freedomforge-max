@@ -93,6 +93,7 @@ interface ChatResponse {
     };
     routing_profile?: {
       mode: 'lean' | 'balanced' | 'deep';
+      bottom_line_protected: boolean;
       complexity_score: number;
       budget_usd: number;
       estimated_tokens_per_model: number;
