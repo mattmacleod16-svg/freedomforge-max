@@ -12,6 +12,9 @@ export interface MarketFeaturePoint {
   geopoliticalRisk: number;
   geopoliticalSignals: string[];
   geopoliticalHeadlines: string[];
+  predictionMarketImpliedRisk: number;
+  predictionMarketSignals: string[];
+  predictionMarketTopContracts: string[];
   regime: MarketRegime;
   confidence: number;
   signals: string[];
@@ -114,6 +117,106 @@ async function fetchGeopoliticalRiskSignal() {
   }
 }
 
+function parseProbability(value: unknown): number | null {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  if (parsed > 1) return clamp(parsed / 100, 0, 1);
+  return clamp(parsed, 0, 1);
+}
+
+function parseOutcomeProbability(market: any): number | null {
+  const directKeys = ['probability', 'yesPrice', 'lastPrice', 'price', 'bestBid', 'bestAsk'];
+  for (const key of directKeys) {
+    const p = parseProbability(market?.[key]);
+    if (p !== null) return p;
+  }
+
+  const outcomePricesRaw = market?.outcomePrices;
+  if (Array.isArray(outcomePricesRaw) && outcomePricesRaw.length > 0) {
+    const parsed = parseProbability(outcomePricesRaw[0]);
+    if (parsed !== null) return parsed;
+  }
+
+  if (typeof outcomePricesRaw === 'string') {
+    try {
+      const arr = JSON.parse(outcomePricesRaw);
+      if (Array.isArray(arr) && arr.length > 0) {
+        const parsed = parseProbability(arr[0]);
+        if (parsed !== null) return parsed;
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
+async function fetchPredictionMarketSignal() {
+  const enabled = String(process.env.PREDICTION_MARKET_FEED_ENABLED || 'true').toLowerCase() !== 'false';
+  if (!enabled) {
+    return { impliedRisk: 0, signals: ['pm_feed_disabled'], topContracts: [] as string[] };
+  }
+
+  const limit = Math.max(20, Math.min(150, Number(process.env.PREDICTION_MARKET_LIMIT || 80)));
+  const endpoint = process.env.PREDICTION_MARKET_ENDPOINT || `https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=${limit}`;
+
+  try {
+    const payload = await fetchJsonWithTimeout(endpoint, 12000);
+    const markets = Array.isArray(payload)
+      ? payload
+      : Array.isArray((payload as any)?.markets)
+        ? (payload as any).markets
+        : [];
+
+    if (markets.length === 0) {
+      return { impliedRisk: 0, signals: ['pm_no_markets'], topContracts: [] as string[] };
+    }
+
+    const riskKeywords = ['war', 'recession', 'default', 'crisis', 'emergency', 'attack', 'conflict', 'rate hike', 'inflation', 'sanctions'];
+    const bullishKeywords = ['approval', 'cut rates', 'ceasefire', 'deal', 'growth', 'soft landing'];
+
+    const scored = markets
+      .map((market: any) => {
+        const title = String(market?.question || market?.title || market?.name || '').trim();
+        const probability = parseOutcomeProbability(market);
+        const volume = Number(market?.volumeNum || market?.volume || 0);
+        if (!title || probability === null) return null;
+
+        const riskHits = countMatches(title, riskKeywords);
+        const bullishHits = countMatches(title, bullishKeywords);
+        const relevance = clamp((riskHits * 0.7 + bullishHits * 0.4) / 2, 0, 1);
+        const confidenceWeight = clamp((Math.abs(probability - 0.5) * 2) * 0.75 + Math.min(1, volume / 500000) * 0.25);
+
+        const riskTilt = riskHits > bullishHits ? probability : (1 - probability) * 0.4;
+        const riskScore = clamp(riskTilt * confidenceWeight * Math.max(0.25, relevance));
+
+        return { title, probability, volume, riskScore, riskHits, bullishHits };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => b.riskScore - a.riskScore)
+      .slice(0, 12);
+
+    if (scored.length === 0) {
+      return { impliedRisk: 0, signals: ['pm_unscored'], topContracts: [] as string[] };
+    }
+
+    const impliedRisk = clamp(scored.reduce((sum: number, row: any) => sum + row.riskScore, 0) / Math.max(1, scored.length) * 1.8);
+    const highRiskContracts = scored.filter((row: any) => row.riskScore >= 0.35).length;
+    const signals: string[] = [];
+    if (impliedRisk >= 0.65) signals.push('pm_risk_high');
+    if (impliedRisk >= 0.4 && impliedRisk < 0.65) signals.push('pm_risk_medium');
+    if (highRiskContracts >= 3) signals.push('pm_clustered_tail_risk');
+    if (scored.some((row: any) => row.riskHits >= 2)) signals.push('pm_macro_event_focus');
+
+    return {
+      impliedRisk,
+      signals,
+      topContracts: scored.slice(0, 4).map((row: any) => `${row.title} (p=${row.probability.toFixed(2)})`),
+    };
+  } catch {
+    return { impliedRisk: 0, signals: ['pm_feed_error'], topContracts: [] as string[] };
+  }
+}
+
 async function fetchJsonWithTimeout(url: string, timeoutMs = 12000): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -156,9 +259,19 @@ function classifyRegime(input: {
   realizedVolatility: number;
   geopoliticalRisk: number;
   geopoliticalSignals: string[];
+  predictionMarketImpliedRisk: number;
+  predictionMarketSignals: string[];
 }): { regime: MarketRegime; confidence: number; signals: string[] } {
-  const { btcChange24h, fearGreed, realizedVolatility, geopoliticalRisk, geopoliticalSignals } = input;
-  const signals: string[] = [...geopoliticalSignals];
+  const {
+    btcChange24h,
+    fearGreed,
+    realizedVolatility,
+    geopoliticalRisk,
+    geopoliticalSignals,
+    predictionMarketImpliedRisk,
+    predictionMarketSignals,
+  } = input;
+  const signals: string[] = [...geopoliticalSignals, ...predictionMarketSignals];
 
   if (btcChange24h <= -4) signals.push('btc_drop');
   if (btcChange24h >= 2) signals.push('btc_momentum');
@@ -171,12 +284,14 @@ function classifyRegime(input: {
     (btcChange24h <= -4 ? 0.38 : 0) +
     (fearGreed !== null && fearGreed < 35 ? 0.34 : 0) +
     (realizedVolatility > 0.03 ? 0.28 : 0) +
-    Math.min(0.32, geopoliticalRisk * 0.32);
+    Math.min(0.32, geopoliticalRisk * 0.32) +
+    Math.min(0.26, predictionMarketImpliedRisk * 0.26);
 
   const riskOnScore =
     (btcChange24h >= 2 ? 0.38 : 0) +
     (fearGreed !== null && fearGreed > 62 ? 0.34 : 0) +
-    (realizedVolatility < 0.015 ? 0.28 : 0);
+    (realizedVolatility < 0.015 ? 0.28 : 0) +
+    (predictionMarketImpliedRisk < 0.3 ? 0.08 : 0);
 
   if (riskOffScore >= 0.55 && riskOffScore > riskOnScore + 0.1) {
     return { regime: 'risk_off', confidence: clamp(riskOffScore), signals };
@@ -260,6 +375,9 @@ export async function updateMarketFeatureStore() {
     geopoliticalRisk: 0,
     geopoliticalSignals: [],
     geopoliticalHeadlines: [],
+    predictionMarketImpliedRisk: 0,
+    predictionMarketSignals: [],
+    predictionMarketTopContracts: [],
     regime: 'unknown',
     confidence: 0,
     signals: [],
@@ -270,12 +388,15 @@ export async function updateMarketFeatureStore() {
 
   const realizedVolatility = computeRealizedVolatility();
   const geo = await fetchGeopoliticalRiskSignal();
+  const predictionMarket = await fetchPredictionMarketSignal();
   const regime = classifyRegime({
     btcChange24h,
     fearGreed,
     realizedVolatility,
     geopoliticalRisk: geo.risk,
     geopoliticalSignals: geo.signals,
+    predictionMarketImpliedRisk: predictionMarket.impliedRisk,
+    predictionMarketSignals: predictionMarket.signals,
   });
 
   const finalPoint: MarketFeaturePoint = {
@@ -284,6 +405,9 @@ export async function updateMarketFeatureStore() {
     geopoliticalRisk: geo.risk,
     geopoliticalSignals: geo.signals,
     geopoliticalHeadlines: geo.headlines,
+    predictionMarketImpliedRisk: predictionMarket.impliedRisk,
+    predictionMarketSignals: predictionMarket.signals,
+    predictionMarketTopContracts: predictionMarket.topContracts,
     regime: regime.regime,
     confidence: regime.confidence,
     signals: regime.signals,

@@ -245,6 +245,15 @@ Advanced anticipation / prediction stack:
 - Forecast API exposes this via `GET /api/status/autonomy/forecast` under `decisionSignal`
 - Optional env var: `FORECAST_ENSEMBLE_HORIZONS` (default `6,24,72`)
 
+Prediction-market awareness (Polymarket):
+- `lib/intelligence/marketFeatureStore.ts` now ingests active Polymarket markets (Gamma API), computes `predictionMarketImpliedRisk`, and extracts `predictionMarketSignals`
+- Prediction-market risk is blended into regime classification and forecast `shockRisk`
+- Market telemetry now includes `predictionMarketTopContracts` for transparency/debugging
+- Optional env vars:
+	- `PREDICTION_MARKET_FEED_ENABLED` (default `true`)
+	- `PREDICTION_MARKET_ENDPOINT` (default Polymarket Gamma markets endpoint)
+	- `PREDICTION_MARKET_LIMIT` (default `80`, bounded `20..150`)
+
 Geopolitical risk spike alerting:
 - Script: `npm run geopolitical-watch`
 - Workflow: `.github/workflows/geopolitical-watch.yml` (runs every 30 minutes + manual trigger)

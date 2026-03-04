@@ -132,6 +132,8 @@ function buildMessage(input) {
     `Payouts 24h: count=${transfer.transferCount} sent=${formatWeiAsEth(transfer.transferWei)} ETH`,
     `Skips 24h: threshold=${transfer.skippedThreshold} reserve=${transfer.skippedReserve}`,
     `Market: regime=${market.regime || 'unknown'} conf=${market.confidence ?? 'n/a'} geoRisk=${market.geopoliticalRisk ?? 'n/a'}`,
+    `Prediction markets: impliedRisk=${market.predictionMarketImpliedRisk ?? 'n/a'} signals=${(market.predictionMarketSignals || []).join(', ') || 'none'}`,
+    `Top PM contracts: ${(market.predictionMarketTopContracts || []).join(' | ') || 'n/a'}`,
     `Forecast: p=${forecast.weightedProbability ?? 'n/a'} c=${forecast.weightedConfidence ?? 'n/a'} edge=${forecast.edge ?? 'n/a'} shock=${forecast.shockRisk ?? 'n/a'} horizons=${(forecast.horizons || []).join(',') || 'n/a'}`,
     `Calibration: brier=${forecast.avgBrier ?? 'n/a'} accuracy=${forecast.directionalAccuracy ?? 'n/a'} calErr=${forecast.calibrationError ?? 'n/a'}`,
     `Signals: ${(market.signals || []).join(', ') || 'none'} | forecastNotes=${(forecast.notes || []).join(', ') || 'none'}`,

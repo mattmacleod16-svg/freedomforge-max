@@ -353,7 +353,8 @@ export function getForecastDecisionSignal(): ForecastDecisionSignal {
   const market = getLatestMarketSnapshot();
   const shockRisk = clamp(
     (market?.realizedVolatility || 0) / 0.06 * 0.55 +
-    (market?.geopoliticalRisk || 0) * 0.45
+    (market?.geopoliticalRisk || 0) * 0.3 +
+    (market?.predictionMarketImpliedRisk || 0) * 0.25
   );
 
   const reliabilityPenalty = clamp(brier * 0.65 + calibration * 0.35);
