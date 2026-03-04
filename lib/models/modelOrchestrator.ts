@@ -6,8 +6,10 @@
 interface ModelConfig {
   name: string;
   apiKey: string;
-  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface';
+  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface' | 'openai-compatible' | 'gemini';
   endpoint?: string;
+  model?: string;
+  extraHeaders?: Record<string, string>;
   priority: number;
 }
 
@@ -20,59 +22,177 @@ interface ModelResponse {
 
 const models: ModelConfig[] = [];
 
+function firstEnv(...keys: string[]) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value) return value;
+  }
+  return '';
+}
+
+function upsertModel(config: ModelConfig) {
+  const index = models.findIndex((item) => item.name.toLowerCase() === config.name.toLowerCase());
+  if (index >= 0) {
+    models[index] = config;
+    return;
+  }
+  models.push(config);
+}
+
 export async function initializeModels() {
+  models.length = 0;
+
   // Grok (primary - Grok API)
-  if (process.env.GROK_API_KEY) {
-    models.push({
+  const grokKey = firstEnv('GROK_API_KEY');
+  if (grokKey) {
+    upsertModel({
       name: 'grok',
-      apiKey: process.env.GROK_API_KEY,
+      apiKey: grokKey,
       type: 'grok',
-      endpoint: process.env.GROK_ENDPOINT || 'https://api.x.ai/v1/chat/completions',
+      endpoint: firstEnv('GROK_ENDPOINT') || 'https://api.x.ai/v1/chat/completions',
+      model: firstEnv('GROK_MODEL') || 'grok-beta',
       priority: 1,
     });
   }
 
   // OpenAI (fallback)
-  if (process.env.OPENAI_API_KEY) {
-    models.push({
+  const openAiKey = firstEnv('OPENAI_API_KEY');
+  if (openAiKey) {
+    upsertModel({
       name: 'openai',
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: openAiKey,
       type: 'openai',
-      endpoint: 'https://api.openai.com/v1/chat/completions',
+      endpoint: firstEnv('OPENAI_ENDPOINT') || 'https://api.openai.com/v1/chat/completions',
+      model: firstEnv('OPENAI_MODEL') || 'gpt-4o-mini',
       priority: 2,
     });
   }
 
   // Anthropic Claude (fallback)
-  if (process.env.ANTHROPIC_API_KEY) {
-    models.push({
+  const anthropicKey = firstEnv('ANTHROPIC_API_KEY');
+  if (anthropicKey) {
+    upsertModel({
       name: 'anthropic',
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: anthropicKey,
       type: 'anthropic',
-      endpoint: 'https://api.anthropic.com/v1/messages',
+      endpoint: firstEnv('ANTHROPIC_ENDPOINT') || 'https://api.anthropic.com/v1/messages',
+      model: firstEnv('ANTHROPIC_MODEL') || 'claude-3-5-sonnet-latest',
       priority: 3,
     });
   }
 
-  // Local Ollama for fallback (no API key needed)
-  if (process.env.OLLAMA_ENDPOINT) {
-    models.push({
-      name: 'ollama-local',
-      apiKey: '',
-      type: 'local',
-      endpoint: process.env.OLLAMA_ENDPOINT || 'http://localhost:11434/api/generate',
+  const openRouterKey = firstEnv('OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY');
+  if (openRouterKey) {
+    upsertModel({
+      name: 'openrouter',
+      apiKey: openRouterKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('OPENROUTER_ENDPOINT') || 'https://openrouter.ai/api/v1/chat/completions',
+      model: firstEnv('OPENROUTER_MODEL') || 'openai/gpt-4o-mini',
+      extraHeaders: {
+        'HTTP-Referer': firstEnv('APP_BASE_URL') || 'https://freedomforge-max.vercel.app',
+        'X-Title': 'FreedomForge Max',
+      },
       priority: 4,
     });
   }
 
-  // Hugging Face for lightweight inference
-  if (process.env.HUGGINGFACE_API_KEY) {
-    models.push({
-      name: 'huggingface',
-      apiKey: process.env.HUGGINGFACE_API_KEY,
-      type: 'huggingface',
-      endpoint: 'https://api-inference.huggingface.co/models/',
+  const groqKey = firstEnv('GROQ_API_KEY', 'GROC_API_KEY');
+  if (groqKey) {
+    upsertModel({
+      name: 'groq',
+      apiKey: groqKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('GROQ_ENDPOINT', 'GROC_ENDPOINT') || 'https://api.groq.com/openai/v1/chat/completions',
+      model: firstEnv('GROQ_MODEL', 'GROC_MODEL') || 'llama-3.3-70b-versatile',
       priority: 5,
+    });
+  }
+
+  const geminiKey = firstEnv('GEMINI_API_KEY', 'GOOGLE_GEMINI_API_KEY');
+  if (geminiKey) {
+    upsertModel({
+      name: 'gemini',
+      apiKey: geminiKey,
+      type: 'gemini',
+      endpoint: firstEnv('GEMINI_ENDPOINT') || 'https://generativelanguage.googleapis.com/v1beta/models',
+      model: firstEnv('GEMINI_MODEL') || 'gemini-2.0-flash',
+      priority: 6,
+    });
+  }
+
+  const mistralKey = firstEnv('MISTRAL_API_KEY', 'MISTRALAI_API_KEY');
+  if (mistralKey) {
+    upsertModel({
+      name: 'mistral',
+      apiKey: mistralKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('MISTRAL_ENDPOINT') || 'https://api.mistral.ai/v1/chat/completions',
+      model: firstEnv('MISTRAL_MODEL', 'MISTRALAI_MODEL') || 'mistral-large-latest',
+      priority: 7,
+    });
+  }
+
+  const cerebrasKey = firstEnv('CEREBRAS_API_KEY');
+  if (cerebrasKey) {
+    upsertModel({
+      name: 'cerebras',
+      apiKey: cerebrasKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('CEREBRAS_ENDPOINT') || 'https://api.cerebras.ai/v1/chat/completions',
+      model: firstEnv('CEREBRAS_MODEL') || 'llama-3.3-70b',
+      priority: 8,
+    });
+  }
+
+  const nvidiaKey = firstEnv('NVIDIA_API_KEY', 'NIM_API_KEY');
+  if (nvidiaKey) {
+    upsertModel({
+      name: 'nvidia',
+      apiKey: nvidiaKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('NVIDIA_ENDPOINT', 'NIM_ENDPOINT') || 'https://integrate.api.nvidia.com/v1/chat/completions',
+      model: firstEnv('NVIDIA_MODEL', 'NIM_MODEL') || 'meta/llama-3.1-70b-instruct',
+      priority: 9,
+    });
+  }
+
+  const llamaKey = firstEnv('LLAMA_API_KEY');
+  const llamaEndpoint = firstEnv('LLAMA_ENDPOINT');
+  if (llamaKey && llamaEndpoint) {
+    upsertModel({
+      name: 'llama',
+      apiKey: llamaKey,
+      type: 'openai-compatible',
+      endpoint: llamaEndpoint,
+      model: firstEnv('LLAMA_MODEL') || 'llama-3.1-70b-instruct',
+      priority: 10,
+    });
+  }
+
+  // Local Ollama for fallback (no API key needed)
+  const ollamaEndpoint = firstEnv('OLLAMA_ENDPOINT', 'OLLAMA_BASE_URL');
+  if (ollamaEndpoint) {
+    upsertModel({
+      name: 'ollama-local',
+      apiKey: '',
+      type: 'local',
+      endpoint: ollamaEndpoint,
+      model: firstEnv('OLLAMA_MODEL') || 'mistral',
+      priority: 11,
+    });
+  }
+
+  // Hugging Face for lightweight inference
+  const huggingFaceKey = firstEnv('HUGGINGFACE_API_KEY');
+  if (huggingFaceKey) {
+    upsertModel({
+      name: 'huggingface',
+      apiKey: huggingFaceKey,
+      type: 'huggingface',
+      endpoint: firstEnv('HUGGINGFACE_ENDPOINT') || 'https://api-inference.huggingface.co/models/',
+      model: firstEnv('HUGGINGFACE_MODEL') || 'mistralai/Mistral-7B-Instruct-v0.2',
+      priority: 12,
     });
   }
 }
@@ -96,6 +216,26 @@ async function queryGrok(prompt: string, apiKey: string): Promise<string> {
   return data.choices?.[0]?.message?.content || 'No response';
 }
 
+async function queryOpenAICompatible(prompt: string, config: ModelConfig): Promise<string> {
+  const response = await fetch(config.endpoint || '', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+      ...(config.extraHeaders || {}),
+    },
+    body: JSON.stringify({
+      model: config.model || 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.6,
+      max_tokens: 1000,
+    }),
+  });
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || data.error?.message || 'No response';
+}
+
 async function queryOpenAI(prompt: string, apiKey: string): Promise<string> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -115,6 +255,31 @@ async function queryOpenAI(prompt: string, apiKey: string): Promise<string> {
   return data.choices?.[0]?.message?.content || 'No response';
 }
 
+async function queryGemini(prompt: string, config: ModelConfig): Promise<string> {
+  const model = config.model || 'gemini-2.0-flash';
+  const endpointBase = config.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models';
+  const endpoint = `${endpointBase}/${model}:generateContent?key=${config.apiKey}`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.6,
+        maxOutputTokens: 1000,
+      },
+    }),
+  });
+
+  const data = await response.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const text = parts.map((item: { text?: string }) => item?.text || '').join('\n').trim();
+  return text || data.error?.message || 'No response';
+}
+
 async function queryOllama(prompt: string, endpoint: string): Promise<string> {
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -128,6 +293,33 @@ async function queryOllama(prompt: string, endpoint: string): Promise<string> {
 
   const data = await response.json();
   return data.response || 'No response';
+}
+
+async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<string> {
+  const model = config.model || 'mistralai/Mistral-7B-Instruct-v0.2';
+  const endpointBase = config.endpoint || 'https://api-inference.huggingface.co/models/';
+  const endpoint = endpointBase.endsWith('/') ? `${endpointBase}${model}` : endpointBase;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      inputs: prompt,
+      parameters: {
+        max_new_tokens: 700,
+        temperature: 0.6,
+      },
+    }),
+  });
+
+  const data = await response.json();
+  if (Array.isArray(data) && typeof data[0]?.generated_text === 'string') {
+    return data[0].generated_text;
+  }
+  return data?.error || 'No response';
 }
 
 async function queryAnthropic(prompt: string, apiKey: string): Promise<string> {
@@ -183,8 +375,14 @@ export async function getMultiModelResponse(
           response = await queryOpenAI(prompt, model.apiKey);
         } else if (model.type === 'anthropic') {
           response = await queryAnthropic(prompt, model.apiKey);
+        } else if (model.type === 'openai-compatible') {
+          response = await queryOpenAICompatible(prompt, model);
+        } else if (model.type === 'gemini') {
+          response = await queryGemini(prompt, model);
         } else if (model.type === 'local') {
-          response = await queryOllama(prompt, model.endpoint || '');
+          response = await queryOllama(prompt, model.endpoint || 'http://localhost:11434/api/generate');
+        } else if (model.type === 'huggingface') {
+          response = await queryHuggingFace(prompt, model);
         }
 
         return {
