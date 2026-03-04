@@ -6,6 +6,7 @@ const AUTO_REDEPLOY = String(process.env.POLICY_AUTO_REDEPLOY || 'true').toLower
 
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
 const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || '';
+const VERCEL_PROJECT_SLUG = process.env.VERCEL_PROJECT_SLUG || 'freedomforge-max';
 const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || '';
 
 function required(name, value) {
@@ -69,46 +70,77 @@ function vercelApiUrl(path) {
   return `${base}${joiner}teamId=${encodeURIComponent(VERCEL_TEAM_ID)}`;
 }
 
-async function upsertEnvVar(key, value) {
-  const url = vercelApiUrl(`/v10/projects/${encodeURIComponent(VERCEL_PROJECT_ID)}/env?upsert=true`);
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      key,
-      value,
-      type: 'encrypted',
-      target: ['production'],
-    }),
-  });
+function candidateProjectRefs() {
+  const refs = [VERCEL_PROJECT_ID, VERCEL_PROJECT_SLUG]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  return [...new Set(refs)];
+}
 
-  if (!response.ok) {
+async function upsertEnvVar(key, value) {
+  let lastError = null;
+  for (const projectRef of candidateProjectRefs()) {
+    const url = vercelApiUrl(`/v10/projects/${encodeURIComponent(projectRef)}/env?upsert=true`);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${VERCEL_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        key,
+        value,
+        type: 'encrypted',
+        target: ['production'],
+      }),
+    });
+
+    if (response.ok) {
+      return;
+    }
+
     const body = await response.text().catch(() => '');
-    throw new Error(`Vercel env upsert failed for ${key}: HTTP ${response.status} ${body}`);
+    lastError = `project=${projectRef} status=${response.status} body=${body}`;
+    if (response.status !== 404) {
+      break;
+    }
   }
+
+  throw new Error(`Vercel env upsert failed for ${key}: ${lastError || 'unknown error'}`);
 }
 
 async function tryRedeployLatestProduction() {
-  const listUrl = vercelApiUrl(`/v6/deployments?projectId=${encodeURIComponent(VERCEL_PROJECT_ID)}&target=production&limit=1`);
-  const listResponse = await fetch(listUrl, {
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  let deployment = null;
+  let lastError = null;
 
-  if (!listResponse.ok) {
-    const body = await listResponse.text().catch(() => '');
-    throw new Error(`Failed listing deployments: HTTP ${listResponse.status} ${body}`);
+  for (const projectRef of candidateProjectRefs()) {
+    const listUrl = vercelApiUrl(`/v6/deployments?projectId=${encodeURIComponent(projectRef)}&target=production&limit=1`);
+    const listResponse = await fetch(listUrl, {
+      headers: {
+        Authorization: `Bearer ${VERCEL_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!listResponse.ok) {
+      const body = await listResponse.text().catch(() => '');
+      lastError = `project=${projectRef} status=${listResponse.status} body=${body}`;
+      if (listResponse.status === 404) {
+        continue;
+      }
+      break;
+    }
+
+    const listPayload = await listResponse.json();
+    deployment = (listPayload.deployments || [])[0] || null;
+    if (deployment?.uid) {
+      break;
+    }
+    lastError = `project=${projectRef} had no production deployment`; 
   }
 
-  const listPayload = await listResponse.json();
-  const deployment = (listPayload.deployments || [])[0];
   if (!deployment?.uid) {
-    throw new Error('No production deployment found to redeploy');
+    throw new Error(`No production deployment found to redeploy (${lastError || 'unknown'})`);
   }
 
   const redeployUrl = vercelApiUrl(`/v13/deployments/${deployment.uid}/redeploy`);
@@ -143,7 +175,9 @@ function sumTransfersWithinLookback(logs, lookbackHours) {
 
 async function main() {
   required('VERCEL_TOKEN', VERCEL_TOKEN);
-  required('VERCEL_PROJECT_ID', VERCEL_PROJECT_ID);
+  if (candidateProjectRefs().length === 0) {
+    throw new Error('Missing both VERCEL_PROJECT_ID and VERCEL_PROJECT_SLUG');
+  }
 
   const [wallet, walletLogs] = await Promise.all([
     fetchJson('/api/alchemy/wallet'),

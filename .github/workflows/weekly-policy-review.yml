@@ -20,9 +20,10 @@ jobs:
       APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
       POLICY_LOOKBACK_HOURS: ${{ vars.POLICY_LOOKBACK_HOURS || '168' }}
       POLICY_AUTO_REDEPLOY: ${{ vars.POLICY_AUTO_REDEPLOY || 'true' }}
+      VERCEL_PROJECT_SLUG: ${{ vars.VERCEL_PROJECT_SLUG || 'freedomforge-max' }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID || vars.VERCEL_TEAM_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,8 +40,7 @@ jobs:
             exit 1
           fi
           if [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "Missing required secret: VERCEL_PROJECT_ID"
-            exit 1
+            echo "VERCEL_PROJECT_ID not set; will fallback to VERCEL_PROJECT_SLUG=$VERCEL_PROJECT_SLUG"
           fi
 
       - name: Run weekly policy tuner
