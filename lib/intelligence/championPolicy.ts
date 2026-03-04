@@ -16,6 +16,21 @@ interface ChampionPolicyState {
   updatedAt: number;
 }
 
+interface EnsembleModelStatInput {
+  model: string;
+  queried: number;
+  participated: number;
+  wins: number;
+  participationRate: number;
+  winRate: number;
+}
+
+interface EnsembleSignalInput {
+  modelStats: EnsembleModelStatInput[];
+  averageAgreement: number | null;
+  highDisagreementRate: number | null;
+}
+
 interface RoutingInput {
   availableModels: string[];
   regime: Regime;
@@ -256,5 +271,65 @@ export function getChampionPolicySnapshot() {
       unknown: summarizeRegime('unknown'),
     },
     minUsesForChampion: MIN_USES_FOR_CHAMPION,
+  };
+}
+
+export function applyEnsembleSignals(input: {
+  regime: Regime;
+  signals: EnsembleSignalInput;
+}) {
+  initializeChampionPolicy();
+
+  const agreement = typeof input.signals.averageAgreement === 'number' ? input.signals.averageAgreement : 0.5;
+  const disagreement = typeof input.signals.highDisagreementRate === 'number' ? input.signals.highDisagreementRate : 0;
+
+  const updates: Array<{ model: string; score: number; risk: number }> = [];
+
+  input.signals.modelStats.forEach((item) => {
+    const model = item.model.toLowerCase();
+    const stats = getStats(input.regime, model);
+
+    const sampleWeight = clamp(item.queried / 20, 0.12, 1);
+    const winScore = clamp(item.winRate);
+    const participationScore = clamp(item.participationRate);
+    const disagreementPenalty = clamp(disagreement * (1 - participationScore));
+
+    const blendedReward = clamp(
+      winScore * 0.62 +
+      participationScore * 0.2 +
+      agreement * 0.18 -
+      disagreementPenalty * 0.12
+    );
+
+    const blendedRisk = clamp(
+      (1 - winScore) * 0.52 +
+      disagreementPenalty * 0.28 +
+      (1 - participationScore) * 0.2
+    );
+
+    const alpha = 0.08 * sampleWeight;
+    stats.ewmaReward = ewma(stats.ewmaReward, blendedReward, alpha);
+    stats.ewmaRisk = ewma(stats.ewmaRisk, blendedRisk, alpha);
+    stats.ewmaCalibrationPenalty = ewma(stats.ewmaCalibrationPenalty, clamp(1 - agreement), alpha);
+    stats.updatedAt = Date.now();
+
+    updates.push({
+      model,
+      score: Number(scoreModel(stats).toFixed(4)),
+      risk: Number(stats.ewmaRisk.toFixed(4)),
+    });
+  });
+
+  state.updatedAt = Date.now();
+  saveState();
+
+  return {
+    regime: input.regime,
+    appliedModels: updates.length,
+    averageAgreement: agreement,
+    highDisagreementRate: disagreement,
+    topAfterTuning: updates
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5),
   };
 }
