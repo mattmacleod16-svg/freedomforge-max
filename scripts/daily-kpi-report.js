@@ -111,6 +111,26 @@ function summarizeForecast(forecastPayload) {
   };
 }
 
+function formatTopPredictionContracts(contracts) {
+  if (!Array.isArray(contracts) || contracts.length === 0) return 'n/a';
+  return contracts
+    .slice(0, 4)
+    .map((contract) => {
+      if (typeof contract === 'string') return contract;
+      const title = String(contract?.title || '').trim();
+      if (!title) return null;
+      const probability = Number.isFinite(Number(contract?.probability))
+        ? Number(contract.probability).toFixed(2)
+        : 'n/a';
+      const risk = Number.isFinite(Number(contract?.riskContribution))
+        ? Number(contract.riskContribution).toFixed(3)
+        : 'n/a';
+      return `${title} (p=${probability}, r=${risk})`;
+    })
+    .filter(Boolean)
+    .join(' | ') || 'n/a';
+}
+
 function buildMessage(input) {
   const {
     status,
@@ -133,7 +153,7 @@ function buildMessage(input) {
     `Skips 24h: threshold=${transfer.skippedThreshold} reserve=${transfer.skippedReserve}`,
     `Market: regime=${market.regime || 'unknown'} conf=${market.confidence ?? 'n/a'} geoRisk=${market.geopoliticalRisk ?? 'n/a'}`,
     `Prediction markets: impliedRisk=${market.predictionMarketImpliedRisk ?? 'n/a'} signals=${(market.predictionMarketSignals || []).join(', ') || 'none'}`,
-    `Top PM contracts: ${(market.predictionMarketTopContracts || []).join(' | ') || 'n/a'}`,
+    `Top PM contracts: ${formatTopPredictionContracts(market.predictionMarketTopContracts)}`,
     `Forecast: p=${forecast.weightedProbability ?? 'n/a'} c=${forecast.weightedConfidence ?? 'n/a'} edge=${forecast.edge ?? 'n/a'} shock=${forecast.shockRisk ?? 'n/a'} horizons=${(forecast.horizons || []).join(',') || 'n/a'}`,
     `Calibration: brier=${forecast.avgBrier ?? 'n/a'} accuracy=${forecast.directionalAccuracy ?? 'n/a'} calErr=${forecast.calibrationError ?? 'n/a'}`,
     `Signals: ${(market.signals || []).join(', ') || 'none'} | forecastNotes=${(forecast.notes || []).join(', ') || 'none'}`,

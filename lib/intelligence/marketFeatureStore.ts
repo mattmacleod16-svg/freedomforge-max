@@ -3,6 +3,15 @@ import path from 'path';
 
 export type MarketRegime = 'risk_on' | 'risk_off' | 'neutral' | 'unknown';
 
+export interface PredictionMarketContract {
+  title: string;
+  probability: number;
+  riskContribution: number;
+  volume: number;
+  riskHits: number;
+  bullishHits: number;
+}
+
 export interface MarketFeaturePoint {
   ts: number;
   btcUsd: number;
@@ -14,7 +23,7 @@ export interface MarketFeaturePoint {
   geopoliticalHeadlines: string[];
   predictionMarketImpliedRisk: number;
   predictionMarketSignals: string[];
-  predictionMarketTopContracts: string[];
+  predictionMarketTopContracts: PredictionMarketContract[];
   regime: MarketRegime;
   confidence: number;
   signals: string[];
@@ -57,6 +66,45 @@ function avg(values: number[]) {
 
 function safeNumber(value: unknown, fallback = 0) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizePredictionMarketContracts(value: unknown): PredictionMarketContract[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        const match = entry.match(/^(.*)\s+\(p=([0-9.]+)\)$/);
+        const title = (match?.[1] || entry).trim();
+        const probability = clamp(Number(match?.[2] || 0), 0, 1);
+        if (!title) return null;
+        return {
+          title,
+          probability,
+          riskContribution: 0,
+          volume: 0,
+          riskHits: 0,
+          bullishHits: 0,
+        } as PredictionMarketContract;
+      }
+
+      if (entry && typeof entry === 'object') {
+        const row = entry as Partial<PredictionMarketContract>;
+        const title = String(row.title || '').trim();
+        if (!title) return null;
+        return {
+          title,
+          probability: clamp(safeNumber(row.probability, 0), 0, 1),
+          riskContribution: clamp(safeNumber(row.riskContribution, 0), 0, 1),
+          volume: Math.max(0, safeNumber(row.volume, 0)),
+          riskHits: Math.max(0, Math.floor(safeNumber(row.riskHits, 0))),
+          bullishHits: Math.max(0, Math.floor(safeNumber(row.bullishHits, 0))),
+        };
+      }
+
+      return null;
+    })
+    .filter((entry): entry is PredictionMarketContract => Boolean(entry));
 }
 
 function countMatches(text: string, terms: string[]) {
@@ -153,7 +201,7 @@ function parseOutcomeProbability(market: any): number | null {
 async function fetchPredictionMarketSignal() {
   const enabled = String(process.env.PREDICTION_MARKET_FEED_ENABLED || 'true').toLowerCase() !== 'false';
   if (!enabled) {
-    return { impliedRisk: 0, signals: ['pm_feed_disabled'], topContracts: [] as string[] };
+    return { impliedRisk: 0, signals: ['pm_feed_disabled'], topContracts: [] as PredictionMarketContract[] };
   }
 
   const limit = Math.max(20, Math.min(150, Number(process.env.PREDICTION_MARKET_LIMIT || 80)));
@@ -168,7 +216,7 @@ async function fetchPredictionMarketSignal() {
         : [];
 
     if (markets.length === 0) {
-      return { impliedRisk: 0, signals: ['pm_no_markets'], topContracts: [] as string[] };
+      return { impliedRisk: 0, signals: ['pm_no_markets'], topContracts: [] as PredictionMarketContract[] };
     }
 
     const riskKeywords = ['war', 'recession', 'default', 'crisis', 'emergency', 'attack', 'conflict', 'rate hike', 'inflation', 'sanctions'];
@@ -196,7 +244,7 @@ async function fetchPredictionMarketSignal() {
       .slice(0, 12);
 
     if (scored.length === 0) {
-      return { impliedRisk: 0, signals: ['pm_unscored'], topContracts: [] as string[] };
+      return { impliedRisk: 0, signals: ['pm_unscored'], topContracts: [] as PredictionMarketContract[] };
     }
 
     const impliedRisk = clamp(scored.reduce((sum: number, row: any) => sum + row.riskScore, 0) / Math.max(1, scored.length) * 1.8);
@@ -210,10 +258,17 @@ async function fetchPredictionMarketSignal() {
     return {
       impliedRisk,
       signals,
-      topContracts: scored.slice(0, 4).map((row: any) => `${row.title} (p=${row.probability.toFixed(2)})`),
+      topContracts: scored.slice(0, 4).map((row: any) => ({
+        title: row.title,
+        probability: Number(row.probability.toFixed(4)),
+        riskContribution: Number(row.riskScore.toFixed(6)),
+        volume: Math.max(0, Number(row.volume) || 0),
+        riskHits: Math.max(0, Number(row.riskHits) || 0),
+        bullishHits: Math.max(0, Number(row.bullishHits) || 0),
+      })),
     };
   } catch {
-    return { impliedRisk: 0, signals: ['pm_feed_error'], topContracts: [] as string[] };
+    return { impliedRisk: 0, signals: ['pm_feed_error'], topContracts: [] as PredictionMarketContract[] };
   }
 }
 
@@ -315,7 +370,12 @@ export function initializeMarketFeatureStore() {
       const raw = fs.readFileSync(STATE_FILE, 'utf8');
       const parsed = JSON.parse(raw) as Partial<MarketFeatureState>;
       state = {
-        history: Array.isArray(parsed.history) ? parsed.history.slice(-MAX_POINTS) : [],
+        history: Array.isArray(parsed.history)
+          ? parsed.history.slice(-MAX_POINTS).map((point: any) => ({
+            ...point,
+            predictionMarketTopContracts: normalizePredictionMarketContracts(point?.predictionMarketTopContracts),
+          }))
+          : [],
         updatedAt: safeNumber(parsed.updatedAt, 0),
       };
     } else {
@@ -356,6 +416,20 @@ export async function updateMarketFeatureStore() {
           geopoliticalRisk: typeof latest.geopoliticalRisk === 'number' ? latest.geopoliticalRisk : 0,
           geopoliticalSignals: Array.isArray(latest.geopoliticalSignals) ? latest.geopoliticalSignals : ['geo_backfill_default'],
           geopoliticalHeadlines: Array.isArray(latest.geopoliticalHeadlines) ? latest.geopoliticalHeadlines : [],
+          predictionMarketImpliedRisk: typeof latest.predictionMarketImpliedRisk === 'number' ? latest.predictionMarketImpliedRisk : 0,
+          predictionMarketSignals: Array.isArray(latest.predictionMarketSignals) ? latest.predictionMarketSignals : [],
+          predictionMarketTopContracts: normalizePredictionMarketContracts(latest.predictionMarketTopContracts),
+        };
+        state.history[state.history.length - 1] = migrated;
+        saveState();
+        return migrated;
+      }
+      if (!Array.isArray(latest.predictionMarketTopContracts) || typeof latest.predictionMarketTopContracts[0] === 'string') {
+        const migrated: MarketFeaturePoint = {
+          ...latest,
+          predictionMarketImpliedRisk: typeof latest.predictionMarketImpliedRisk === 'number' ? latest.predictionMarketImpliedRisk : 0,
+          predictionMarketSignals: Array.isArray(latest.predictionMarketSignals) ? latest.predictionMarketSignals : [],
+          predictionMarketTopContracts: normalizePredictionMarketContracts(latest.predictionMarketTopContracts),
         };
         state.history[state.history.length - 1] = migrated;
         saveState();
@@ -424,7 +498,12 @@ export async function maybeRefreshMarketFeatureStore() {
   const maxAgeMs = Math.max(60_000, Number(process.env.MARKET_REFRESH_MAX_AGE_MS || 30 * 60 * 1000));
   const latest = getLatestMarketSnapshot();
   const missingGeoFields = !latest || typeof latest.geopoliticalRisk !== 'number' || !Array.isArray(latest.geopoliticalSignals);
-  const isStale = (Date.now() - state.updatedAt) > maxAgeMs || missingGeoFields;
+  const missingPredictionFields =
+    !latest ||
+    typeof latest.predictionMarketImpliedRisk !== 'number' ||
+    !Array.isArray(latest.predictionMarketSignals) ||
+    !Array.isArray(latest.predictionMarketTopContracts);
+  const isStale = (Date.now() - state.updatedAt) > maxAgeMs || missingGeoFields || missingPredictionFields;
 
   if (state.history.length === 0 || isStale) {
     try {
