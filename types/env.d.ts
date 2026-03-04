@@ -66,6 +66,12 @@ declare namespace NodeJS {
     HUGGINGFACE_API_KEY?: string;
     HUGGINGFACE_ENDPOINT?: string;
     HUGGINGFACE_MODEL?: string;
+    CLAWD_ENABLED?: string;
+    CLAWD_ENDPOINT?: string;
+    CLAWD_API_SECRET?: string;
+    CLAWD_TIMEOUT_MS?: string;
+    CLAWD_PROMPT_COMMAND_TEMPLATE?: string;
+    PICOCLAW_CLIENT_SOURCE?: string;
     X_HANDLE?: string;
     X_BEARER_TOKEN?: string;
     X_ACCESS_TOKEN?: string;

@@ -117,6 +117,15 @@ Profile automation setup notes:
 - Health check endpoint `/api/alchemy/health` returns `{status:'ok'}` for uptime monitors
 - Extensible via APIs under `/api/*` (including `/api/alchemy/wallet` for managing funds and `/api/alchemy/wallet/distribute` to trigger payout)
 
+Optional Clawd bot bridge (extra ensemble firepower):
+- Route: `POST /api/clawd` (local Python bridge to `PicoclawClient`)
+- Enable in ensemble: `CLAWD_ENABLED=true`
+- Provider endpoint (optional override): `CLAWD_ENDPOINT` (defaults to `${APP_BASE_URL}/api/clawd`)
+- Optional auth: `CLAWD_API_SECRET` (used by orchestrator as `x-clawd-secret`)
+- Set `PICOCLAW_CLIENT_SOURCE` to your real `picoclaw_client.py` path if it is outside this repo
+- Optional command template for paid bot invocation: `CLAWD_PROMPT_COMMAND_TEMPLATE`, using `{prompt}` placeholder
+	- Example: `CLAWD_PROMPT_COMMAND_TEMPLATE=clawd --prompt "{prompt}"`
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

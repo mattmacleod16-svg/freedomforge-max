@@ -6,7 +6,7 @@
 interface ModelConfig {
   name: string;
   apiKey: string;
-  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface' | 'openai-compatible' | 'gemini';
+  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface' | 'openai-compatible' | 'gemini' | 'clawd';
   endpoint?: string;
   model?: string;
   extraHeaders?: Record<string, string>;
@@ -38,6 +38,10 @@ function upsertModel(config: ModelConfig) {
     return;
   }
   models.push(config);
+}
+
+function asBool(value: string | undefined) {
+  return String(value || 'false').toLowerCase() === 'true';
 }
 
 export async function initializeModels() {
@@ -196,6 +200,19 @@ export async function initializeModels() {
       model: firstEnv('HUGGINGFACE_MODEL') || 'mistralai/Mistral-7B-Instruct-v0.2',
       priority: 12,
     });
+  }
+
+  if (asBool(process.env.CLAWD_ENABLED)) {
+    const endpoint = firstEnv('CLAWD_ENDPOINT') || (firstEnv('APP_BASE_URL') ? `${firstEnv('APP_BASE_URL')}/api/clawd` : '');
+    if (endpoint) {
+      upsertModel({
+        name: 'clawd',
+        apiKey: firstEnv('CLAWD_API_SECRET'),
+        type: 'clawd',
+        endpoint,
+        priority: 13,
+      });
+    }
   }
 }
 
@@ -357,6 +374,24 @@ async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<st
   return data?.error || 'No response';
 }
 
+async function queryClawd(prompt: string, config: ModelConfig): Promise<string> {
+  if (!config.endpoint) {
+    return 'No response';
+  }
+
+  const response = await fetch(config.endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(config.apiKey ? { 'x-clawd-secret': config.apiKey } : {}),
+    },
+    body: JSON.stringify({ prompt }),
+  });
+
+  const data = await response.json();
+  return data.response || data.error || 'No response';
+}
+
 async function queryAnthropic(prompt: string, config: ModelConfig): Promise<string> {
   const response = await fetch(config.endpoint || 'https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -419,6 +454,8 @@ export async function getMultiModelResponse(
           response = await queryOllamaWithConfig(prompt, model);
         } else if (model.type === 'huggingface') {
           response = await queryHuggingFace(prompt, model);
+        } else if (model.type === 'clawd') {
+          response = await queryClawd(prompt, model);
         }
 
         return {
