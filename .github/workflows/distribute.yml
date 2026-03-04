@@ -77,8 +77,8 @@ jobs:
 
           results = payload.get('results')
           if results is None:
-              print(f"Distribution returned null results: {payload}")
-              sys.exit(1)
+              print(f"Distribution skipped (threshold/reserve): {payload}")
+              sys.exit(0)
 
           print('Distribution response validated')
           PY

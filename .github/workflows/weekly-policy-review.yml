@@ -1,0 +1,47 @@
+name: Weekly Policy Review
+
+on:
+  schedule:
+    - cron: '45 15 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: weekly-policy-review
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      POLICY_LOOKBACK_HOURS: ${{ vars.POLICY_LOOKBACK_HOURS || '168' }}
+      POLICY_AUTO_REDEPLOY: ${{ vars.POLICY_AUTO_REDEPLOY || 'true' }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate required secrets
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "Missing required secret: VERCEL_TOKEN"
+            exit 1
+          fi
+          if [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "Missing required secret: VERCEL_PROJECT_ID"
+            exit 1
+          fi
+
+      - name: Run weekly policy tuner
+        run: node scripts/weekly-policy-review.js

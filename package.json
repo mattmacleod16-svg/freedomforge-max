@@ -18,7 +18,8 @@
     "x-growth": "node scripts/x-growth.js",
     "monthly-strategy": "node scripts/monthly-strategy.js",
     "generate-ops-patch": "node scripts/generate-ops-patch.js",
-    "apply-vercel-env": "node scripts/apply-vercel-env.js"
+    "apply-vercel-env": "node scripts/apply-vercel-env.js",
+    "weekly-policy-review": "node scripts/weekly-policy-review.js"
   },
   "dependencies": {
     "@alch/alchemy-sdk": "^1.2.0",

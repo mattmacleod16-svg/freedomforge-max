@@ -221,6 +221,15 @@ Monthly strategy recommendations:
 - Posts actionable optimization recommendations based on failure/skip patterns and payout reliability trends
 - Optional vars: `STRATEGY_LOOKBACK_HOURS` (default `720`) and `STRATEGY_LOG_LIMIT` (default `4000`)
 
+Weekly revenue policy review:
+- Script: `npm run weekly-policy-review`
+- Workflow: `.github/workflows/weekly-policy-review.yml` (runs Mondays at 15:45 UTC + manual trigger)
+- Reviews current wallet balance and last 7 days of transfer logs, then auto-selects a compounding policy between 85% and 90% reinvest
+- Upserts production Vercel env keys: `SELF_SUSTAIN_REINVEST_BPS`, `TREASURY_MAX_REINVEST_BPS`, `TREASURY_TARGET_ETH`, `MIN_PAYOUT_ETH`
+- Attempts production auto-redeploy after applying policy (can be disabled with `POLICY_AUTO_REDEPLOY=false`)
+- Required secrets: `VERCEL_TOKEN`, `VERCEL_PROJECT_ID` (optional `VERCEL_TEAM_ID`)
+- Optional vars: `POLICY_LOOKBACK_HOURS` (default `168`)
+
 Automated monthly parameter patch PR:
 - Script: `npm run generate-ops-patch`
 - Workflow: `.github/workflows/ops-patch-pr.yml` (runs on day 1 of each month at 15:20 UTC + manual trigger)
