@@ -267,6 +267,20 @@ Continuous background learning:
 	- `CONTINUOUS_INGEST_MIN_INTERVAL_HOURS` (default `12`)
 - Optional secret: `AUTONOMY_ADMIN_KEY`
 
+Daily 24h KPI report:
+- Script: `npm run daily-kpi-report`
+- Workflow: `.github/workflows/daily-kpi-report.yml` (runs daily at 14:20 UTC + manual trigger)
+- Posts a compact report to Discord with:
+	- system readiness + active model set
+	- wallet balance and 24h payout totals
+	- 24h distribution skip reasons (threshold/reserve)
+	- market regime + geopolitical risk
+	- forecast decision signal (`weightedProbability`, `weightedConfidence`, `edge`, `shockRisk`)
+	- forecast calibration metrics (`brier`, `directionalAccuracy`, `calibrationError`)
+- Optional vars:
+	- `KPI_LOOKBACK_HOURS` (default `24`)
+	- `KPI_LOG_LIMIT` (default `2500`)
+
 Automated monthly parameter patch PR:
 - Script: `npm run generate-ops-patch`
 - Workflow: `.github/workflows/ops-patch-pr.yml` (runs on day 1 of each month at 15:20 UTC + manual trigger)

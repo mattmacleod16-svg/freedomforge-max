@@ -1,0 +1,42 @@
+name: Daily KPI Report
+
+on:
+  schedule:
+    - cron: '20 14 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-kpi-report
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+      KPI_LOOKBACK_HOURS: ${{ vars.KPI_LOOKBACK_HOURS || '24' }}
+      KPI_LOG_LIMIT: ${{ vars.KPI_LOG_LIMIT || '2500' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate required secret
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "Missing required GitHub secret: ALERT_WEBHOOK_URL"
+            exit 1
+          fi
+
+      - name: Run daily KPI report
+        run: node scripts/daily-kpi-report.js
