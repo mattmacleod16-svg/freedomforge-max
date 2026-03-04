@@ -287,7 +287,9 @@ export async function updateMarketFeatureStore() {
 export async function maybeRefreshMarketFeatureStore() {
   initializeMarketFeatureStore();
   const maxAgeMs = Math.max(60_000, Number(process.env.MARKET_REFRESH_MAX_AGE_MS || 30 * 60 * 1000));
-  const isStale = (Date.now() - state.updatedAt) > maxAgeMs;
+  const latest = getLatestMarketSnapshot();
+  const missingGeoFields = !latest || typeof latest.geopoliticalRisk !== 'number' || !Array.isArray(latest.geopoliticalSignals);
+  const isStale = (Date.now() - state.updatedAt) > maxAgeMs || missingGeoFields;
 
   if (state.history.length === 0 || isStale) {
     try {
