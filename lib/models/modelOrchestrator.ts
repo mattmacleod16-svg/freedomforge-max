@@ -21,6 +21,7 @@ interface ModelResponse {
 }
 
 const models: ModelConfig[] = [];
+let initialized = false;
 
 function firstEnv(...keys: string[]) {
   for (const key of keys) {
@@ -40,6 +41,7 @@ function upsertModel(config: ModelConfig) {
 }
 
 export async function initializeModels() {
+  initialized = true;
   models.length = 0;
 
   // Grok (primary - Grok API)
@@ -197,6 +199,12 @@ export async function initializeModels() {
   }
 }
 
+function ensureModelsInitialized() {
+  if (!initialized || models.length === 0) {
+    void initializeModels();
+  }
+}
+
 async function queryGrok(prompt: string, apiKey: string): Promise<string> {
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -348,6 +356,7 @@ export async function getMultiModelResponse(
     preferredModels?: string[];
   }
 ): Promise<ModelResponse[]> {
+  ensureModelsInitialized();
   if (models.length === 0) {
     throw new Error('No AI models configured');
   }
@@ -407,10 +416,12 @@ export async function getMultiModelResponse(
 }
 
 export async function getBestResponse(prompt: string): Promise<string> {
+  ensureModelsInitialized();
   const responses = await getMultiModelResponse(prompt, 1);
   return responses[0]?.response || 'Unable to get response from any model';
 }
 
 export function getAvailableModels(): string[] {
+  ensureModelsInitialized();
   return models.map((m) => m.name);
 }
