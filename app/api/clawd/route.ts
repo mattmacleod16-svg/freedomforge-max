@@ -89,7 +89,12 @@ async function runClawdHttpQuery(prompt: string) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(process.env.CLAWD_HTTP_TOKEN ? { Authorization: `Bearer ${process.env.CLAWD_HTTP_TOKEN}` } : {}),
+        ...(process.env.CLAWD_HTTP_TOKEN
+          ? {
+              Authorization: `Bearer ${process.env.CLAWD_HTTP_TOKEN}`,
+              'X-API-Key': process.env.CLAWD_HTTP_TOKEN,
+            }
+          : {}),
       },
       body: JSON.stringify({ prompt }),
       signal: controller.signal,
