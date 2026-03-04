@@ -238,6 +238,19 @@ Geopolitical awareness in market intelligence:
 	- `GEOPOLITICAL_FEED_ENABLED` (default `true`)
 	- `GEOPOLITICAL_QUERY` (override default global risk query)
 
+Advanced anticipation / prediction stack:
+- `lib/intelligence/forecastEngine.ts` now creates a multi-horizon forecast ensemble (default `6h,24h,72h`) and computes a calibration-aware `decisionSignal`
+- The decision signal includes weighted probability, weighted confidence, weighted brier, calibration penalty, edge, and shock risk
+- `lib/synthesis/orchestrator.ts` now feeds this ensemble-based decision signal into autonomy routing instead of a single-horizon forecast only
+- Forecast API exposes this via `GET /api/status/autonomy/forecast` under `decisionSignal`
+- Optional env var: `FORECAST_ENSEMBLE_HORIZONS` (default `6,24,72`)
+
+Geopolitical risk spike alerting:
+- Script: `npm run geopolitical-watch`
+- Workflow: `.github/workflows/geopolitical-watch.yml` (runs every 30 minutes + manual trigger)
+- Sends Discord alert when `geopoliticalRisk` crosses threshold
+- Optional var: `GEO_RISK_ALERT_THRESHOLD` (default `0.6`)
+
 Automated monthly parameter patch PR:
 - Script: `npm run generate-ops-patch`
 - Workflow: `.github/workflows/ops-patch-pr.yml` (runs on day 1 of each month at 15:20 UTC + manual trigger)

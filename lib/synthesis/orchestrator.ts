@@ -10,7 +10,7 @@ import { getLatestBlock, getBalance } from '../alchemy/connector';
 import { initializeAdaptiveIntelligence, runAdaptiveDecisionLoop } from '@/lib/intelligence/adaptiveCortex';
 import { initializeAutonomyDirector, runAutonomyDirector } from '@/lib/intelligence/autonomyDirector';
 import { initializeMarketFeatureStore, maybeRefreshMarketFeatureStore } from '@/lib/intelligence/marketFeatureStore';
-import { ensureMarketForecast, initializeForecastEngine, resolveDueForecasts, getForecastSummary } from '@/lib/intelligence/forecastEngine';
+import { ensureForecastEnsemble, ensureMarketForecast, getForecastDecisionSignal, initializeForecastEngine, resolveDueForecasts, getForecastSummary } from '@/lib/intelligence/forecastEngine';
 import { initializeChampionPolicy, recordChampionOutcome, selectChampionChallengerRouting } from '@/lib/intelligence/championPolicy';
 import { initializeMemoryEngine, recallMemories, rememberEpisode } from '@/lib/intelligence/memoryEngine';
 import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
@@ -309,17 +309,19 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     }
 
     await resolveDueForecasts();
+    await ensureForecastEnsemble();
     const forecast = await ensureMarketForecast();
     const forecastSummary = getForecastSummary();
+    const forecastDecision = getForecastDecisionSignal();
     if (forecast) {
-      forecastContext.probability = forecast.probability;
-      forecastContext.confidence = forecast.confidence;
+      forecastContext.probability = forecastDecision.weightedProbability;
+      forecastContext.confidence = forecastDecision.weightedConfidence;
       enhancedPrompt += `\n\n[forecast: ${forecast.question}; probability=${forecast.probability.toFixed(3)}; confidence=${forecast.confidence.toFixed(3)}]`;
       sources.push(`forecast://${forecast.id}`);
     }
     if (typeof forecastSummary.averageBrierScore === 'number') {
-      forecastContext.brier = forecastSummary.averageBrierScore;
-      enhancedPrompt += `\n\n[forecast calibration brier=${forecastSummary.averageBrierScore.toFixed(4)}]`;
+      forecastContext.brier = forecastDecision.weightedBrier;
+      enhancedPrompt += `\n\n[forecast calibration brier=${forecastDecision.weightedBrier.toFixed(4)}; confidence_adj=${forecastDecision.weightedConfidence.toFixed(3)}; horizons=${forecastDecision.horizons.join(',') || 'n/a'}; shock_risk=${forecastDecision.shockRisk.toFixed(3)}]`;
     }
 
     const opportunityPlan = getAdaptiveOpportunityPlan(userQuery);

@@ -19,7 +19,8 @@
     "monthly-strategy": "node scripts/monthly-strategy.js",
     "generate-ops-patch": "node scripts/generate-ops-patch.js",
     "apply-vercel-env": "node scripts/apply-vercel-env.js",
-    "weekly-policy-review": "node scripts/weekly-policy-review.js"
+    "weekly-policy-review": "node scripts/weekly-policy-review.js",
+    "geopolitical-watch": "node scripts/geopolitical-watch.js"
   },
   "dependencies": {
     "@alch/alchemy-sdk": "^1.2.0",

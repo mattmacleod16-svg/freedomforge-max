@@ -30,11 +30,27 @@ interface ForecastState {
   updatedAt: number;
 }
 
+interface ForecastDecisionSignal {
+  weightedProbability: number;
+  weightedConfidence: number;
+  weightedBrier: number;
+  calibrationPenalty: number;
+  horizons: number[];
+  edge: number;
+  shockRisk: number;
+  notes: string[];
+}
+
 const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'forecast-state.json');
 const MAX_RECORDS = Math.max(500, Number(process.env.FORECAST_MAX_RECORDS || 5000));
 const DEFAULT_HORIZON_HOURS = Math.max(1, Number(process.env.FORECAST_DEFAULT_HOURS || 24));
 const FORECAST_REFRESH_COOLDOWN_MS = Math.max(15 * 60 * 1000, Number(process.env.FORECAST_REFRESH_COOLDOWN_MS || 60 * 60 * 1000));
+const DEFAULT_FORECAST_HORIZONS = (process.env.FORECAST_ENSEMBLE_HORIZONS || '6,24,72')
+  .split(',')
+  .map((value) => Number(value.trim()))
+  .filter((value) => Number.isFinite(value) && value >= 1)
+  .slice(0, 6);
 
 let initialized = false;
 let state: ForecastState = {
@@ -170,6 +186,19 @@ export async function ensureMarketForecast(horizonHours = DEFAULT_HORIZON_HOURS)
   return record;
 }
 
+export async function ensureForecastEnsemble(horizons = DEFAULT_FORECAST_HORIZONS.length ? DEFAULT_FORECAST_HORIZONS : [6, 24, 72]) {
+  initializeForecastEngine();
+  const uniqueHorizons = Array.from(new Set(horizons.map((value) => Math.max(1, Math.floor(value)))));
+  const created: ForecastRecord[] = [];
+
+  for (const horizonHours of uniqueHorizons) {
+    const record = await ensureMarketForecast(horizonHours);
+    if (record) created.push(record);
+  }
+
+  return created;
+}
+
 export async function resolveDueForecasts() {
   initializeForecastEngine();
   const latest = getLatestMarketSnapshot();
@@ -264,7 +293,87 @@ export function getForecastSummary() {
     calibrationError: Number(calibrationError.toFixed(6)),
     latestForecast: unresolved.sort((a, b) => b.createdAt - a.createdAt)[0] || null,
     latestResolved: resolved.sort((a, b) => b.resolvedAt! - a.resolvedAt!)[0] || null,
+    unresolvedByHorizon: unresolved.reduce<Record<string, number>>((acc, row) => {
+      const key = String(row.horizonHours);
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {}),
     buckets,
+  };
+}
+
+export function getForecastDecisionSignal(): ForecastDecisionSignal {
+  initializeForecastEngine();
+  const unresolved = state.records
+    .filter((record) => !record.resolved)
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  const byHorizon = new Map<number, ForecastRecord>();
+  unresolved.forEach((record) => {
+    if (!byHorizon.has(record.horizonHours)) {
+      byHorizon.set(record.horizonHours, record);
+    }
+  });
+
+  const points = Array.from(byHorizon.values())
+    .sort((a, b) => a.horizonHours - b.horizonHours)
+    .slice(0, 5);
+
+  if (points.length === 0) {
+    return {
+      weightedProbability: 0.5,
+      weightedConfidence: 0.35,
+      weightedBrier: 0.25,
+      calibrationPenalty: 0.5,
+      horizons: [],
+      edge: 0,
+      shockRisk: 0,
+      notes: ['no_active_forecasts'],
+    };
+  }
+
+  const summary = getForecastSummary();
+  const brier = typeof summary.averageBrierScore === 'number' ? summary.averageBrierScore : 0.25;
+  const calibration = typeof summary.calibrationError === 'number' ? summary.calibrationError : 0.2;
+
+  const weighted = points.reduce(
+    (acc, point) => {
+      const weight = 1 / Math.max(1, point.horizonHours);
+      acc.weight += weight;
+      acc.prob += point.probability * weight;
+      acc.conf += point.confidence * weight;
+      return acc;
+    },
+    { weight: 0, prob: 0, conf: 0 }
+  );
+
+  const weightedProbability = weighted.weight > 0 ? weighted.prob / weighted.weight : 0.5;
+  const baseConfidence = weighted.weight > 0 ? weighted.conf / weighted.weight : 0.35;
+
+  const market = getLatestMarketSnapshot();
+  const shockRisk = clamp(
+    (market?.realizedVolatility || 0) / 0.06 * 0.55 +
+    (market?.geopoliticalRisk || 0) * 0.45
+  );
+
+  const reliabilityPenalty = clamp(brier * 0.65 + calibration * 0.35);
+  const weightedConfidence = clamp(baseConfidence * (1 - reliabilityPenalty * 0.55) * (1 - shockRisk * 0.3));
+  const edge = Math.abs(weightedProbability - 0.5) * 2;
+
+  const notes: string[] = [];
+  if (shockRisk >= 0.6) notes.push('shock_risk_high');
+  if (reliabilityPenalty >= 0.28) notes.push('calibration_degraded');
+  if (edge >= 0.35) notes.push('edge_detected');
+
+  return {
+    weightedProbability: Number(weightedProbability.toFixed(6)),
+    weightedConfidence: Number(weightedConfidence.toFixed(6)),
+    weightedBrier: Number(brier.toFixed(6)),
+    calibrationPenalty: Number(reliabilityPenalty.toFixed(6)),
+    horizons: points.map((point) => point.horizonHours),
+    edge: Number(edge.toFixed(6)),
+    shockRisk: Number(shockRisk.toFixed(6)),
+    notes,
   };
 }
 

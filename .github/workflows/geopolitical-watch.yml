@@ -1,0 +1,41 @@
+name: Geopolitical Watch
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: geopolitical-watch
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+      GEO_RISK_ALERT_THRESHOLD: ${{ vars.GEO_RISK_ALERT_THRESHOLD || '0.6' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate webhook secret
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "Missing required GitHub secret: ALERT_WEBHOOK_URL"
+            exit 1
+          fi
+
+      - name: Run geopolitical watch
+        run: node scripts/geopolitical-watch.js

@@ -91,6 +91,8 @@ declare namespace NodeJS {
     PREDICTION_CALIBRATION_GUARD_BRIER?: string;
     GEOPOLITICAL_FEED_ENABLED?: string;
     GEOPOLITICAL_QUERY?: string;
+    GEO_RISK_ALERT_THRESHOLD?: string;
+    FORECAST_ENSEMBLE_HORIZONS?: string;
     POLICY_LOOKBACK_HOURS?: string;
     POLICY_AUTO_REDEPLOY?: string;
     VERCEL_PROJECT_SLUG?: string;

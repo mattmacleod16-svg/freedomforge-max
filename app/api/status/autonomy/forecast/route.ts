@@ -1,5 +1,7 @@
 import {
   ensureMarketForecast,
+  ensureForecastEnsemble,
+  getForecastDecisionSignal,
   getForecastSummary,
   resolveDueForecasts,
   runForecastBacktest,
@@ -19,6 +21,7 @@ export async function GET(req: Request) {
     const includeBacktest = url.searchParams.get('backtest') === 'true';
 
     if (create) {
+      await ensureForecastEnsemble();
       await ensureMarketForecast(horizonHours);
       await resolveDueForecasts();
     }
@@ -27,6 +30,7 @@ export async function GET(req: Request) {
       {
         status: 'ok',
         forecast: getForecastSummary(),
+        decisionSignal: getForecastDecisionSignal(),
         backtest: includeBacktest ? runForecastBacktest(horizonHours) : undefined,
       },
       { headers: { 'Cache-Control': 'no-store' } }
@@ -48,12 +52,14 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const horizonHours = Math.max(1, Number(body?.horizonHours || '24'));
 
+    await ensureForecastEnsemble();
     await ensureMarketForecast(horizonHours);
     await resolveDueForecasts();
 
     return Response.json({
       status: 'ok',
       forecast: getForecastSummary(),
+      decisionSignal: getForecastDecisionSignal(),
       backtest: runForecastBacktest(horizonHours),
     });
   } catch (error) {
