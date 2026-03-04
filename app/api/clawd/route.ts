@@ -96,7 +96,10 @@ async function runClawdHttpQuery(prompt: string) {
             }
           : {}),
       },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({
+        prompt,
+        command: prompt,
+      }),
       signal: controller.signal,
     });
 
@@ -112,7 +115,7 @@ async function runClawdHttpQuery(prompt: string) {
       throw new Error(payload.error || `clawd http backend status ${response.status}`);
     }
 
-    return (payload.response || '').trim();
+    return String(payload.response || payload.output || '').trim();
   } finally {
     clearTimeout(timer);
   }
