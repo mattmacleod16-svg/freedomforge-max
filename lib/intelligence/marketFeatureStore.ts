@@ -9,6 +9,9 @@ export interface MarketFeaturePoint {
   btcChange24h: number;
   fearGreed: number | null;
   realizedVolatility: number;
+  geopoliticalRisk: number;
+  geopoliticalSignals: string[];
+  geopoliticalHeadlines: string[];
   regime: MarketRegime;
   confidence: number;
   signals: string[];
@@ -53,6 +56,64 @@ function safeNumber(value: unknown, fallback = 0) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function countMatches(text: string, terms: string[]) {
+  const lowered = text.toLowerCase();
+  return terms.reduce((sum, term) => sum + (lowered.includes(term.toLowerCase()) ? 1 : 0), 0);
+}
+
+async function fetchGeopoliticalRiskSignal() {
+  const enabled = String(process.env.GEOPOLITICAL_FEED_ENABLED || 'true').toLowerCase() !== 'false';
+  if (!enabled) {
+    return { risk: 0, signals: ['geo_feed_disabled'], headlines: [] as string[] };
+  }
+
+  const query =
+    process.env.GEOPOLITICAL_QUERY ||
+    '(russia OR ukraine OR taiwan OR china OR iran OR israel OR sanctions OR oil shock OR shipping disruption OR central bank emergency)';
+  const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=ArtList&maxrecords=25&format=json&sort=DateDesc`;
+
+  try {
+    const payload = (await fetchJsonWithTimeout(url, 12000)) as { articles?: Array<{ title?: string }> };
+    const titles = (payload.articles || [])
+      .map((article) => String(article?.title || '').trim())
+      .filter(Boolean)
+      .slice(0, 25);
+
+    if (titles.length === 0) {
+      return { risk: 0, signals: ['geo_feed_no_articles'], headlines: [] as string[] };
+    }
+
+    const corpus = titles.join(' | ');
+    const conflictHits = countMatches(corpus, ['conflict', 'war', 'missile', 'attack', 'invasion', 'troops']);
+    const escalationHits = countMatches(corpus, ['escalation', 'nuclear', 'sanctions', 'blockade', 'retaliation']);
+    const disruptionHits = countMatches(corpus, ['oil', 'strait', 'shipping', 'red sea', 'supply chain', 'embargo']);
+    const deescalationHits = countMatches(corpus, ['ceasefire', 'talks', 'agreement', 'de-escalation', 'truce']);
+
+    const rawRisk =
+      conflictHits * 0.08 +
+      escalationHits * 0.12 +
+      disruptionHits * 0.10 -
+      deescalationHits * 0.06;
+    const risk = clamp(rawRisk, 0, 1);
+
+    const signals: string[] = [];
+    if (conflictHits >= 2) signals.push('geo_conflict');
+    if (escalationHits >= 2) signals.push('geo_escalation');
+    if (disruptionHits >= 1) signals.push('geo_supply_risk');
+    if (deescalationHits >= 2) signals.push('geo_deescalation');
+    if (risk >= 0.65) signals.push('geo_risk_high');
+    if (risk >= 0.35 && risk < 0.65) signals.push('geo_risk_medium');
+
+    return {
+      risk,
+      signals,
+      headlines: titles.slice(0, 4),
+    };
+  } catch {
+    return { risk: 0, signals: ['geo_feed_error'], headlines: [] as string[] };
+  }
+}
+
 async function fetchJsonWithTimeout(url: string, timeoutMs = 12000): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -93,9 +154,11 @@ function classifyRegime(input: {
   btcChange24h: number;
   fearGreed: number | null;
   realizedVolatility: number;
+  geopoliticalRisk: number;
+  geopoliticalSignals: string[];
 }): { regime: MarketRegime; confidence: number; signals: string[] } {
-  const { btcChange24h, fearGreed, realizedVolatility } = input;
-  const signals: string[] = [];
+  const { btcChange24h, fearGreed, realizedVolatility, geopoliticalRisk, geopoliticalSignals } = input;
+  const signals: string[] = [...geopoliticalSignals];
 
   if (btcChange24h <= -4) signals.push('btc_drop');
   if (btcChange24h >= 2) signals.push('btc_momentum');
@@ -107,7 +170,8 @@ function classifyRegime(input: {
   const riskOffScore =
     (btcChange24h <= -4 ? 0.38 : 0) +
     (fearGreed !== null && fearGreed < 35 ? 0.34 : 0) +
-    (realizedVolatility > 0.03 ? 0.28 : 0);
+    (realizedVolatility > 0.03 ? 0.28 : 0) +
+    Math.min(0.32, geopoliticalRisk * 0.32);
 
   const riskOnScore =
     (btcChange24h >= 2 ? 0.38 : 0) +
@@ -182,6 +246,9 @@ export async function updateMarketFeatureStore() {
     btcChange24h,
     fearGreed,
     realizedVolatility: computeRealizedVolatility(),
+    geopoliticalRisk: 0,
+    geopoliticalSignals: [],
+    geopoliticalHeadlines: [],
     regime: 'unknown',
     confidence: 0,
     signals: [],
@@ -191,15 +258,21 @@ export async function updateMarketFeatureStore() {
   state.history = nextHistory;
 
   const realizedVolatility = computeRealizedVolatility();
+  const geo = await fetchGeopoliticalRiskSignal();
   const regime = classifyRegime({
     btcChange24h,
     fearGreed,
     realizedVolatility,
+    geopoliticalRisk: geo.risk,
+    geopoliticalSignals: geo.signals,
   });
 
   const finalPoint: MarketFeaturePoint = {
     ...provisionalPoint,
     realizedVolatility,
+    geopoliticalRisk: geo.risk,
+    geopoliticalSignals: geo.signals,
+    geopoliticalHeadlines: geo.headlines,
     regime: regime.regime,
     confidence: regime.confidence,
     signals: regime.signals,

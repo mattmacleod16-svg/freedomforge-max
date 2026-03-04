@@ -34,8 +34,17 @@ async function fetchJson(path) {
   return response.json();
 }
 
-function computePolicy({ balanceEth, transferredEth }) {
+function computePolicy({ balanceEth, transferredEth, marketRegime, geopoliticalRisk }) {
   const generatedEth = balanceEth + transferredEth;
+
+  if (marketRegime === 'risk_off' || geopoliticalRisk >= 0.6) {
+    return {
+      reinvestBps: 9000,
+      minPayoutEth: '0.03',
+      treasuryTargetEth: '0.24',
+      reason: 'Risk-off / elevated geopolitical stress detected; shift to maximum capital preservation and compounding.',
+    };
+  }
 
   if (generatedEth < 0.05) {
     return {
@@ -179,17 +188,21 @@ async function main() {
     throw new Error('Missing both VERCEL_PROJECT_ID and VERCEL_PROJECT_SLUG');
   }
 
-  const [wallet, walletLogs] = await Promise.all([
+  const [wallet, walletLogs, autonomyStatus] = await Promise.all([
     fetchJson('/api/alchemy/wallet'),
     fetchJson('/api/alchemy/wallet/logs?limit=3000'),
+    fetchJson('/api/status/autonomy').catch(() => ({})),
   ]);
 
   const balanceEth = toEthNumber(wallet.balance);
   const transferredEth = sumTransfersWithinLookback(walletLogs.logs, LOOKBACK_HOURS);
-  const policy = computePolicy({ balanceEth, transferredEth });
+  const marketRegime = autonomyStatus?.market?.latest?.regime || 'unknown';
+  const geopoliticalRisk = Number(autonomyStatus?.market?.latest?.geopoliticalRisk || 0);
+  const policy = computePolicy({ balanceEth, transferredEth, marketRegime, geopoliticalRisk });
   const treasuryMaxReinvestBps = Math.min(9500, policy.reinvestBps + 500);
 
   console.log(`Weekly policy review: balance=${toEthString(wallet.balance)} ETH transferred_${LOOKBACK_HOURS}h=${transferredEth.toFixed(6)} ETH`);
+  console.log(`Market context: regime=${marketRegime} geopoliticalRisk=${geopoliticalRisk.toFixed(3)}`);
   console.log(`Selected policy: reinvest=${policy.reinvestBps} minPayout=${policy.minPayoutEth} treasuryTarget=${policy.treasuryTargetEth}`);
   console.log(`Reason: ${policy.reason}`);
 

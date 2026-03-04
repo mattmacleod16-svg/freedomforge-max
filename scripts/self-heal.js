@@ -130,7 +130,7 @@ async function attemptDistributionKick() {
 
     const payload = await response.json().catch(() => ({}));
     if (payload.results === null) {
-      return { ok: false, reason: 'distribution returned null results' };
+      return { ok: true, reason: 'distribution skipped by threshold/reserve (expected)' };
     }
 
     return { ok: true };

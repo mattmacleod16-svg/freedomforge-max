@@ -224,11 +224,19 @@ Monthly strategy recommendations:
 Weekly revenue policy review:
 - Script: `npm run weekly-policy-review`
 - Workflow: `.github/workflows/weekly-policy-review.yml` (runs Mondays at 15:45 UTC + manual trigger)
-- Reviews current wallet balance and last 7 days of transfer logs, then auto-selects a compounding policy between 85% and 90% reinvest
+- Reviews wallet balance, last 7 days of transfer logs, and market context (`/api/status/autonomy`) including geopolitical risk signals
+- Auto-selects a compounding policy between 85% and 90% reinvest; in elevated risk-off / geopolitical stress it shifts to stronger preservation (up to 90% reinvest)
 - Upserts production Vercel env keys: `SELF_SUSTAIN_REINVEST_BPS`, `TREASURY_MAX_REINVEST_BPS`, `TREASURY_TARGET_ETH`, `MIN_PAYOUT_ETH`
 - Attempts production auto-redeploy after applying policy (can be disabled with `POLICY_AUTO_REDEPLOY=false`)
 - Required secrets: `VERCEL_TOKEN`, `VERCEL_PROJECT_ID` (optional `VERCEL_TEAM_ID`)
 - Optional vars: `POLICY_LOOKBACK_HOURS` (default `168`)
+
+Geopolitical awareness in market intelligence:
+- `lib/intelligence/marketFeatureStore.ts` now ingests a global-news geopolitical feed (GDELT) and computes `geopoliticalRisk` plus `geopoliticalSignals`
+- These signals are incorporated into market regime classification (`risk_on` / `risk_off` / `neutral`) and flow into autonomy + policy logic
+- Optional env vars:
+	- `GEOPOLITICAL_FEED_ENABLED` (default `true`)
+	- `GEOPOLITICAL_QUERY` (override default global risk query)
 
 Automated monthly parameter patch PR:
 - Script: `npm run generate-ops-patch`
@@ -245,6 +253,10 @@ Automated ensemble policy tuning:
 - Workflow: `.github/workflows/ensemble-policy-tuner.yml` (runs hourly at minute 10 UTC + manual trigger)
 - Scheduled runs use `regime=neutral` and `limit=1200` (bounded to `100..5000`)
 - Manual inputs: `regime` (`neutral`, `risk_on`, `risk_off`, `unknown`) and `limit`
+
+Self-heal watchdog hardening:
+- Workflow: `.github/workflows/self-heal.yml` now runs every 5 minutes
+- `scripts/self-heal.js` treats payout threshold/reserve skips as expected behavior (not an outage)
 
 One-click apply to Vercel envs:
 - Script: `npm run apply-vercel-env`
