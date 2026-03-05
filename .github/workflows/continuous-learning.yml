@@ -23,6 +23,9 @@ jobs:
       CONTINUOUS_POLICY_LIMIT: ${{ vars.CONTINUOUS_POLICY_LIMIT || '1800' }}
       CONTINUOUS_ENABLE_INGEST: ${{ vars.CONTINUOUS_ENABLE_INGEST || 'true' }}
       CONTINUOUS_INGEST_MIN_INTERVAL_HOURS: ${{ vars.CONTINUOUS_INGEST_MIN_INTERVAL_HOURS || '12' }}
+      CONTINUOUS_ENABLE_CHAT: ${{ vars.CONTINUOUS_ENABLE_CHAT || 'true' }}
+      CONTINUOUS_ENABLE_DISTRIBUTION: ${{ vars.CONTINUOUS_ENABLE_DISTRIBUTION || 'true' }}
+      CONTINUOUS_CHAT_PROMPT: ${{ vars.CONTINUOUS_CHAT_PROMPT || 'Provide a concise BTC/ETH directional update with confidence, risk controls, and whether action should be taken now.' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

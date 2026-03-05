@@ -10,6 +10,12 @@ const FORECAST_HORIZONS = (process.env.CONTINUOUS_FORECAST_HORIZONS || '6,24,72'
 const POLICY_LIMIT = Math.max(100, Math.min(5000, Number(process.env.CONTINUOUS_POLICY_LIMIT || 1800)));
 const INGEST_MIN_INTERVAL_HOURS = Math.max(1, Number(process.env.CONTINUOUS_INGEST_MIN_INTERVAL_HOURS || 12));
 const ENABLE_INGEST = String(process.env.CONTINUOUS_ENABLE_INGEST || 'true').toLowerCase() !== 'false';
+const ENABLE_CHAT = String(process.env.CONTINUOUS_ENABLE_CHAT || 'true').toLowerCase() !== 'false';
+const ENABLE_DISTRIBUTION = String(process.env.CONTINUOUS_ENABLE_DISTRIBUTION || 'true').toLowerCase() !== 'false';
+const CHAT_PROMPT = (
+  process.env.CONTINUOUS_CHAT_PROMPT ||
+  'Provide a concise BTC/ETH directional update with confidence, risk controls, and whether action should be taken now.'
+).trim();
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -120,6 +126,41 @@ async function main() {
     });
   }
 
+  if (ENABLE_CHAT) {
+    const chat = await call('/api/chat', {
+      method: 'POST',
+      body: { message: CHAT_PROMPT },
+      retries: 1,
+    });
+
+    report.steps.push({
+      name: 'chat-decision-cycle',
+      status: 'ok',
+      modelsUsed: chat?.metadata?.models_used || [],
+      routing: chat?.metadata?.routing_profile || null,
+      replyPreview: String(chat?.reply || '').slice(0, 160),
+    });
+  } else {
+    report.steps.push({ name: 'chat-decision-cycle', status: 'skipped', reason: 'disabled' });
+  }
+
+  if (ENABLE_DISTRIBUTION) {
+    const distribution = await call(`/api/alchemy/wallet/distribute?shard=0&shards=1&botId=${encodeURIComponent(`continuous-${Date.now()}`)}`, {
+      method: 'GET',
+      retries: 1,
+    });
+
+    report.steps.push({
+      name: 'distribution-attempt',
+      status: 'ok',
+      recipients: distribution?.recipients || [],
+      txs: distribution?.results || null,
+      message: distribution?.message || null,
+    });
+  } else {
+    report.steps.push({ name: 'distribution-attempt', status: 'skipped', reason: 'disabled' });
+  }
+
   const regime = resolvePolicyRegime(autonomyStatus);
   const policy = await call('/api/status/ensemble/policy', {
     method: 'POST',
@@ -150,6 +191,14 @@ async function main() {
   });
 
   await maybeIngestDeepData(report);
+
+  const logs = await call('/api/alchemy/wallet/logs?limit=20', { retries: 1 });
+  const recent = Array.isArray(logs?.logs) ? logs.logs.slice(-8) : [];
+  report.steps.push({
+    name: 'recent-activity',
+    status: 'ok',
+    events: recent.map((entry) => entry?.type || entry?.event || 'unknown'),
+  });
 
   console.log(JSON.stringify(report, null, 2));
 }
