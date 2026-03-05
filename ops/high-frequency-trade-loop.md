@@ -60,6 +60,7 @@ For faster compounding, increase `SELF_SUSTAIN_REINVEST_BPS` gradually (e.g. +50
 - `TRADE_LOOP_REQUEST_TIMEOUT_MS` (default `12000`)
 - `DISTRIBUTION_URL` (override full endpoint if needed)
 - `HEALTH_URL` (override health endpoint)
+- `MIN_PAYOUT_GAS_MULTIPLIER` (default `3`) to block uneconomic micro-payouts
 
 ## LaunchAgent (macOS) example
 

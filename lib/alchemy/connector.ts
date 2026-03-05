@@ -425,15 +425,34 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   if (share <= BigInt(0)) return null;
 
   const minPayoutEth = (process.env.MIN_PAYOUT_ETH || '0').trim();
-  const minPayoutWei = parseEther(minPayoutEth);
-  if (share < minPayoutWei) {
+  const configuredMinPayoutWei = parseEther(minPayoutEth);
+
+  let dynamicGasGuardWei = BigInt(0);
+  try {
+    const feeData = await provider.getFeeData();
+    const gasPriceWei = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
+    const transferGasUnits = BigInt(21000);
+    const multiplierRaw = Number(process.env.MIN_PAYOUT_GAS_MULTIPLIER || 3);
+    const gasMultiplier = Number.isFinite(multiplierRaw) ? Math.max(1, Math.min(20, Math.round(multiplierRaw))) : 3;
+    dynamicGasGuardWei = gasPriceWei * transferGasUnits * BigInt(gasMultiplier);
+  } catch {
+    dynamicGasGuardWei = BigInt(0);
+  }
+
+  const effectiveMinPayoutWei = configuredMinPayoutWei > dynamicGasGuardWei
+    ? configuredMinPayoutWei
+    : dynamicGasGuardWei;
+
+  if (share < effectiveMinPayoutWei) {
     await logEvent('distribution_skipped_threshold', {
       wallet: w.address,
       botId,
       shardIndex,
       totalShards,
       share: share.toString(),
-      minPayoutWei: minPayoutWei.toString(),
+      minPayoutWei: effectiveMinPayoutWei.toString(),
+      configuredMinPayoutWei: configuredMinPayoutWei.toString(),
+      dynamicGasGuardWei: dynamicGasGuardWei.toString(),
     });
     return null;
   }
