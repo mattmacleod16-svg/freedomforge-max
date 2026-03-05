@@ -62,6 +62,15 @@ Set `ALCHEMY_NETWORK` in your deployment to one of:
 
 This allows the same agent stack to run on the chain where your capital is available.
 
+For loop processes, set `TRADE_LOOP_NETWORK` per daemon:
+
+- `TRADE_LOOP_NETWORK=eth-mainnet`
+- `TRADE_LOOP_NETWORK=opt-mainnet`
+- `TRADE_LOOP_NETWORK=arb-mainnet`
+- `TRADE_LOOP_NETWORK=polygon-mainnet`
+
+When set, the loop calls `/api/alchemy/wallet/distribute?...&network=<value>` so one deployment can execute per-chain routing.
+
 ## Optional tuning env vars
 
 - `TRADE_LOOP_INTERVAL_MS` (default `1000`, minimum `1000`)

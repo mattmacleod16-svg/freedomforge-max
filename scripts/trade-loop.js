@@ -9,6 +9,7 @@ dotenv.config();
 const appBaseUrl = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
 const distributionBaseUrl = process.env.DISTRIBUTION_URL || `${appBaseUrl}/api/alchemy/wallet/distribute`;
 const healthUrl = process.env.HEALTH_URL || `${appBaseUrl}/api/alchemy/health`;
+const tradeLoopNetwork = (process.env.TRADE_LOOP_NETWORK || '').trim();
 const shard = Math.max(0, parseInt(process.env.BOT_SHARD_INDEX || '0', 10));
 const shards = Math.max(1, parseInt(process.env.BOT_SHARDS || '1', 10));
 const botIdPrefix = (process.env.BOT_ID || `live-${shard}`).trim();
@@ -84,7 +85,10 @@ function getAdaptiveInterval() {
 }
 
 async function doHealthCheck() {
-  const payload = await getJson(healthUrl);
+  const url = tradeLoopNetwork
+    ? `${healthUrl}${healthUrl.includes('?') ? '&' : '?'}network=${encodeURIComponent(tradeLoopNetwork)}`
+    : healthUrl;
+  const payload = await getJson(url);
   if (payload?.status !== 'ok') {
     throw new Error(`unexpected health payload: ${JSON.stringify(payload).slice(0, 180)}`);
   }
@@ -92,13 +96,16 @@ async function doHealthCheck() {
 
 async function doDistribution() {
   const botId = `${botIdPrefix}-${Date.now()}`;
-  const url = `${distributionBaseUrl}?shard=${encodeURIComponent(String(shard))}&shards=${encodeURIComponent(String(shards))}&botId=${encodeURIComponent(botId)}`;
+  let url = `${distributionBaseUrl}?shard=${encodeURIComponent(String(shard))}&shards=${encodeURIComponent(String(shards))}&botId=${encodeURIComponent(botId)}`;
+  if (tradeLoopNetwork) {
+    url += `&network=${encodeURIComponent(tradeLoopNetwork)}`;
+  }
   const payload = await getJson(url);
   return { botId, payload };
 }
 
 async function loop() {
-  console.log(`[trade-loop] start interval=${intervalMs}ms max_interval=${maxAdaptiveIntervalMs}ms backoff=${skipBackoffFactor} success_cooldown=${successCooldownMs}ms jitter=${jitterMs}ms shard=${shard}/${shards} app=${appBaseUrl}`);
+  console.log(`[trade-loop] start interval=${intervalMs}ms max_interval=${maxAdaptiveIntervalMs}ms backoff=${skipBackoffFactor} success_cooldown=${successCooldownMs}ms jitter=${jitterMs}ms shard=${shard}/${shards} network=${tradeLoopNetwork || 'default'} app=${appBaseUrl}`);
 
   if (shard > 0 && shardPhaseMs > 0) {
     const startDelay = shard * shardPhaseMs;

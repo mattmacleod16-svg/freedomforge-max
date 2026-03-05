@@ -15,44 +15,45 @@ export const runtime = 'nodejs';
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const path = url.pathname.replace('/api/alchemy', '');
+  const networkOverride = url.searchParams.get('network') || undefined;
 
   try {
-    await initAlchemy();
+    await initAlchemy(networkOverride);
 
     if (path === '/block') {
-      const block = await getLatestBlock();
-      return Response.json({ block });
+      const block = await getLatestBlock(networkOverride);
+      return Response.json({ block, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
 
     if (path === '/balance') {
       const address = url.searchParams.get('address');
       if (!address) return Response.json({ error: 'address required' }, { status: 400 });
-      const bal = await getBalance(address);
-      return Response.json({ balance: bal });
+      const bal = await getBalance(address, networkOverride);
+      return Response.json({ balance: bal, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
 
     if (path === '/nfts') {
       const address = url.searchParams.get('address');
       if (!address) return Response.json({ error: 'address required' }, { status: 400 });
-      const nfts = await getNFTs(address);
-      return Response.json({ nfts });
+      const nfts = await getNFTs(address, networkOverride);
+      return Response.json({ nfts, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
 
     // revenue wallet endpoints
     if (path === '/wallet') {
-      initRevenueWallet(); // trigger wallet init (may auto-generate if needed)
-      const address = initRevenueWallet()?.address || getGeneratedWalletAddress();
-      const bal = await getRevenueWalletBalance();
+      initRevenueWallet(networkOverride); // trigger wallet init (may auto-generate if needed)
+      const address = initRevenueWallet(networkOverride)?.address || getGeneratedWalletAddress(networkOverride);
+      const bal = await getRevenueWalletBalance(networkOverride);
       const recipients = getAuthorizedRecipients();
       // token balances may be null if no tokens configured or error
-      const tokenBalances = address ? await getTokenBalances(address) : null;
-      return Response.json({ address, balance: bal, recipients, tokenBalances, generated: !process.env.WALLET_PRIVATE_KEY });
+      const tokenBalances = address ? await getTokenBalances(address, undefined, networkOverride) : null;
+      return Response.json({ address, balance: bal, recipients, tokenBalances, generated: !process.env.WALLET_PRIVATE_KEY, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
 
     if (path === '/wallet/address') {
-      initRevenueWallet(); // trigger wallet init
-      const address = initRevenueWallet()?.address || getGeneratedWalletAddress();
-      return Response.json({ address, isGenerated: !process.env.WALLET_PRIVATE_KEY });
+      initRevenueWallet(networkOverride); // trigger wallet init
+      const address = initRevenueWallet(networkOverride)?.address || getGeneratedWalletAddress(networkOverride);
+      return Response.json({ address, isGenerated: !process.env.WALLET_PRIVATE_KEY, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
 
     if (path === '/wallet/alerts') {
@@ -88,8 +89,8 @@ export async function GET(req: Request) {
       const to = url.searchParams.get('to');
       const amount = url.searchParams.get('amount');
       if (!to || !amount) return Response.json({ error: 'to and amount required' }, { status: 400 });
-      const tx = await withdrawFromRevenue(to, amount);
-      return Response.json({ txHash: tx });
+      const tx = await withdrawFromRevenue(to, amount, networkOverride);
+      return Response.json({ txHash: tx, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
 
     if (path === '/wallet/distribute') {
@@ -105,6 +106,7 @@ export async function GET(req: Request) {
         shardIndex,
         totalShards,
         botId,
+        networkOverride,
       });
       if (!results) {
         sendAlert('Revenue distribution returned null (possibly no wallet or no recipients)');
@@ -114,6 +116,7 @@ export async function GET(req: Request) {
         shardIndex: shardIndex ?? null,
         totalShards: totalShards ?? null,
         botId: botId || null,
+        network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet',
       });
     }
 

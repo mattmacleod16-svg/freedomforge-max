@@ -14,10 +14,11 @@ type DistributionOptions = {
   shardIndex?: number;
   totalShards?: number;
   botId?: string;
+  networkOverride?: string;
 };
 
-let alchemy: any | null = null;
-let rpcProvider: JsonRpcProvider | null = null;
+const alchemyByNetwork = new Map<string, any>();
+const rpcProviderByNetwork = new Map<string, JsonRpcProvider>();
 
 function resolveNetworkConfig(raw?: string): { sdkNetwork: any; rpcSlug: string } {
   const value = (raw || 'eth-mainnet').toLowerCase();
@@ -62,8 +63,8 @@ function resolveNetworkConfig(raw?: string): { sdkNetwork: any; rpcSlug: string 
   return { sdkNetwork: raw || Network.ETH_MAINNET, rpcSlug: raw || 'eth-mainnet' };
 }
 
-function getEthersNetwork() {
-  const network = resolveNetworkConfig(process.env.ALCHEMY_NETWORK).rpcSlug;
+function getEthersNetwork(networkOverride?: string) {
+  const network = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
   if (network === 'base-mainnet' || network === 'base') {
     return { chainId: 8453, name: 'base' };
   }
@@ -79,38 +80,45 @@ function getEthersNetwork() {
   return { chainId: 1, name: 'mainnet' };
 }
 
-function getAlchemyRpcUrl(): string | null {
+function getAlchemyRpcUrl(networkOverride?: string): string | null {
   const apiKey = process.env.ALCHEMY_API_KEY;
-  const network = resolveNetworkConfig(process.env.ALCHEMY_NETWORK).rpcSlug;
+  const network = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
   if (!apiKey) return null;
   return `https://${network}.g.alchemy.com/v2/${apiKey}`;
 }
 
-export function getRpcProvider(): JsonRpcProvider | null {
-  if (rpcProvider) return rpcProvider;
-  const rpcUrl = getAlchemyRpcUrl();
+export function getRpcProvider(networkOverride?: string): JsonRpcProvider | null {
+  const rpcSlug = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
+  const existing = rpcProviderByNetwork.get(rpcSlug);
+  if (existing) return existing;
+
+  const rpcUrl = getAlchemyRpcUrl(networkOverride);
   if (!rpcUrl) return null;
-  rpcProvider = new JsonRpcProvider(rpcUrl, getEthersNetwork(), { staticNetwork: true });
-  return rpcProvider;
+  const provider = new JsonRpcProvider(rpcUrl, getEthersNetwork(networkOverride), { staticNetwork: true });
+  rpcProviderByNetwork.set(rpcSlug, provider);
+  return provider;
 }
 
-export function initAlchemy() {
-  if (alchemy) return alchemy;
+export function initAlchemy(networkOverride?: string) {
+  const rpcSlug = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
+  const existing = alchemyByNetwork.get(rpcSlug);
+  if (existing) return existing;
 
   const apiKey = process.env.ALCHEMY_API_KEY;
-  const network: any = resolveNetworkConfig(process.env.ALCHEMY_NETWORK).sdkNetwork;
+  const network: any = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).sdkNetwork;
 
   if (!apiKey) {
     console.warn("Alchemy API key not set, blockchain features disabled");
     return null;
   }
 
-  alchemy = new Alchemy({ apiKey, network });
-  return alchemy;
+  const client = new Alchemy({ apiKey, network });
+  alchemyByNetwork.set(rpcSlug, client);
+  return client;
 }
 
-export async function getLatestBlock(): Promise<number | null> {
-  const client = initAlchemy();
+export async function getLatestBlock(networkOverride?: string): Promise<number | null> {
+  const client = initAlchemy(networkOverride);
   if (!client) return null;
   try {
     const block = await client.core.getBlockNumber();
@@ -121,8 +129,8 @@ export async function getLatestBlock(): Promise<number | null> {
   }
 }
 
-export async function getBalance(address: string): Promise<string | null> {
-  const client = initAlchemy();
+export async function getBalance(address: string, networkOverride?: string): Promise<string | null> {
+  const client = initAlchemy(networkOverride);
   if (!client) return null;
   try {
     const balance = await client.core.getBalance(address);
@@ -137,8 +145,8 @@ export async function getBalance(address: string): Promise<string | null> {
  * Return balances for a list of ERC‑20 token contracts held by `address`.
  * Uses `TRACKED_TOKENS` env var (comma-separated list) or explicit list.
  */
-export async function getTokenBalances(address: string, tokens?: string[]): Promise<{[token:string]: {balance: string | null; symbol?: string; decimals?: number}} | null> {
-  const client = initAlchemy();
+export async function getTokenBalances(address: string, tokens?: string[], networkOverride?: string): Promise<{[token:string]: {balance: string | null; symbol?: string; decimals?: number}} | null> {
+  const client = initAlchemy(networkOverride);
   if (!client) return null;
   const list = tokens || (process.env.TRACKED_TOKENS || '').split(',').map(t => t.trim()).filter(t => t);
   if (list.length === 0) return null;
@@ -177,45 +185,50 @@ export async function getTokenBalances(address: string, tokens?: string[]): Prom
 
 // ---------------- wallet helpers for revenue management
 
-let revenueWallet: Wallet | null = null;
-let generatedWalletAddress: string | null = null;
-let missingWalletConfigAlerted = false;
+const revenueWalletByNetwork = new Map<string, Wallet>();
+const generatedWalletAddressByNetwork = new Map<string, string>();
+const missingWalletConfigAlertedByNetwork = new Set<string>();
 
-export function getGeneratedWalletAddress(): string | null {
-  return generatedWalletAddress;
+export function getGeneratedWalletAddress(networkOverride?: string): string | null {
+  const rpcSlug = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
+  return generatedWalletAddressByNetwork.get(rpcSlug) || null;
 }
 
-export function initRevenueWallet(): Wallet | null {
-  if (revenueWallet) return revenueWallet;
+export function initRevenueWallet(networkOverride?: string): Wallet | null {
+  const rpcSlug = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
+  const existing = revenueWalletByNetwork.get(rpcSlug);
+  if (existing) return existing;
+
   let privateKey = process.env.WALLET_PRIVATE_KEY;
   const requestedAutoGenerate = String(process.env.WALLET_AUTO_GENERATE || 'false').toLowerCase() === 'true';
   const autoGenerateWallet = requestedAutoGenerate && process.env.NODE_ENV !== 'production';
 
   if (!privateKey) {
     if (!autoGenerateWallet) {
-      if (!missingWalletConfigAlerted) {
+      if (!missingWalletConfigAlertedByNetwork.has(rpcSlug)) {
         const msg = requestedAutoGenerate && process.env.NODE_ENV === 'production'
           ? 'WALLET_AUTO_GENERATE is ignored in production; set WALLET_PRIVATE_KEY for a stable production wallet.'
           : 'No WALLET_PRIVATE_KEY configured; revenue wallet disabled. Set WALLET_PRIVATE_KEY to use one stable address. Set WALLET_AUTO_GENERATE=true only for local testing.';
         console.error(msg);
         sendAlert(msg);
-        missingWalletConfigAlerted = true;
+        missingWalletConfigAlertedByNetwork.add(rpcSlug);
       }
       return null;
     }
 
     const generated = Wallet.createRandom();
     privateKey = generated.privateKey;
-    generatedWalletAddress = generated.address;
+    generatedWalletAddressByNetwork.set(rpcSlug, generated.address);
     console.warn("🤖 WALLET_AUTO_GENERATE=true and no WALLET_PRIVATE_KEY set; generated temporary wallet:", generated.address);
     console.warn("⚠️ This wallet is ephemeral and should only be used for local testing");
     sendAlert(`🤖 Temporary wallet generated (WALLET_AUTO_GENERATE=true): ${generated.address} — set WALLET_PRIVATE_KEY for a stable production address`);
   }
-  const provider = getRpcProvider();
+  const provider = getRpcProvider(networkOverride);
   if (!provider) return null;
-  revenueWallet = new Wallet(privateKey, provider);
-  generatedWalletAddress = revenueWallet.address;
-  return revenueWallet;
+  const wallet = new Wallet(privateKey, provider);
+  revenueWalletByNetwork.set(rpcSlug, wallet);
+  generatedWalletAddressByNetwork.set(rpcSlug, wallet.address);
+  return wallet;
 }
 
 export function createRandomWallet(): { address: string; privateKey: string } {
@@ -223,8 +236,8 @@ export function createRandomWallet(): { address: string; privateKey: string } {
   return { address: w.address, privateKey: w.privateKey };
 }
 
-export async function getRevenueWalletBalance(): Promise<string | null> {
-  const w = initRevenueWallet();
+export async function getRevenueWalletBalance(networkOverride?: string): Promise<string | null> {
+  const w = initRevenueWallet(networkOverride);
   if (!w) return null;
   try {
     const provider = w.provider;
@@ -237,8 +250,8 @@ export async function getRevenueWalletBalance(): Promise<string | null> {
   }
 }
 
-export async function withdrawFromRevenue(to: string, amountEther: string): Promise<string | null> {
-  const w = initRevenueWallet();
+export async function withdrawFromRevenue(to: string, amountEther: string, networkOverride?: string): Promise<string | null> {
+  const w = initRevenueWallet(networkOverride);
   if (!w) return null;
   try {
     const tx = await w.sendTransaction({
@@ -267,7 +280,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
 
   const recipients = allRecipients.filter((_, idx) => (idx % totalShards) === shardIndex);
 
-  const w = initRevenueWallet();
+  const w = initRevenueWallet(options.networkOverride);
   if (!w) {
     sendAlert('Revenue wallet initialization failed before distribution');
     return null;
@@ -546,8 +559,8 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   return results;
 }
 
-export async function getNFTs(address: string) {
-  const client = initAlchemy();
+export async function getNFTs(address: string, networkOverride?: string) {
+  const client = initAlchemy(networkOverride);
   if (!client) return null;
   try {
     const data = await client.nft.getNftsForOwner(address);
