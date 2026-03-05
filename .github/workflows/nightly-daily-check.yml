@@ -2,7 +2,7 @@ name: Nightly Daily Check
 
 on:
   schedule:
-    - cron: '30 7 * * *' # nightly check (07:30 UTC)
+    - cron: '0 14 * * *' # daily check (14:00 UTC = 9:00 AM EST, 10:00 AM EDT)
   workflow_dispatch:
 
 concurrency:
@@ -35,6 +35,11 @@ jobs:
         continue-on-error: true
         run: npm run daily-check
 
+      - name: Run daily agent proof
+        id: proof
+        continue-on-error: true
+        run: npm run daily-agent-proof
+
       - name: Notify Discord
         if: always()
         run: |
@@ -43,12 +48,12 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ steps.daily.outcome }}" = "success" ]; then
+          if [ "${{ steps.daily.outcome }}" = "success" ] && [ "${{ steps.proof.outcome }}" = "success" ]; then
             status="✅ PASS"
-            text="Nightly daily-check passed for $APP_BASE_URL"
+            text="Nightly daily-check + agent-proof passed for $APP_BASE_URL"
           else
             status="❌ FAIL"
-            text="Nightly daily-check failed for $APP_BASE_URL. Check workflow logs + break-glass runbook."
+            text="Nightly check failed for $APP_BASE_URL. daily-check=${{ steps.daily.outcome }}, agent-proof=${{ steps.proof.outcome }}. Check workflow logs + break-glass runbook."
           fi
 
           if [ -n "$ALERT_MENTION" ]; then
@@ -59,5 +64,5 @@ jobs:
           curl -sSL -X POST -H "Content-Type: application/json" -d "$payload" "$ALERT_WEBHOOK_URL"
 
       - name: Fail workflow on check failure
-        if: steps.daily.outcome != 'success'
+        if: steps.daily.outcome != 'success' || steps.proof.outcome != 'success'
         run: exit 1
