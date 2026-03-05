@@ -2,17 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
 body {
-  background: linear-gradient(135deg, #0a0a0a 0%, #1a0000 100%);
+  background: #000;
   color: #fff;
-  font-family: system-ui, -apple-system, sans-serif;
-}
-
-button.freedom-mic {
-  transition: all 0.3s ease;
-}
-
-button.freedom-mic:hover {
-  transform: scale(1.08);
-  box-shadow: 0 0 60px rgba(255, 59, 47, 0.7);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }

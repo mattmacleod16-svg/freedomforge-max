@@ -134,135 +134,174 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-gradient-to-br from-black via-zinc-950 to-black">
-      <div className="mb-16">
-        <div className="text-8xl mb-6">🔥🌌🚀</div>
-        <h1 className="text-7xl font-black tracking-tighter mb-4">FREEDOMFORGE MAX</h1>
-        <p className="text-3xl text-orange-400">Your friendliest superagent on the planet</p>
-        <p className="text-xl mt-4 opacity-80">Text-first interaction mode is active. Voice is optional.</p>
-      </div>
-
-      {/* Text Input */}
-      <form onSubmit={handleTextSubmit} className="w-full max-w-xl flex gap-4">
-        <input
-          type="text"
-          value={textInput}
-          onChange={(e) => setTextInput(e.target.value)}
-          placeholder="Type your message here and press Send or Enter..."
-          className="flex-1 bg-zinc-900 border border-orange-500/30 rounded-2xl px-6 py-5 text-xl focus:outline-none focus:border-orange-500"
-          onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
-        />
-        <button
-          type="submit"
-          className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 px-10 rounded-2xl text-xl font-bold"
-        >
-          SEND
-        </button>
-      </form>
-
-      {/* Output */}
-      {transcript && <p className="mt-10 text-left text-orange-300 text-2xl max-w-xl">You said: “{transcript}”</p>}
-      {response && <p className="mt-6 text-left text-white text-2xl leading-relaxed max-w-xl">Max says: {response}</p>}
-      {response && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 max-w-xl">
-          <span className="text-xs text-gray-400">Emotion signal: {lastEmotion}</span>
-          <button
-            onClick={() => playElevenLabsAudio(response)}
-            className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold"
-            disabled={isPlayingVoice}
-          >
-            {isPlayingVoice ? 'Playing…' : 'Play Voice Reply'}
-          </button>
-          <button
-            onClick={stopAudio}
-            className="px-3 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-semibold"
-          >
-            Stop Audio
-          </button>
-        </div>
-      )}
-      {response && <p className="mt-2 text-xs text-gray-400 max-w-xl">(text is prioritized; voice playback is manual)</p>}
-
-      {/* Optional Voice Input */}
-      <button
-        onClick={toggleVoice}
-        className={`w-full max-w-xl mt-8 py-5 rounded-2xl text-xl font-bold flex items-center justify-center gap-4 shadow-xl transition-all ${
-          isListening
-            ? 'bg-red-600 animate-pulse'
-            : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'
-        }`}
-      >
-        {isListening ? 'STOP VOICE INPUT' : '🎙️ Optional Voice Input'}
-      </button>
-
-      {/* Alchemy interaction panel */}
-      <div className="mt-12 w-full max-w-xl bg-gray-800 p-6 rounded-xl">
-        <h2 className="text-xl font-semibold mb-2">Blockchain Tools 🔗</h2>
-        <input
-          type="text"
-          placeholder="Ethereum address (0x...)"
-          className="w-full p-2 rounded bg-gray-900 text-white mb-3"
-          value={alchemyAddress}
-          onChange={(e) => setAlchemyAddress(e.target.value)}
-        />
-        <button
-          onClick={fetchBalance}
-          className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">
-          Get Balance
-        </button>
-        {alchemyInfo && <p className="mt-3 text-green-300">{alchemyInfo}</p>}
-
-        {/* Revenue wallet status */}
-        <div className="mt-6 border-t border-gray-700 pt-4">
-          <h3 className="text-lg font-medium">Revenue Wallet</h3>
-          <button
-            onClick={async () => {
-              const res = await fetch('/api/alchemy/wallet');
-              const data = await res.json();
-              setAlchemyInfo(`Revenue wallet ${data.address} balance ${data.balance}`);
-            }}
-            className="mt-2 px-4 py-2 bg-green-600 rounded hover:bg-green-700"
-          >
-            Refresh Wallet Info
-          </button>
-          <div className="mt-2 flex gap-2">
-            <input
-              type="text"
-              placeholder="Withdraw to address"
-              className="flex-1 p-2 rounded bg-gray-900 text-white"
-              value={withAddress}
-              onChange={(e) => setWithAddress(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Amount ETH"
-              className="w-24 p-2 rounded bg-gray-900 text-white"
-              value={withAmount}
-              onChange={(e) => setWithAmount(e.target.value)}
-            />
+    <div className="min-h-screen bg-gradient-to-br from-black via-zinc-950 to-black p-6 md:p-10">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <header className="rounded-3xl border border-orange-500/20 bg-zinc-900/60 p-6 md:p-8 backdrop-blur">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-orange-400/90">Autonomous Intelligence Stack</p>
+              <h1 className="mt-2 text-4xl md:text-6xl font-black tracking-tight text-white">FreedomForge Max</h1>
+              <p className="mt-2 text-zinc-300 max-w-2xl">
+                High-intelligence, risk-aware command interface for prediction, orchestration, and on-chain operations.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-zinc-300">
+              <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text First</span>
+              <span className="rounded-full border border-zinc-700 px-3 py-1">Emotion: {lastEmotion}</span>
+            </div>
           </div>
-          <button
-            onClick={async () => {
-              if (!withAddress || !withAmount) return;
-              const res = await fetch(`/api/alchemy/wallet/withdraw?to=${withAddress}&amount=${withAmount}`);
-              const data = await res.json();
-              setAlchemyInfo(`Withdraw tx: ${data.txHash}`);
-            }}
-            className="mt-2 px-4 py-2 bg-orange-600 rounded hover:bg-orange-700"
-          >
-            Withdraw
-          </button>
-        </div>
-      </div>
+        </header>
 
-      {/* link to dashboard */}
-      <div className="mt-8">
-        <Link
-          href="/dashboard"
-          className="px-6 py-3 bg-purple-600 rounded-xl text-white hover:bg-purple-700"
-        >
-          View Revenue Dashboard 📈
-        </Link>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <section className="lg:col-span-2 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
+            <h2 className="text-xl font-bold text-white">Agent Command</h2>
+            <p className="mt-1 text-sm text-zinc-400">Send prompts, review live reasoning output, and optionally trigger voice playback.</p>
+
+            <form onSubmit={handleTextSubmit} className="mt-5 flex flex-col gap-3 md:flex-row">
+              <input
+                type="text"
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Ask for strategy, prediction, or execution guidance..."
+                className="flex-1 rounded-2xl border border-zinc-700 bg-black/50 px-5 py-4 text-base text-white outline-none transition focus:border-orange-500"
+              />
+              <button
+                type="submit"
+                className="rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 px-6 py-4 text-sm font-bold text-white transition hover:from-orange-600 hover:to-red-700"
+              >
+                SEND
+              </button>
+            </form>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                onClick={toggleVoice}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  isListening
+                    ? 'bg-red-600 text-white animate-pulse'
+                    : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700'
+                }`}
+              >
+                {isListening ? 'Stop Voice Input' : 'Optional Voice Input'}
+              </button>
+              <button
+                onClick={() => response && playElevenLabsAudio(response)}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                disabled={!response || isPlayingVoice}
+              >
+                {isPlayingVoice ? 'Playing...' : 'Play Voice Reply'}
+              </button>
+              <button
+                onClick={stopAudio}
+                className="rounded-xl bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
+              >
+                Stop Audio
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-4 rounded-2xl border border-zinc-800 bg-black/30 p-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Transcript</p>
+                <p className="mt-1 min-h-8 text-sm text-orange-300">{transcript ? `You: ${transcript}` : 'Waiting for command...'}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-zinc-400">Agent Response</p>
+                <p className="mt-1 min-h-20 whitespace-pre-wrap text-sm leading-relaxed text-zinc-100">
+                  {response || 'No response yet.'}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <aside className="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur space-y-6">
+            <div>
+              <h3 className="text-lg font-bold text-white">Blockchain Tools</h3>
+              <p className="text-xs text-zinc-400">Quick wallet reads and controlled withdrawals.</p>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Ethereum address (0x...)"
+                className="w-full rounded-xl border border-zinc-700 bg-black/50 p-3 text-sm text-white outline-none focus:border-sky-500"
+                value={alchemyAddress}
+                onChange={(e) => setAlchemyAddress(e.target.value)}
+              />
+              <button
+                onClick={fetchBalance}
+                className="w-full rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-700"
+              >
+                Get Balance
+              </button>
+            </div>
+
+            <div className="space-y-3 rounded-2xl border border-zinc-800 bg-black/30 p-4">
+              <p className="text-sm font-semibold text-zinc-200">Revenue Wallet</p>
+              <button
+                onClick={async () => {
+                  const res = await fetch('/api/alchemy/wallet');
+                  const data = await res.json();
+                  setAlchemyInfo(`Revenue wallet ${data.address} balance ${data.balance}`);
+                }}
+                className="w-full rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
+              >
+                Refresh Wallet Info
+              </button>
+
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Withdraw to address"
+                  className="w-full rounded-xl border border-zinc-700 bg-black/50 p-3 text-sm text-white outline-none focus:border-orange-500"
+                  value={withAddress}
+                  onChange={(e) => setWithAddress(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="Amount ETH"
+                  className="w-full rounded-xl border border-zinc-700 bg-black/50 p-3 text-sm text-white outline-none focus:border-orange-500"
+                  value={withAmount}
+                  onChange={(e) => setWithAmount(e.target.value)}
+                />
+              </div>
+
+              <button
+                onClick={async () => {
+                  if (!withAddress || !withAmount) return;
+                  const res = await fetch(`/api/alchemy/wallet/withdraw?to=${withAddress}&amount=${withAmount}`);
+                  const data = await res.json();
+                  setAlchemyInfo(`Withdraw tx: ${data.txHash}`);
+                }}
+                className="w-full rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700"
+              >
+                Withdraw
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <Link
+                href="/dashboard"
+                className="block w-full rounded-xl bg-purple-600 px-4 py-3 text-center text-sm font-bold text-white hover:bg-purple-700"
+              >
+                Open Revenue Dashboard
+              </Link>
+              <a
+                href="/api/alchemy/wallet/logs?limit=50"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full rounded-xl border border-zinc-700 px-4 py-3 text-center text-sm font-semibold text-zinc-200 hover:border-zinc-500"
+              >
+                View Recent Logs
+              </a>
+            </div>
+          </aside>
+        </div>
+
+        {alchemyInfo && (
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-900/10 p-4 text-sm text-emerald-300">
+            {alchemyInfo}
+          </div>
+        )}
       </div>
     </div>
   );
