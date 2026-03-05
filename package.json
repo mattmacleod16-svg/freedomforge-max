@@ -24,8 +24,10 @@
     "continuous-learning": "node scripts/continuous-learning.js",
     "daily-kpi-report": "node scripts/daily-kpi-report.js",
     "daily-agent-proof": "node scripts/daily-agent-proof.js",
+    "ios:build:web": "npm run build",
     "ios:sync": "npx cap sync ios",
-    "ios:open": "npx cap open ios"
+    "ios:open": "npx cap open ios",
+    "ios:prepare": "npm run ios:build:web && npm run ios:sync"
   },
   "dependencies": {
     "@alch/alchemy-sdk": "^1.2.0",
