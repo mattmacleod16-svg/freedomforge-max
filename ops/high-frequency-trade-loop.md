@@ -51,6 +51,17 @@ The bot already reinvests via treasury retention settings:
 
 For faster compounding, increase `SELF_SUSTAIN_REINVEST_BPS` gradually (e.g. +500 bps steps) and monitor skip/throughput metrics before each bump.
 
+## Multi-chain routing (ETH / OP / ARB / POL)
+
+Set `ALCHEMY_NETWORK` in your deployment to one of:
+
+- `eth-mainnet` (native ETH)
+- `opt-mainnet` (Optimism)
+- `arb-mainnet` (Arbitrum)
+- `polygon-mainnet` (Polygon)
+
+This allows the same agent stack to run on the chain where your capital is available.
+
 ## Optional tuning env vars
 
 - `TRADE_LOOP_INTERVAL_MS` (default `1000`, minimum `1000`)

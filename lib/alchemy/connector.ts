@@ -21,6 +21,14 @@ let rpcProvider: JsonRpcProvider | null = null;
 
 function resolveNetworkConfig(raw?: string): { sdkNetwork: any; rpcSlug: string } {
   const value = (raw || 'eth-mainnet').toLowerCase();
+  const networkEnum = Network as any;
+
+  const firstAvailable = (...candidates: string[]) => {
+    for (const key of candidates) {
+      if (networkEnum[key]) return networkEnum[key];
+    }
+    return null;
+  };
 
   if (value === 'base' || value === 'base-mainnet') {
     return { sdkNetwork: Network.BASE_MAINNET, rpcSlug: 'base-mainnet' };
@@ -30,6 +38,27 @@ function resolveNetworkConfig(raw?: string): { sdkNetwork: any; rpcSlug: string 
     return { sdkNetwork: Network.ETH_MAINNET, rpcSlug: 'eth-mainnet' };
   }
 
+  if (value === 'arb' || value === 'arbitrum' || value === 'arb-mainnet' || value === 'arbitrum-mainnet') {
+    return {
+      sdkNetwork: firstAvailable('ARB_MAINNET', 'ARBITRUM_MAINNET', 'ARB') || 'arb-mainnet',
+      rpcSlug: 'arb-mainnet',
+    };
+  }
+
+  if (value === 'op' || value === 'optimism' || value === 'opt-mainnet' || value === 'optimism-mainnet') {
+    return {
+      sdkNetwork: firstAvailable('OPT_MAINNET', 'OPTIMISM_MAINNET', 'OPT') || 'opt-mainnet',
+      rpcSlug: 'opt-mainnet',
+    };
+  }
+
+  if (value === 'polygon' || value === 'matic' || value === 'polygon-mainnet' || value === 'matic-mainnet') {
+    return {
+      sdkNetwork: firstAvailable('MATIC_MAINNET', 'POLYGON_MAINNET', 'MATIC') || 'polygon-mainnet',
+      rpcSlug: 'polygon-mainnet',
+    };
+  }
+
   return { sdkNetwork: raw || Network.ETH_MAINNET, rpcSlug: raw || 'eth-mainnet' };
 }
 
@@ -37,6 +66,15 @@ function getEthersNetwork() {
   const network = resolveNetworkConfig(process.env.ALCHEMY_NETWORK).rpcSlug;
   if (network === 'base-mainnet' || network === 'base') {
     return { chainId: 8453, name: 'base' };
+  }
+  if (network === 'arb-mainnet' || network === 'arbitrum-mainnet') {
+    return { chainId: 42161, name: 'arbitrum' };
+  }
+  if (network === 'opt-mainnet' || network === 'optimism-mainnet') {
+    return { chainId: 10, name: 'optimism' };
+  }
+  if (network === 'polygon-mainnet' || network === 'matic-mainnet') {
+    return { chainId: 137, name: 'polygon' };
   }
   return { chainId: 1, name: 'mainnet' };
 }
