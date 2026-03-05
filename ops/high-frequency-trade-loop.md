@@ -28,6 +28,29 @@ npm run trade:loop
   - `BOT_SHARDS=<total>`
   - `BOT_SHARD_INDEX=<0..n-1>` per process
 
+## Multiple profit wallets (recipients)
+
+Set `REVENUE_RECIPIENTS` as a comma-separated list of wallets:
+
+```bash
+REVENUE_RECIPIENTS=0xWalletA,0xWalletB,0xWalletC
+```
+
+- Payouts are split evenly across active recipients.
+- Invalid addresses are ignored and duplicates are de-duplicated automatically.
+- For efficient sharding, set `BOT_SHARDS` close to recipient count (cap 4 currently).
+
+## Self-reinvestment controls
+
+The bot already reinvests via treasury retention settings:
+
+- `SELF_SUSTAIN_REINVEST_BPS` (e.g. `3000` = 30% retained)
+- `TREASURY_TARGET_ETH` (target balance for adaptive retention)
+- `TREASURY_MAX_REINVEST_BPS` (upper bound during treasury deficit/risk)
+- `GAS_RESERVE_ETH` (keeps gas available before payouts)
+
+For faster compounding, increase `SELF_SUSTAIN_REINVEST_BPS` gradually (e.g. +500 bps steps) and monitor skip/throughput metrics before each bump.
+
 ## Optional tuning env vars
 
 - `TRADE_LOOP_INTERVAL_MS` (default `1000`, minimum `1000`)
