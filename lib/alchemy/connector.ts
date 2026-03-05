@@ -87,6 +87,21 @@ function getAlchemyRpcUrl(networkOverride?: string): string | null {
   return `https://${network}.g.alchemy.com/v2/${apiKey}`;
 }
 
+function getNetworkEnvSuffix(rpcSlug: string): string {
+  if (rpcSlug === 'eth-mainnet') return 'ETH_MAINNET';
+  if (rpcSlug === 'base-mainnet') return 'BASE_MAINNET';
+  if (rpcSlug === 'opt-mainnet') return 'OPT_MAINNET';
+  if (rpcSlug === 'arb-mainnet') return 'ARB_MAINNET';
+  if (rpcSlug === 'polygon-mainnet') return 'POLYGON_MAINNET';
+  return rpcSlug.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+}
+
+function getNetworkScopedEnv(baseKey: string, networkOverride?: string): string | undefined {
+  const rpcSlug = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
+  const scopedKey = `${baseKey}_${getNetworkEnvSuffix(rpcSlug)}`;
+  return process.env[scopedKey] ?? process.env[baseKey];
+}
+
 export function getRpcProvider(networkOverride?: string): JsonRpcProvider | null {
   const rpcSlug = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
   const existing = rpcProviderByNetwork.get(rpcSlug);
@@ -475,7 +490,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   const share = distributable / BigInt(allRecipients.length);
   if (share <= BigInt(0)) return null;
 
-  const minPayoutEth = (process.env.MIN_PAYOUT_ETH || '0').trim();
+  const minPayoutEth = (getNetworkScopedEnv('MIN_PAYOUT_ETH', options.networkOverride) || '0').trim();
   const configuredMinPayoutWei = parseEther(minPayoutEth);
 
   let dynamicGasGuardWei = BigInt(0);
@@ -483,7 +498,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     const feeData = await provider.getFeeData();
     const gasPriceWei = feeData.gasPrice ?? feeData.maxFeePerGas ?? BigInt(0);
     const transferGasUnits = BigInt(21000);
-    const multiplierRaw = Number(process.env.MIN_PAYOUT_GAS_MULTIPLIER || 3);
+    const multiplierRaw = Number(getNetworkScopedEnv('MIN_PAYOUT_GAS_MULTIPLIER', options.networkOverride) || 3);
     const gasMultiplier = Number.isFinite(multiplierRaw) ? Math.max(1, Math.min(20, Math.round(multiplierRaw))) : 3;
     dynamicGasGuardWei = gasPriceWei * transferGasUnits * BigInt(gasMultiplier);
   } catch {

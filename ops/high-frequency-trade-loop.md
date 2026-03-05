@@ -85,6 +85,24 @@ When set, the loop calls `/api/alchemy/wallet/distribute?...&network=<value>` so
 - `HEALTH_URL` (override health endpoint)
 - `MIN_PAYOUT_GAS_MULTIPLIER` (default `3`) to block uneconomic micro-payouts
 
+Chain-specific overrides are also supported (fallback to global keys if unset):
+
+- `MIN_PAYOUT_ETH_ETH_MAINNET`
+- `MIN_PAYOUT_ETH_OPT_MAINNET`
+- `MIN_PAYOUT_ETH_ARB_MAINNET`
+- `MIN_PAYOUT_ETH_POLYGON_MAINNET`
+- `MIN_PAYOUT_GAS_MULTIPLIER_ETH_MAINNET`
+- `MIN_PAYOUT_GAS_MULTIPLIER_OPT_MAINNET`
+- `MIN_PAYOUT_GAS_MULTIPLIER_ARB_MAINNET`
+- `MIN_PAYOUT_GAS_MULTIPLIER_POLYGON_MAINNET`
+
+Suggested starting profile for fewer/larger and more economic payouts:
+
+- ETH: `MIN_PAYOUT_ETH_ETH_MAINNET=0.003`, `MIN_PAYOUT_GAS_MULTIPLIER_ETH_MAINNET=6`
+- OP: `MIN_PAYOUT_ETH_OPT_MAINNET=0.0015`, `MIN_PAYOUT_GAS_MULTIPLIER_OPT_MAINNET=4`
+- ARB: `MIN_PAYOUT_ETH_ARB_MAINNET=0.002`, `MIN_PAYOUT_GAS_MULTIPLIER_ARB_MAINNET=5`
+- POL: `MIN_PAYOUT_ETH_POLYGON_MAINNET=0.001`, `MIN_PAYOUT_GAS_MULTIPLIER_POLYGON_MAINNET=3`
+
 ## LaunchAgent (macOS) example
 
 Create `~/Library/LaunchAgents/com.freedomforge.trade-loop.plist`:
