@@ -33,6 +33,12 @@ interface MetricsInfo {
   distributionRuns: number;
 }
 
+interface WalletLog {
+  time?: string;
+  type?: string;
+  event?: string;
+}
+
 function weiToEth(value?: string | null) {
   if (!value) return 0;
   try {
@@ -46,10 +52,52 @@ function asPct(value: number) {
   return `${Math.max(0, Math.min(100, value)).toFixed(1)}%`;
 }
 
+function buildHourlySeries(logs: WalletLog[], hours = 24) {
+  const now = Date.now();
+  const buckets = Array.from({ length: hours }, (_, index) => {
+    const start = now - (hours - index) * 60 * 60 * 1000;
+    return { label: new Date(start).getHours().toString().padStart(2, '0'), count: 0, ts: start };
+  });
+
+  for (const log of logs) {
+    const ts = Date.parse(log.time || '');
+    if (!Number.isFinite(ts)) continue;
+    if (ts < now - hours * 60 * 60 * 1000) continue;
+    const slot = Math.floor((ts - (now - hours * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    if (slot >= 0 && slot < buckets.length) {
+      buckets[slot].count += 1;
+    }
+  }
+
+  return buckets;
+}
+
+function buildDailySeries(logs: WalletLog[], days = 7) {
+  const now = new Date();
+  const buckets = Array.from({ length: days }, (_, index) => {
+    const d = new Date(now);
+    d.setDate(now.getDate() - (days - 1 - index));
+    const key = d.toISOString().slice(0, 10);
+    return { key, label: d.toLocaleDateString(undefined, { weekday: 'short' }), count: 0 };
+  });
+
+  const map = new Map(buckets.map((b) => [b.key, b]));
+  for (const log of logs) {
+    const ts = Date.parse(log.time || '');
+    if (!Number.isFinite(ts)) continue;
+    const key = new Date(ts).toISOString().slice(0, 10);
+    const bucket = map.get(key);
+    if (bucket) bucket.count += 1;
+  }
+
+  return buckets;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [metrics, setMetrics] = useState<MetricsInfo | null>(null);
+  const [logs, setLogs] = useState<WalletLog[]>([]);
   const [latestAlert, setLatestAlert] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -88,14 +136,26 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchLogs = async () => {
+    try {
+      const res = await fetch('/api/alchemy/wallet/logs?limit=500', { cache: 'no-store' });
+      const data = await res.json();
+      setLogs(Array.isArray(data?.logs) ? data.logs : []);
+    } catch (e) {
+      console.error('fetch logs failed', e);
+    }
+  };
+
   useEffect(() => {
     fetchWallet();
     fetchAlert();
     fetchMetrics();
+    fetchLogs();
     const id = setInterval(() => {
       fetchWallet();
       fetchAlert();
       fetchMetrics();
+      fetchLogs();
     }, 15000);
     return () => clearInterval(id);
   }, []);
@@ -112,6 +172,19 @@ export default function DashboardPage() {
   const deployedPct = (deployedEth / totalTrackedEth) * 100;
   const topupPct = (topupsEth / totalTrackedEth) * 100;
   const successPct = (metrics?.transferSuccessRate || 0) * 100;
+
+  const hourlySeries = buildHourlySeries(logs, 24);
+  const hourlyMax = Math.max(1, ...hourlySeries.map((point) => point.count));
+  const polylinePoints = hourlySeries
+    .map((point, index) => {
+      const x = (index / Math.max(1, hourlySeries.length - 1)) * 100;
+      const y = 100 - (point.count / hourlyMax) * 100;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  const dailySeries = buildDailySeries(logs, 7);
+  const dailyMax = Math.max(1, ...dailySeries.map((point) => point.count));
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -194,6 +267,43 @@ export default function DashboardPage() {
                     <div className="flex justify-between text-xs text-zinc-300"><span>Transfer Success</span><span>{asPct(successPct)}</span></div>
                     <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-sky-500 rounded" style={{ width: asPct(successPct) }} /></div>
                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4 space-y-3">
+                  <h3 className="font-semibold text-white">24h Activity Trend</h3>
+                  <div className="h-40 w-full rounded bg-zinc-950/60 p-2">
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
+                      <polyline
+                        fill="none"
+                        stroke="rgb(56 189 248)"
+                        strokeWidth="2"
+                        points={polylinePoints}
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex justify-between text-xs text-zinc-400">
+                    <span>{hourlySeries[0]?.label || '00'}h</span>
+                    <span>Peak {hourlyMax} evt/hr</span>
+                    <span>{hourlySeries[hourlySeries.length - 1]?.label || '23'}h</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4 space-y-3">
+                  <h3 className="font-semibold text-white">7d Activity Volume</h3>
+                  <div className="h-40 flex items-end gap-2">
+                    {dailySeries.map((point) => {
+                      const heightPct = Math.max(6, (point.count / dailyMax) * 100);
+                      return (
+                        <div key={point.key} className="flex-1 flex flex-col items-center justify-end gap-1">
+                          <div className="w-full bg-indigo-500/80 rounded-t" style={{ height: `${heightPct}%` }} />
+                          <span className="text-[10px] text-zinc-400">{point.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="text-xs text-zinc-400">Total events (7d): {dailySeries.reduce((sum, p) => sum + p.count, 0)}</div>
                 </div>
               </div>
             </div>
@@ -291,6 +401,7 @@ export default function DashboardPage() {
               fetchWallet();
               fetchAlert();
               fetchMetrics();
+              fetchLogs();
             }}
             className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-xl text-white font-bold"
           >
