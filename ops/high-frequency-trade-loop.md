@@ -56,6 +56,9 @@ For faster compounding, increase `SELF_SUSTAIN_REINVEST_BPS` gradually (e.g. +50
 - `TRADE_LOOP_INTERVAL_MS` (default `1000`, minimum `1000`)
 - `TRADE_LOOP_MAX_INTERVAL_MS` (default `10000`)
 - `TRADE_LOOP_SKIP_BACKOFF_FACTOR` (default `1.35`)
+- `TRADE_LOOP_SUCCESS_COOLDOWN_MS` (default `8000`) to avoid expensive rapid-fire payouts after a hit
+- `TRADE_LOOP_JITTER_MS` (default `200`) random wait jitter to reduce shard collisions
+- `TRADE_LOOP_SHARD_PHASE_MS` (default `300`) startup phase offset per shard
 - `TRADE_LOOP_HEALTH_EVERY` (default `30` ticks)
 - `TRADE_LOOP_REQUEST_TIMEOUT_MS` (default `12000`)
 - `DISTRIBUTION_URL` (override full endpoint if needed)

@@ -24,6 +24,7 @@
     "geopolitical-watch": "node scripts/geopolitical-watch.js",
     "continuous-learning": "node scripts/continuous-learning.js",
     "daily-kpi-report": "node scripts/daily-kpi-report.js",
+    "profit:scorecard": "node scripts/profit-scorecard.js",
     "daily-agent-proof": "node scripts/daily-agent-proof.js",
     "ios:build:web": "npm run build",
     "ios:sync": "npx cap sync ios",

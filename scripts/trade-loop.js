@@ -18,6 +18,9 @@ const intervalMs = Number.isFinite(configuredInterval) ? Math.max(1000, configur
 const maxAdaptiveIntervalMs = Math.max(intervalMs, parseInt(process.env.TRADE_LOOP_MAX_INTERVAL_MS || '10000', 10));
 const skipBackoffFactorRaw = Number(process.env.TRADE_LOOP_SKIP_BACKOFF_FACTOR || 1.35);
 const skipBackoffFactor = Number.isFinite(skipBackoffFactorRaw) ? Math.max(1, Math.min(3, skipBackoffFactorRaw)) : 1.35;
+const successCooldownMs = Math.max(intervalMs, parseInt(process.env.TRADE_LOOP_SUCCESS_COOLDOWN_MS || '8000', 10));
+const jitterMs = Math.max(0, parseInt(process.env.TRADE_LOOP_JITTER_MS || '200', 10));
+const shardPhaseMs = Math.max(0, parseInt(process.env.TRADE_LOOP_SHARD_PHASE_MS || '300', 10));
 const healthEvery = Math.max(1, parseInt(process.env.TRADE_LOOP_HEALTH_EVERY || '30', 10));
 const requestTimeoutMs = Math.max(1000, parseInt(process.env.TRADE_LOOP_REQUEST_TIMEOUT_MS || '12000', 10));
 
@@ -25,6 +28,7 @@ let running = true;
 let tick = 0;
 let failures = 0;
 let skipStreak = 0;
+let successCooldownUntil = 0;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -94,7 +98,13 @@ async function doDistribution() {
 }
 
 async function loop() {
-  console.log(`[trade-loop] start interval=${intervalMs}ms max_interval=${maxAdaptiveIntervalMs}ms backoff=${skipBackoffFactor} shard=${shard}/${shards} app=${appBaseUrl}`);
+  console.log(`[trade-loop] start interval=${intervalMs}ms max_interval=${maxAdaptiveIntervalMs}ms backoff=${skipBackoffFactor} success_cooldown=${successCooldownMs}ms jitter=${jitterMs}ms shard=${shard}/${shards} app=${appBaseUrl}`);
+
+  if (shard > 0 && shardPhaseMs > 0) {
+    const startDelay = shard * shardPhaseMs;
+    console.log(`[trade-loop] shard phase delay ${startDelay}ms`);
+    await sleep(startDelay);
+  }
 
   while (running) {
     const started = Date.now();
@@ -111,6 +121,7 @@ async function loop() {
         skipStreak += 1;
       } else {
         skipStreak = 0;
+        successCooldownUntil = Date.now() + successCooldownMs;
       }
       failures = 0;
       console.log(`[trade-loop] ${new Date().toISOString()} tick=${tick} botId=${botId} ${summary} skip_streak=${skipStreak}`);
@@ -123,10 +134,12 @@ async function loop() {
 
     const targetInterval = getAdaptiveInterval();
     const elapsed = Date.now() - started;
+    const cooldownWait = Math.max(0, successCooldownUntil - Date.now());
     if (tick % 10 === 0 || skipStreak > 0) {
-      console.log(`[trade-loop] interval target=${targetInterval}ms elapsed=${elapsed}ms`);
+      console.log(`[trade-loop] interval target=${targetInterval}ms elapsed=${elapsed}ms cooldown_wait=${cooldownWait}ms`);
     }
-    const waitMs = Math.max(0, targetInterval - elapsed);
+    const jitterWait = jitterMs > 0 ? Math.floor(Math.random() * (jitterMs + 1)) : 0;
+    const waitMs = Math.max(0, targetInterval - elapsed, cooldownWait) + jitterWait;
     if (waitMs > 0) {
       await sleep(waitMs);
     }

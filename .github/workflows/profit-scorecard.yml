@@ -1,0 +1,39 @@
+name: Profit Scorecard
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+      ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
+      SCORECARD_LOOKBACK_HOURS: ${{ vars.SCORECARD_LOOKBACK_HOURS || '6' }}
+      SCORECARD_LOG_LIMIT: ${{ vars.SCORECARD_LOG_LIMIT || '4000' }}
+      SCORECARD_MIN_SUCCESS_RATE: ${{ vars.SCORECARD_MIN_SUCCESS_RATE || '0.85' }}
+      SCORECARD_MIN_NET_ETH: ${{ vars.SCORECARD_MIN_NET_ETH || '0.001' }}
+      SCORECARD_HARD_FAIL_TOPUP_ERRORS: ${{ vars.SCORECARD_HARD_FAIL_TOPUP_ERRORS || '2' }}
+      SCORECARD_NO_PAYOUT_MAX_SKIPS: ${{ vars.SCORECARD_NO_PAYOUT_MAX_SKIPS || '120' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run scorecard
+        run: npm run profit:scorecard
