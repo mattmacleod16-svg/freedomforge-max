@@ -9,6 +9,7 @@
     "lint": "eslint",
     "smoke:prod": "node scripts/smoke-prod.js",
     "daily-check": "node scripts/daily-check.js",
+    "trade:loop": "node scripts/trade-loop.js",
     "watch:live": "node scripts/live-watch.js",
     "monitor": "node scripts/monitor.js",
     "subscribe:mined": "node scripts/alchemy-subscribe.js",

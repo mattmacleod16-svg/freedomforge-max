@@ -44,3 +44,7 @@ next-env.d.ts
 # persistent data logs
 data/
 logs/
+
+# iOS local workspace noise (while iOS wrapper is paused)
+ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
