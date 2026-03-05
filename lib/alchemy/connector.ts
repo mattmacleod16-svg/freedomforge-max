@@ -311,7 +311,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     const effectiveKeepBps = 10000 - effectiveReinvestBps;
     const distributableToken = (tokenBalance * BigInt(effectiveKeepBps)) / BigInt(10000);
 
-    const tokenShare = distributableToken / BigInt(recipients.length);
+    const tokenShare = distributableToken / BigInt(allRecipients.length);
     if (tokenShare <= BigInt(0)) return null;
 
     const minTokenShareWei = BigInt((process.env.MIN_PAYOUT_TOKEN_WEI || '0').trim());
@@ -421,7 +421,7 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   const distributable = (availableAfterReserve * BigInt(effectiveKeepBps)) / BigInt(10000);
   if (distributable <= BigInt(0)) return {};
 
-  const share = distributable / BigInt(recipients.length);
+  const share = distributable / BigInt(allRecipients.length);
   if (share <= BigInt(0)) return null;
 
   const minPayoutEth = (process.env.MIN_PAYOUT_ETH || '0').trim();
