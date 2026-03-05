@@ -15,12 +15,16 @@ const botIdPrefix = (process.env.BOT_ID || `live-${shard}`).trim();
 
 const configuredInterval = parseInt(process.env.TRADE_LOOP_INTERVAL_MS || '1000', 10);
 const intervalMs = Number.isFinite(configuredInterval) ? Math.max(1000, configuredInterval) : 1000;
+const maxAdaptiveIntervalMs = Math.max(intervalMs, parseInt(process.env.TRADE_LOOP_MAX_INTERVAL_MS || '10000', 10));
+const skipBackoffFactorRaw = Number(process.env.TRADE_LOOP_SKIP_BACKOFF_FACTOR || 1.35);
+const skipBackoffFactor = Number.isFinite(skipBackoffFactorRaw) ? Math.max(1, Math.min(3, skipBackoffFactorRaw)) : 1.35;
 const healthEvery = Math.max(1, parseInt(process.env.TRADE_LOOP_HEALTH_EVERY || '30', 10));
 const requestTimeoutMs = Math.max(1000, parseInt(process.env.TRADE_LOOP_REQUEST_TIMEOUT_MS || '12000', 10));
 
 let running = true;
 let tick = 0;
 let failures = 0;
+let skipStreak = 0;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -69,6 +73,12 @@ function summarizeResult(payload) {
   return `tx=${hashes.join(',')}`;
 }
 
+function getAdaptiveInterval() {
+  if (skipStreak <= 0) return intervalMs;
+  const computed = Math.round(intervalMs * Math.pow(skipBackoffFactor, Math.min(skipStreak, 10)));
+  return Math.min(maxAdaptiveIntervalMs, Math.max(intervalMs, computed));
+}
+
 async function doHealthCheck() {
   const payload = await getJson(healthUrl);
   if (payload?.status !== 'ok') {
@@ -84,7 +94,7 @@ async function doDistribution() {
 }
 
 async function loop() {
-  console.log(`[trade-loop] start interval=${intervalMs}ms shard=${shard}/${shards} app=${appBaseUrl}`);
+  console.log(`[trade-loop] start interval=${intervalMs}ms max_interval=${maxAdaptiveIntervalMs}ms backoff=${skipBackoffFactor} shard=${shard}/${shards} app=${appBaseUrl}`);
 
   while (running) {
     const started = Date.now();
@@ -96,16 +106,27 @@ async function loop() {
       }
 
       const { botId, payload } = await doDistribution();
+      const summary = summarizeResult(payload);
+      if (summary.startsWith('skip(')) {
+        skipStreak += 1;
+      } else {
+        skipStreak = 0;
+      }
       failures = 0;
-      console.log(`[trade-loop] ${new Date().toISOString()} tick=${tick} botId=${botId} ${summarizeResult(payload)}`);
+      console.log(`[trade-loop] ${new Date().toISOString()} tick=${tick} botId=${botId} ${summary} skip_streak=${skipStreak}`);
     } catch (error) {
       failures += 1;
+      skipStreak = Math.min(skipStreak + 1, 10);
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[trade-loop] ${new Date().toISOString()} tick=${tick} failure=${failures} error=${message}`);
     }
 
+    const targetInterval = getAdaptiveInterval();
     const elapsed = Date.now() - started;
-    const waitMs = Math.max(0, intervalMs - elapsed);
+    if (tick % 10 === 0 || skipStreak > 0) {
+      console.log(`[trade-loop] interval target=${targetInterval}ms elapsed=${elapsed}ms`);
+    }
+    const waitMs = Math.max(0, targetInterval - elapsed);
     if (waitMs > 0) {
       await sleep(waitMs);
     }

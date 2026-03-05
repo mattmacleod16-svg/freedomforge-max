@@ -31,6 +31,8 @@ npm run trade:loop
 ## Optional tuning env vars
 
 - `TRADE_LOOP_INTERVAL_MS` (default `1000`, minimum `1000`)
+- `TRADE_LOOP_MAX_INTERVAL_MS` (default `10000`)
+- `TRADE_LOOP_SKIP_BACKOFF_FACTOR` (default `1.35`)
 - `TRADE_LOOP_HEALTH_EVERY` (default `30` ticks)
 - `TRADE_LOOP_REQUEST_TIMEOUT_MS` (default `12000`)
 - `DISTRIBUTION_URL` (override full endpoint if needed)
@@ -77,3 +79,5 @@ launchctl unload ~/Library/LaunchAgents/com.freedomforge.trade-loop.plist
 ## Safety note
 
 A 1-second loop only *attempts* execution every second; actual transfers still depend on risk/threshold gates (`MIN_PAYOUT_ETH`, reserves, forecast controls, wallet balance, and gas availability).
+
+For efficiency, the loop automatically backs off toward `TRADE_LOOP_MAX_INTERVAL_MS` when consecutive ticks are skipped (or failing), then instantly returns to 1-second cadence after a successful transfer.
