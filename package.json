@@ -23,7 +23,9 @@
     "geopolitical-watch": "node scripts/geopolitical-watch.js",
     "continuous-learning": "node scripts/continuous-learning.js",
     "daily-kpi-report": "node scripts/daily-kpi-report.js",
-    "daily-agent-proof": "node scripts/daily-agent-proof.js"
+    "daily-agent-proof": "node scripts/daily-agent-proof.js",
+    "ios:sync": "npx cap sync ios",
+    "ios:open": "npx cap open ios"
   },
   "dependencies": {
     "@alch/alchemy-sdk": "^1.2.0",
@@ -40,6 +42,9 @@
     "sonner": "^2.0.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/ios": "^8.1.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.35",
     "@types/react": "^19",

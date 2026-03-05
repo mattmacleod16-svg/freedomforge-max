@@ -39,6 +39,19 @@ interface WalletLog {
   event?: string;
 }
 
+interface StatusInfo {
+  market?: {
+    latest?: {
+      confidence?: number;
+      geopoliticalRisk?: number;
+      regime?: string;
+    };
+  };
+  forecast?: {
+    unresolved?: number;
+  };
+}
+
 function weiToEth(value?: string | null) {
   if (!value) return 0;
   try {
@@ -98,6 +111,7 @@ export default function DashboardPage() {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [metrics, setMetrics] = useState<MetricsInfo | null>(null);
   const [logs, setLogs] = useState<WalletLog[]>([]);
+  const [status, setStatus] = useState<StatusInfo | null>(null);
   const [latestAlert, setLatestAlert] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -146,16 +160,28 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchStatus = async () => {
+    try {
+      const res = await fetch('/api/status', { cache: 'no-store' });
+      const data = await res.json();
+      setStatus(data);
+    } catch (e) {
+      console.error('fetch status failed', e);
+    }
+  };
+
   useEffect(() => {
     fetchWallet();
     fetchAlert();
     fetchMetrics();
     fetchLogs();
+    fetchStatus();
     const id = setInterval(() => {
       fetchWallet();
       fetchAlert();
       fetchMetrics();
       fetchLogs();
+      fetchStatus();
     }, 15000);
     return () => clearInterval(id);
   }, []);
@@ -185,6 +211,23 @@ export default function DashboardPage() {
 
   const dailySeries = buildDailySeries(logs, 7);
   const dailyMax = Math.max(1, ...dailySeries.map((point) => point.count));
+
+  const marketConfidencePct = Math.max(0, Math.min(100, (status?.market?.latest?.confidence || 0) * 100));
+  const geoRiskPct = Math.max(0, Math.min(100, (status?.market?.latest?.geopoliticalRisk || 0) * 100));
+  const unresolvedForecasts = status?.forecast?.unresolved || 0;
+
+  const eventTotals = logs.reduce(
+    (acc, log) => {
+      const t = log.type || log.event || 'other';
+      if (t.includes('forecast')) acc.forecast += 1;
+      else if (t.includes('distribution') || t.includes('transfer') || t.includes('withdraw')) acc.execution += 1;
+      else if (t.includes('autonomy') || t.includes('xai') || t.includes('ensemble')) acc.decision += 1;
+      else acc.other += 1;
+      return acc;
+    },
+    { forecast: 0, execution: 0, decision: 0, other: 0 }
+  );
+  const totalEvents = Math.max(1, eventTotals.forecast + eventTotals.execution + eventTotals.decision + eventTotals.other);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -306,6 +349,61 @@ export default function DashboardPage() {
                   <div className="text-xs text-zinc-400">Total events (7d): {dailySeries.reduce((sum, p) => sum + p.count, 0)}</div>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4 space-y-3">
+                  <h3 className="font-semibold text-white">Signal Gauges</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-center">
+                      <div
+                        className="mx-auto h-20 w-20 rounded-full"
+                        style={{
+                          background: `conic-gradient(rgb(16 185 129) ${marketConfidencePct}%, rgb(39 39 42) ${marketConfidencePct}% 100%)`,
+                        }}
+                      >
+                        <div className="m-[6px] flex h-[calc(100%-12px)] w-[calc(100%-12px)] items-center justify-center rounded-full bg-black text-xs font-bold text-white">
+                          {asPct(marketConfidencePct)}
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-zinc-300">Market Confidence</p>
+                    </div>
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3 text-center">
+                      <div
+                        className="mx-auto h-20 w-20 rounded-full"
+                        style={{
+                          background: `conic-gradient(rgb(244 63 94) ${geoRiskPct}%, rgb(39 39 42) ${geoRiskPct}% 100%)`,
+                        }}
+                      >
+                        <div className="m-[6px] flex h-[calc(100%-12px)] w-[calc(100%-12px)] items-center justify-center rounded-full bg-black text-xs font-bold text-white">
+                          {asPct(geoRiskPct)}
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-zinc-300">Geopolitical Risk</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-zinc-400">Regime: {(status?.market?.latest?.regime || 'unknown').toUpperCase()} · Unresolved forecasts: {unresolvedForecasts}</p>
+                </div>
+
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4 space-y-3">
+                  <h3 className="font-semibold text-white">Event Composition</h3>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Forecast</span><span>{eventTotals.forecast}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-cyan-500 rounded" style={{ width: `${(eventTotals.forecast / totalEvents) * 100}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Decision</span><span>{eventTotals.decision}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-fuchsia-500 rounded" style={{ width: `${(eventTotals.decision / totalEvents) * 100}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Execution</span><span>{eventTotals.execution}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-amber-500 rounded" style={{ width: `${(eventTotals.execution / totalEvents) * 100}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Other</span><span>{eventTotals.other}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-zinc-500 rounded" style={{ width: `${(eventTotals.other / totalEvents) * 100}%` }} /></div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -402,6 +500,7 @@ export default function DashboardPage() {
               fetchAlert();
               fetchMetrics();
               fetchLogs();
+              fetchStatus();
             }}
             className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-xl text-white font-bold"
           >
