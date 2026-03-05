@@ -13,7 +13,7 @@ function getSessionSecret() {
     process.env.DASHBOARD_SESSION_SECRET ||
     process.env.DASHBOARD_PASS ||
     'freedomforge-dashboard-secret'
-  );
+  ).trim();
 }
 
 function sign(rawPayload: string) {
@@ -29,8 +29,8 @@ function safeEqual(a: string, b: string) {
 
 export function getDashboardCredentials() {
   return {
-    user: process.env.DASHBOARD_USER || 'admin',
-    pass: process.env.DASHBOARD_PASS || 'FreedomForge2026',
+    user: (process.env.DASHBOARD_USER || 'admin').trim(),
+    pass: (process.env.DASHBOARD_PASS || 'FreedomForge2026').trim(),
   };
 }
 
