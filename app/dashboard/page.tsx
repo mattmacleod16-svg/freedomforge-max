@@ -17,9 +17,39 @@ interface WalletInfo {
   tokenBalances?: Record<string, TokenInfo>;
 }
 
+interface MetricsInfo {
+  lookbackHours: number;
+  walletBalanceWei: string;
+  payoutsWei: string;
+  withdrawalsWei: string;
+  topupsWei: string;
+  estimatedRevenueInflowWei: string;
+  transferSuccess: number;
+  transferFailed: number;
+  transferSuccessRate: number;
+  topupCount: number;
+  topupErrorCount: number;
+  skipCount: number;
+  distributionRuns: number;
+}
+
+function weiToEth(value?: string | null) {
+  if (!value) return 0;
+  try {
+    return Number(formatUnits(value, 18));
+  } catch {
+    return 0;
+  }
+}
+
+function asPct(value: number) {
+  return `${Math.max(0, Math.min(100, value)).toFixed(1)}%`;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [metrics, setMetrics] = useState<MetricsInfo | null>(null);
   const [latestAlert, setLatestAlert] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +63,16 @@ export default function DashboardPage() {
       console.error('fetch wallet failed', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMetrics = async () => {
+    try {
+      const res = await fetch('/api/status/metrics?format=json', { cache: 'no-store' });
+      const data = await res.json();
+      setMetrics(data);
+    } catch (e) {
+      console.error('fetch metrics failed', e);
     }
   };
 
@@ -51,12 +91,27 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchWallet();
     fetchAlert();
+    fetchMetrics();
     const id = setInterval(() => {
       fetchWallet();
       fetchAlert();
+      fetchMetrics();
     }, 15000);
     return () => clearInterval(id);
   }, []);
+
+  const walletEth = weiToEth(metrics?.walletBalanceWei);
+  const inflowEth = weiToEth(metrics?.estimatedRevenueInflowWei);
+  const payoutsEth = weiToEth(metrics?.payoutsWei);
+  const withdrawalsEth = weiToEth(metrics?.withdrawalsWei);
+  const topupsEth = weiToEth(metrics?.topupsWei);
+
+  const deployedEth = payoutsEth + withdrawalsEth;
+  const totalTrackedEth = Math.max(0.0000001, walletEth + payoutsEth + withdrawalsEth + topupsEth);
+  const retainedPct = (walletEth / totalTrackedEth) * 100;
+  const deployedPct = (deployedEth / totalTrackedEth) * 100;
+  const topupPct = (topupsEth / totalTrackedEth) * 100;
+  const successPct = (metrics?.transferSuccessRate || 0) * 100;
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -78,6 +133,72 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid gap-6">
+          {/* KPI + Charts */}
+          {metrics && (
+            <div className="bg-zinc-900 border border-emerald-500/30 rounded-2xl p-6 space-y-5">
+              <h2 className="text-2xl font-bold text-emerald-300">📊 Investment & Performance Metrics</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">Estimated Total Managed ({metrics.lookbackHours}h)</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{inflowEth.toFixed(6)} ETH</p>
+                </div>
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">Capital Deployed (Payouts + Withdrawals)</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{deployedEth.toFixed(6)} ETH</p>
+                </div>
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">Current Wallet Retained</p>
+                  <p className="mt-1 text-2xl font-bold text-green-400">{walletEth.toFixed(6)} ETH</p>
+                  <p className="text-sm text-zinc-400">{asPct(retainedPct)} of tracked total</p>
+                </div>
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4">
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">Transfer Success Rate</p>
+                  <p className="mt-1 text-2xl font-bold text-blue-300">{asPct(successPct)}</p>
+                  <p className="text-sm text-zinc-400">{metrics.transferSuccess} success / {metrics.transferFailed} failed</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4 space-y-3">
+                  <h3 className="font-semibold text-white">Allocation Mix</h3>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Retained</span><span>{asPct(retainedPct)}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-green-500 rounded" style={{ width: asPct(retainedPct) }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Deployed</span><span>{asPct(deployedPct)}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-orange-500 rounded" style={{ width: asPct(deployedPct) }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Topups</span><span>{asPct(topupPct)}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-purple-500 rounded" style={{ width: asPct(topupPct) }} /></div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-zinc-700 bg-black/30 p-4 space-y-3">
+                  <h3 className="font-semibold text-white">Operations Health</h3>
+                  <div className="text-sm text-zinc-300 flex items-center justify-between">
+                    <span>Distribution Runs</span>
+                    <span className="font-mono text-white">{metrics.distributionRuns}</span>
+                  </div>
+                  <div className="text-sm text-zinc-300 flex items-center justify-between">
+                    <span>Skipped Runs</span>
+                    <span className="font-mono text-white">{metrics.skipCount}</span>
+                  </div>
+                  <div className="text-sm text-zinc-300 flex items-center justify-between">
+                    <span>Topups / Errors</span>
+                    <span className="font-mono text-white">{metrics.topupCount} / {metrics.topupErrorCount}</span>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-zinc-300"><span>Transfer Success</span><span>{asPct(successPct)}</span></div>
+                    <div className="mt-1 h-2 bg-zinc-800 rounded"><div className="h-2 bg-sky-500 rounded" style={{ width: asPct(successPct) }} /></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Wallet Info */}
           <div className="bg-zinc-900 border border-orange-500/30 rounded-2xl p-6">
             <h2 className="text-2xl font-bold text-white mb-4">💰 Revenue Wallet</h2>
@@ -169,6 +290,7 @@ export default function DashboardPage() {
             onClick={() => {
               fetchWallet();
               fetchAlert();
+              fetchMetrics();
             }}
             className="px-6 py-3 bg-orange-600 hover:bg-orange-700 rounded-xl text-white font-bold"
           >
