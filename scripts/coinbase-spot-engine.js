@@ -30,9 +30,11 @@ const STATE_FILE = process.env.COINBASE_STATE_FILE || 'data/coinbase-spot-state.
 const USE_COMPOSITE_SIGNAL = String(process.env.COINBASE_USE_COMPOSITE_SIGNAL || 'true').toLowerCase() !== 'false';
 const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.COINBASE_MAX_ORDER_USD || 50));
 
-let edgeDetector, tradeJournal;
+let edgeDetector, tradeJournal, brain, riskManager;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
+try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
+try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
 
 function withTimeout(ms) {
   const controller = new AbortController();
@@ -345,7 +347,18 @@ async function main() {
 
   // ─── Composite Signal (multi-TF, RSI, BB, ATR, bus) or fallback to basic momentum ───
   let signal, signalComponents = {}, effectiveOrderUsd = ORDER_USD;
-  const adaptiveMinConf = tradeJournal ? tradeJournal.getAdaptiveMinConfidence(MIN_CONFIDENCE) : MIN_CONFIDENCE;
+  const adaptiveMinConf = brain ? brain.getEvolvedMinConfidence(MIN_CONFIDENCE) : (tradeJournal ? tradeJournal.getAdaptiveMinConfidence(MIN_CONFIDENCE) : MIN_CONFIDENCE);
+
+  // Brain time-of-day check
+  if (brain) {
+    try {
+      const timeCheck = brain.shouldTradeNow();
+      if (!timeCheck.trade) {
+        console.log(JSON.stringify({ status: 'skipped', reason: `brain-time-filter: ${timeCheck.reason}` }, null, 2));
+        return;
+      }
+    } catch {}
+  }
 
   if (USE_COMPOSITE_SIGNAL && edgeDetector) {
     try {
@@ -377,6 +390,16 @@ async function main() {
   if (!DRY_RUN && (COINBASE_CDP_MODE ? (!API_KEY || !API_SECRET) : (!API_KEY || !API_SECRET || !API_PASSPHRASE))) {
     console.log(JSON.stringify({ status: 'skipped', reason: 'missing Coinbase API credentials' }, null, 2));
     return;
+  }
+
+  // Risk manager gate
+  if (riskManager) {
+    const check = riskManager.checkTradeAllowed({ asset: 'BTC', side, usdSize: effectiveOrderUsd, venue: 'coinbase', confidence: signal.confidence });
+    if (!check.allowed) {
+      console.log(JSON.stringify({ status: 'skipped', reason: `risk-denied: ${check.reasons.join(', ')}`, exposure: check.exposure }, null, 2));
+      return;
+    }
+    effectiveOrderUsd = riskManager.riskAdjustedSize({ baseUsd: effectiveOrderUsd, confidence: signal.confidence, edge: signal.edge || 0, asset: 'BTC', venue: 'coinbase' });
   }
 
   const { price } = await getTicker(PRODUCT_ID);

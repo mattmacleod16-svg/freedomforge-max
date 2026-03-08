@@ -30,10 +30,12 @@ const ALERT_WEBHOOK_URL = (process.env.ALERT_WEBHOOK_URL || '').trim();
 const ALERT_ON_HIGH_EDGE = String(process.env.EDGE_SCAN_ALERT_HIGH_EDGE || 'true').toLowerCase() !== 'false';
 const HIGH_EDGE_THRESHOLD = Number(process.env.EDGE_SCAN_HIGH_EDGE_THRESHOLD || 0.35);
 
-let edgeDetector, signalBus, tradeJournal;
+let edgeDetector, signalBus, tradeJournal, brain, riskManager;
 try { edgeDetector = require('../lib/edge-detector'); } catch (e) { console.error('edge-detector not available:', e.message); process.exit(1); }
 try { signalBus = require('../lib/agent-signal-bus'); } catch (e) { console.error('signal-bus not available:', e.message); process.exit(1); }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
+try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
+try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
 
 async function sendWebhook(content) {
   if (!ALERT_WEBHOOK_URL) return;

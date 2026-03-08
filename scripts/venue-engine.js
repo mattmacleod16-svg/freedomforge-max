@@ -56,6 +56,7 @@ const map = {
   kraken: ['node', ['scripts/kraken-spot-engine.js']],
   coinbase: ['node', ['scripts/coinbase-spot-engine.js']],
   prediction: ['node', ['scripts/prediction-market-engine.js']],
+  orchestrator: ['node', ['scripts/master-orchestrator.js']],
 };
 
 function loadPerformanceState() {
@@ -197,6 +198,7 @@ function isEnabledForVenue(name) {
   if (name === 'kraken') return String(process.env.KRAKEN_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'coinbase') return String(process.env.COINBASE_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'prediction') return String(process.env.PRED_MARKET_ENABLED || 'false').toLowerCase() === 'true';
+  if (name === 'orchestrator') return String(process.env.ORCHESTRATOR_ENABLED || 'false').toLowerCase() === 'true';
   return false;
 }
 
