@@ -175,7 +175,7 @@ export async function GET() {
     // ─── Capital Mandate ───────────────────────────────────────────────
     const mandateState = readJsonSafe('data/capital-mandate-state.json');
     const mandate = mandateState ? {
-      initialCapital: mandateState.initialCapital || 455,
+      initialCapital: mandateState.initialCapital || 508,
       highWaterMark: mandateState.highWaterMark || 0,
       lowWaterMark: mandateState.lowWaterMark || 0,
       currentMode: mandateState.currentMode || 'normal',
