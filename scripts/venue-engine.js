@@ -55,6 +55,7 @@ const map = {
   polymarket: ['node', ['scripts/polymarket-clob-engine.js']],
   kraken: ['node', ['scripts/kraken-spot-engine.js']],
   coinbase: ['node', ['scripts/coinbase-spot-engine.js']],
+  prediction: ['node', ['scripts/prediction-market-engine.js']],
 };
 
 function loadPerformanceState() {
@@ -195,6 +196,7 @@ function isEnabledForVenue(name) {
   if (name === 'polymarket') return String(process.env.POLY_CLOB_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'kraken') return String(process.env.KRAKEN_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'coinbase') return String(process.env.COINBASE_ENABLED || 'false').toLowerCase() === 'true';
+  if (name === 'prediction') return String(process.env.PRED_MARKET_ENABLED || 'false').toLowerCase() === 'true';
   return false;
 }
 

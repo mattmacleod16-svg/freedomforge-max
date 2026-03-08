@@ -38,6 +38,7 @@
     "polymarket:clob": "node scripts/polymarket-clob-engine.js",
     "kraken:spot": "node scripts/kraken-spot-engine.js",
     "coinbase:spot": "node scripts/coinbase-spot-engine.js",
+    "prediction:market": "node scripts/prediction-market-engine.js",
     "venue:engine": "node scripts/venue-engine.js",
     "polymarket:derive-keys": "node scripts/polymarket-derive-keys.mjs",
     "polymarket:remote-live": "bash scripts/polymarket-remote-live.sh",
