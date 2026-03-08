@@ -118,6 +118,24 @@ interface EmpireData {
     demotions: number;
     lastScan: string | null;
   } | null;
+  mandate: {
+    initialCapital: number;
+    highWaterMark: number;
+    lowWaterMark: number;
+    currentMode: string;
+    milestonesReached: number[];
+    totalDaysActive: number;
+    consecutiveWinDays: number;
+    consecutiveLossDays: number;
+    tradeDenials: number;
+    capitalHaltEvents: number;
+    survivalModeEntries: number;
+    growthModeEntries: number;
+    dailySnapshots: Array<{ date: string; total: number; dailyPnl: number; roiPct: number; mode: string }>;
+    modeTransitions: Array<{ from: string; to: string; capital: number; ts: number }>;
+    roiPct: number;
+    message: string;
+  } | null;
 }
 
 /* ─── Utility ─────────────────────────────────────────────────────────────── */
@@ -372,7 +390,17 @@ export default function CommandCenter() {
     );
   }
 
-  const roi = data.portfolio.totalUsd > 0 ? (data.portfolio.netPnl / data.portfolio.totalUsd) * 100 : 0;
+  const roi = data.mandate
+    ? data.mandate.roiPct
+    : (data.portfolio.totalUsd > 0 ? (data.portfolio.netPnl / data.portfolio.totalUsd) * 100 : 0);
+
+  const mandateMode = data.mandate?.currentMode || 'normal';
+  const mandateColor: Record<string, string> = {
+    capital_halt: 'from-red-600 to-red-800 border-red-500',
+    survival: 'from-yellow-600 to-orange-700 border-yellow-500',
+    normal: 'from-blue-600 to-indigo-700 border-blue-500',
+    growth: 'from-emerald-600 to-green-700 border-emerald-500',
+  };
 
   // Chart data
   const pnlChartData = {
@@ -465,6 +493,32 @@ export default function CommandCenter() {
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* ─── Rocket Ship ──────────────────────────────────────────────── */}
         <RocketShip portfolioUsd={data.portfolio.totalUsd} roi={roi} />
+
+        {/* ─── Capital Mandate Banner ───────────────────────────────────── */}
+        {data.mandate && (
+          <div className={`rounded-xl border p-4 bg-gradient-to-r ${mandateColor[mandateMode] || mandateColor.normal}`}>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{mandateMode === 'capital_halt' ? '🚨' : mandateMode === 'survival' ? '⚠️' : mandateMode === 'growth' ? '🚀' : '🔒'}</span>
+                <div>
+                  <div className="text-white font-black text-sm uppercase tracking-wider">
+                    Zero Injection Protocol — {mandateMode.replace('_', ' ').toUpperCase()} MODE
+                  </div>
+                  <div className="text-white/70 text-xs mt-0.5">
+                    Seed: {fmt$(data.mandate.initialCapital)} → Now: {fmt$(data.portfolio.totalUsd)} | HWM: {fmt$(data.mandate.highWaterMark)} | Day {data.mandate.totalDaysActive}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-xs text-white/90">
+                <span>ROI: <strong className={roi >= 0 ? 'text-emerald-200' : 'text-red-200'}>{roi >= 0 ? '+' : ''}{fmtPct(roi)}</strong></span>
+                {data.mandate.consecutiveWinDays > 0 && <span>🔥 {data.mandate.consecutiveWinDays} win streak</span>}
+                {data.mandate.consecutiveLossDays > 0 && <span>❄️ {data.mandate.consecutiveLossDays} loss streak</span>}
+                {data.mandate.milestonesReached.length > 0 && <span>🏆 {data.mandate.milestonesReached.length} milestones</span>}
+                <span>Denials: {data.mandate.tradeDenials}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ─── Top KPI Row ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">

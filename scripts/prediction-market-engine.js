@@ -49,11 +49,12 @@ const MIN_BASIS_ANNUAL_PCT = Math.max(1, Number(process.env.PRED_MARKET_MIN_BASI
 // Minimum edge for event token trades
 const MIN_EVENT_EDGE = Math.max(0.01, Number(process.env.PRED_MARKET_MIN_EVENT_EDGE || 0.05));
 
-let edgeDetector, tradeJournal, signalBus, liquidationGuardian;
+let edgeDetector, tradeJournal, signalBus, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
 try { signalBus = require('../lib/agent-signal-bus'); } catch { signalBus = null; }
 try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
+try { capitalMandate = require('../lib/capital-mandate'); } catch { capitalMandate = null; }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
@@ -607,6 +608,23 @@ async function main() {
 
   for (const opp of allOpps) {
     if (ordersPlaced >= MAX_ORDERS_PER_CYCLE) break;
+
+    // === CAPITAL MANDATE GATE — ZERO INJECTION PROTOCOL ===
+    if (capitalMandate) {
+      const mandateSize = capitalMandate.mandateAdjustedSize({ baseUsd: opp.orderUsd || ORDER_USD, confidence: opp.confidence || 0.5, edge: opp.edge || 0 });
+      if (mandateSize <= 0) {
+        console.error(`[pred-market] Mandate denied ${opp.venue}: capital mode prevents trade`);
+        actions.push({ status: 'mandate_denied', venue: opp.venue, reason: 'capital halt or survival mode' });
+        continue;
+      }
+      const mandateCheck = capitalMandate.checkMandate({ usdSize: mandateSize, confidence: opp.confidence || 0.5, edge: opp.edge || 0, asset: opp.baseAsset || '', venue: opp.venue });
+      if (!mandateCheck.allowed) {
+        console.error(`[pred-market] Mandate denied ${opp.venue}: ${mandateCheck.reasons.join(', ')}`);
+        actions.push({ status: 'mandate_denied', venue: opp.venue, reasons: mandateCheck.reasons });
+        continue;
+      }
+      if (opp.orderUsd) opp.orderUsd = Math.min(opp.orderUsd, mandateSize);
+    }
 
     // Liquidation guardian gate — check venue margin before every order
     if (liquidationGuardian) {

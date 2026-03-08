@@ -56,13 +56,14 @@ const BASE_ORDER_USD = Math.max(5, Number(process.env.ORCH_BASE_ORDER_USD || pro
 
 // ─── Module Loading ──────────────────────────────────────────────────────────
 
-let edgeDetector, signalBus, tradeJournal, brain, riskManager, liquidationGuardian;
+let edgeDetector, signalBus, tradeJournal, brain, riskManager, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch (e) { console.error('edge-detector missing:', e.message); }
 try { signalBus = require('../lib/agent-signal-bus'); } catch (e) { console.error('signal-bus missing:', e.message); }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
 try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
 try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
 try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
+try { capitalMandate = require('../lib/capital-mandate'); } catch { capitalMandate = null; }
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -129,6 +130,23 @@ async function phaseHealthCheck() {
       }
     } catch (e) {
       log('error', `Guardian check failed: ${e.message}`);
+    }
+  }
+
+  // ═══ CAPITAL MANDATE CHECK — ZERO INJECTION PROTOCOL ═══
+  if (capitalMandate) {
+    const mandate = capitalMandate.getMandateSummary();
+    health.mandateMode = mandate.mode;
+    health.mandateCapital = mandate.capital.total;
+    health.mandateROI = mandate.roiPct;
+    log('info', `💰 MANDATE: $${mandate.capital.total.toFixed(2)} | Mode: ${mandate.mode.toUpperCase()} | ROI: ${mandate.roiPct >= 0 ? '+' : ''}${mandate.roiPct.toFixed(1)}% | HWM: $${mandate.highWaterMark.toFixed(2)}`);
+    capitalMandate.takeDailySnapshot();
+    if (mandate.mode === 'capital_halt') {
+      log('error', '🚨 CAPITAL MANDATE HALT — capital below critical floor. ALL TRADING SUSPENDED.');
+      return { ...health, abort: true, reason: 'capital_mandate_halt' };
+    }
+    if (mandate.mode === 'survival') {
+      log('warn', '⚠️ SURVIVAL MODE — ultra-conservative trading only. Preserve capital at all costs.');
     }
   }
 
@@ -326,13 +344,40 @@ async function phaseTradeExecution(signals) {
 
     // Risk check before each trade
     if (riskManager) {
-      const orderUsd = riskManager.riskAdjustedSize({
+      let orderUsd = riskManager.riskAdjustedSize({
         baseUsd: BASE_ORDER_USD,
         confidence: signal.confidence,
         edge: signal.edge,
         asset: signal.asset,
         venue: 'unknown',
       });
+
+      // ═══ CAPITAL MANDATE GATE — No more funds. Ever. ═══
+      if (capitalMandate) {
+        const mandateSize = capitalMandate.mandateAdjustedSize({
+          baseUsd: orderUsd,
+          confidence: signal.confidence,
+          edge: signal.edge,
+        });
+        if (mandateSize <= 0) {
+          log('warn', `  Mandate denied ${signal.asset}: capital mode prevents trade`);
+          executions.push({ asset: signal.asset, side: signal.side, status: 'mandate_denied', reasons: ['capital mandate'] });
+          continue;
+        }
+        const mandateCheck = capitalMandate.checkMandate({
+          usdSize: mandateSize,
+          confidence: signal.confidence,
+          edge: signal.edge,
+          asset: signal.asset,
+          venue: 'best',
+        });
+        if (!mandateCheck.allowed) {
+          log('warn', `  Mandate denied ${signal.asset}: ${mandateCheck.reasons.join(', ')}`);
+          executions.push({ asset: signal.asset, side: signal.side, status: 'mandate_denied', reasons: mandateCheck.reasons });
+          continue;
+        }
+        orderUsd = Math.min(orderUsd, mandateSize);
+      }
 
       // Liquidation guardian gate — check ALL venues before attempting
       if (liquidationGuardian) {

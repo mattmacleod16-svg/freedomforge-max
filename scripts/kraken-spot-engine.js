@@ -25,12 +25,13 @@ const STATE_FILE = process.env.KRAKEN_STATE_FILE || 'data/kraken-spot-state.json
 const USE_COMPOSITE_SIGNAL = String(process.env.KRAKEN_USE_COMPOSITE_SIGNAL || 'true').toLowerCase() !== 'false';
 const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.KRAKEN_MAX_ORDER_USD || 50));
 
-let edgeDetector, tradeJournal, brain, riskManager, liquidationGuardian;
+let edgeDetector, tradeJournal, brain, riskManager, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
 try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
 try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
 try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
+try { capitalMandate = require('../lib/capital-mandate'); } catch { capitalMandate = null; }
 
 function withTimeout(ms) {
   const controller = new AbortController();
@@ -269,6 +270,21 @@ async function main() {
       pair: pair.pairKey,
     }, null, 2));
     return;
+  }
+
+  // === CAPITAL MANDATE GATE — ZERO INJECTION PROTOCOL ===
+  if (capitalMandate) {
+    const mandateSize = capitalMandate.mandateAdjustedSize({ baseUsd: effectiveOrderUsd, confidence: signal.confidence, edge: signal.edge || 0 });
+    if (mandateSize <= 0) {
+      console.log(JSON.stringify({ status: 'skipped', reason: 'capital-mandate: mode prevents trade', mode: capitalMandate.determineMode(capitalMandate.getCurrentCapital().total) }, null, 2));
+      return;
+    }
+    const mandateCheck = capitalMandate.checkMandate({ usdSize: mandateSize, confidence: signal.confidence, edge: signal.edge || 0, asset: 'BTC', venue: 'kraken' });
+    if (!mandateCheck.allowed) {
+      console.log(JSON.stringify({ status: 'skipped', reason: `mandate-denied: ${mandateCheck.reasons.join(', ')}`, mode: mandateCheck.mode }, null, 2));
+      return;
+    }
+    effectiveOrderUsd = Math.min(effectiveOrderUsd, mandateSize);
   }
 
   // Liquidation guardian gate

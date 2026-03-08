@@ -172,6 +172,29 @@ export async function GET() {
     const totalPortfolioUsd = cbBalance + krBalance;
     const totalUnrealizedPnl = guardianSummary.coinbase.unrealizedPnl + guardianSummary.kraken.unrealizedPnl;
 
+    // ─── Capital Mandate ───────────────────────────────────────────────
+    const mandateState = readJsonSafe('data/capital-mandate-state.json');
+    const mandate = mandateState ? {
+      initialCapital: mandateState.initialCapital || 455,
+      highWaterMark: mandateState.highWaterMark || 0,
+      lowWaterMark: mandateState.lowWaterMark || 0,
+      currentMode: mandateState.currentMode || 'normal',
+      milestonesReached: mandateState.milestonesReached || [],
+      totalDaysActive: mandateState.totalDaysActive || 0,
+      consecutiveWinDays: mandateState.consecutiveWinDays || 0,
+      consecutiveLossDays: mandateState.consecutiveLossDays || 0,
+      tradeDenials: mandateState.tradeDenials || 0,
+      capitalHaltEvents: mandateState.capitalHaltEvents || 0,
+      survivalModeEntries: mandateState.survivalModeEntries || 0,
+      growthModeEntries: mandateState.growthModeEntries || 0,
+      dailySnapshots: (mandateState.dailyCapitalSnapshots || []).slice(-30),
+      modeTransitions: (mandateState.modeTransitions || []).slice(-10),
+      roiPct: mandateState.initialCapital > 0
+        ? ((totalPortfolioUsd - mandateState.initialCapital) / mandateState.initialCapital) * 100
+        : 0,
+      message: 'ZERO INJECTION PROTOCOL — Self-sufficient or bust.',
+    } : null;
+
     // Compute cumulative P&L history from trades
     let runningPnl = 0;
     const pnlHistory = trades.map((t: any) => {
@@ -241,6 +264,7 @@ export async function GET() {
       scaler,
       venuePerformance: venuePerf,
       strategy,
+      mandate,
     });
   } catch (error) {
     return NextResponse.json(
