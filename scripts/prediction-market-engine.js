@@ -49,10 +49,11 @@ const MIN_BASIS_ANNUAL_PCT = Math.max(1, Number(process.env.PRED_MARKET_MIN_BASI
 // Minimum edge for event token trades
 const MIN_EVENT_EDGE = Math.max(0.01, Number(process.env.PRED_MARKET_MIN_EVENT_EDGE || 0.05));
 
-let edgeDetector, tradeJournal, signalBus;
+let edgeDetector, tradeJournal, signalBus, liquidationGuardian;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
 try { signalBus = require('../lib/agent-signal-bus'); } catch { signalBus = null; }
+try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
@@ -606,6 +607,17 @@ async function main() {
 
   for (const opp of allOpps) {
     if (ordersPlaced >= MAX_ORDERS_PER_CYCLE) break;
+
+    // Liquidation guardian gate — check venue margin before every order
+    if (liquidationGuardian) {
+      const venue = opp.venue === 'coinbase_futures' ? 'coinbase' : 'kraken';
+      const marginCheck = liquidationGuardian.shouldAllowNewTrade(venue);
+      if (!marginCheck.allowed) {
+        console.error(`[pred-market] Guardian blocked ${opp.venue} trade: ${marginCheck.reason}`);
+        actions.push({ status: 'guardian_blocked', venue: opp.venue, reason: marginCheck.reason, marginPct: marginCheck.marginPct });
+        continue;
+      }
+    }
 
     let action;
     try {

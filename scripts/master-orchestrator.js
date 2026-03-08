@@ -56,12 +56,13 @@ const BASE_ORDER_USD = Math.max(5, Number(process.env.ORCH_BASE_ORDER_USD || pro
 
 // ─── Module Loading ──────────────────────────────────────────────────────────
 
-let edgeDetector, signalBus, tradeJournal, brain, riskManager;
+let edgeDetector, signalBus, tradeJournal, brain, riskManager, liquidationGuardian;
 try { edgeDetector = require('../lib/edge-detector'); } catch (e) { console.error('edge-detector missing:', e.message); }
 try { signalBus = require('../lib/agent-signal-bus'); } catch (e) { console.error('signal-bus missing:', e.message); }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
 try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
 try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
+try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -104,7 +105,7 @@ function log(level, msg) {
 
 // ─── Phase 1: Health Check ───────────────────────────────────────────────────
 
-function phaseHealthCheck() {
+async function phaseHealthCheck() {
   log('info', '═══ Phase 1: System Health Check ═══');
   const health = {
     edgeDetector: !!edgeDetector,
@@ -112,7 +113,24 @@ function phaseHealthCheck() {
     tradeJournal: !!tradeJournal,
     brain: !!brain,
     riskManager: !!riskManager,
+    liquidationGuardian: !!liquidationGuardian,
   };
+
+  // Run liquidation guardian check first
+  if (liquidationGuardian) {
+    try {
+      const guardianResult = await liquidationGuardian.runGuardianCycle();
+      health.coinbaseMarginPct = guardianResult.coinbase?.marginPct || 0;
+      health.krakenMarginPct = guardianResult.kraken?.marginPct || 0;
+      health.coinbaseLiqBuffer = guardianResult.coinbase?.liquidationBuffer || 999;
+      health.guardianActions = guardianResult.actions?.length || 0;
+      if (guardianResult.actions?.length > 0) {
+        log('warn', `Guardian took ${guardianResult.actions.length} emergency actions this cycle`);
+      }
+    } catch (e) {
+      log('error', `Guardian check failed: ${e.message}`);
+    }
+  }
 
   // Check kill switch
   if (riskManager) {
@@ -315,6 +333,20 @@ async function phaseTradeExecution(signals) {
         asset: signal.asset,
         venue: 'unknown',
       });
+
+      // Liquidation guardian gate — check ALL venues before attempting
+      if (liquidationGuardian) {
+        const cbCheck = liquidationGuardian.shouldAllowNewTrade('coinbase');
+        const krCheck = liquidationGuardian.shouldAllowNewTrade('kraken');
+        if (!cbCheck.allowed && !krCheck.allowed) {
+          log('warn', `  Guardian blocked ${signal.asset}: CB=${cbCheck.reason} KR=${krCheck.reason}`);
+          executions.push({
+            asset: signal.asset, side: signal.side, status: 'guardian_blocked',
+            reasons: [cbCheck.reason, krCheck.reason],
+          });
+          continue;
+        }
+      }
 
       const check = riskManager.checkTradeAllowed({
         asset: signal.asset,
@@ -529,8 +561,8 @@ async function main() {
   log('info', `  Time: ${new Date().toISOString()}`);
   log('info', `${'═'.repeat(60)}\n`);
 
-  // Phase 1: Health Check
-  const health = phaseHealthCheck();
+  // Phase 1: Health Check (includes liquidation guardian)
+  const health = await phaseHealthCheck();
   if (health.abort) {
     const report = { status: 'aborted', reason: health.reason, health, ts: new Date().toISOString() };
     console.log(JSON.stringify(report, null, 2));

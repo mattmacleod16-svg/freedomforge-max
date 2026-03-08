@@ -30,11 +30,12 @@ const STATE_FILE = process.env.COINBASE_STATE_FILE || 'data/coinbase-spot-state.
 const USE_COMPOSITE_SIGNAL = String(process.env.COINBASE_USE_COMPOSITE_SIGNAL || 'true').toLowerCase() !== 'false';
 const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.COINBASE_MAX_ORDER_USD || 50));
 
-let edgeDetector, tradeJournal, brain, riskManager;
+let edgeDetector, tradeJournal, brain, riskManager, liquidationGuardian;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
 try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
 try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
+try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
 
 function withTimeout(ms) {
   const controller = new AbortController();
@@ -390,6 +391,15 @@ async function main() {
   if (!DRY_RUN && (COINBASE_CDP_MODE ? (!API_KEY || !API_SECRET) : (!API_KEY || !API_SECRET || !API_PASSPHRASE))) {
     console.log(JSON.stringify({ status: 'skipped', reason: 'missing Coinbase API credentials' }, null, 2));
     return;
+  }
+
+  // Liquidation guardian gate
+  if (liquidationGuardian) {
+    const marginCheck = liquidationGuardian.shouldAllowNewTrade('coinbase');
+    if (!marginCheck.allowed) {
+      console.log(JSON.stringify({ status: 'skipped', reason: `guardian-blocked: ${marginCheck.reason}`, marginPct: marginCheck.marginPct }, null, 2));
+      return;
+    }
   }
 
   // Risk manager gate
