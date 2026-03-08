@@ -8,27 +8,42 @@ import { logEvent } from './logger';
  * transfer `GAS_TOPUP_AMOUNT` from the funding wallet defined by
  * `FUNDING_PRIVATE_KEY` (env) to the revenue address.
  */
-export async function ensureRevenueWalletHasGas(revenueAddress: string): Promise<boolean> {
-  const client = initAlchemy();
+function getNetworkEnvSuffix(networkRaw?: string): string {
+  const value = (networkRaw || process.env.ALCHEMY_NETWORK || 'eth-mainnet').toLowerCase();
+  if (value === 'mainnet' || value === 'eth-mainnet' || value === 'ethereum') return 'ETH_MAINNET';
+  if (value === 'base' || value === 'base-mainnet') return 'BASE_MAINNET';
+  if (value === 'op' || value === 'opt-mainnet' || value === 'optimism' || value === 'optimism-mainnet') return 'OPT_MAINNET';
+  if (value === 'arb' || value === 'arb-mainnet' || value === 'arbitrum' || value === 'arbitrum-mainnet') return 'ARB_MAINNET';
+  if (value === 'polygon' || value === 'polygon-mainnet' || value === 'matic' || value === 'matic-mainnet') return 'POLYGON_MAINNET';
+  return value.toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+}
+
+function getScopedEnv(baseKey: string, networkRaw?: string): string | undefined {
+  const scoped = `${baseKey}_${getNetworkEnvSuffix(networkRaw)}`;
+  return process.env[scoped] ?? process.env[baseKey];
+}
+
+export async function ensureRevenueWalletHasGas(revenueAddress: string, networkOverride?: string): Promise<boolean> {
+  const client = initAlchemy(networkOverride);
   if (!client) {
     sendAlert('GasTopup: Alchemy client not initialized');
     return false;
   }
 
-  const provider = getRpcProvider();
+  const provider = getRpcProvider(networkOverride);
   if (!provider) {
     sendAlert('GasTopup: RPC provider not available from Alchemy client config');
     return false;
   }
 
-  const threshold = (process.env.GAS_TOPUP_THRESHOLD || '0.01').trim(); // ETH
-  const topupAmount = (process.env.GAS_TOPUP_AMOUNT || '0.05').trim(); // ETH
+  const threshold = (getScopedEnv('GAS_TOPUP_THRESHOLD', networkOverride) || '0.01').trim(); // native gas token
+  const topupAmount = (getScopedEnv('GAS_TOPUP_AMOUNT', networkOverride) || '0.05').trim(); // native gas token
   const fundingKey = process.env.FUNDING_PRIVATE_KEY?.trim();
-  const adaptiveTopupEnabled = (process.env.GAS_TOPUP_ADAPTIVE || 'true').trim().toLowerCase() === 'true';
-  const adaptiveBufferEth = (process.env.GAS_TOPUP_BUFFER_ETH || '0.002').trim();
-  const maxTopupAmount = process.env.GAS_TOPUP_MAX_AMOUNT?.trim();
-  const fundingLowBalanceAlertEth = (process.env.FUNDING_LOW_BALANCE_ALERT_ETH || '0.03').trim();
-  const fundingGasReserveEth = (process.env.FUNDING_GAS_RESERVE_ETH || '0.001').trim();
+  const adaptiveTopupEnabled = (getScopedEnv('GAS_TOPUP_ADAPTIVE', networkOverride) || 'true').trim().toLowerCase() === 'true';
+  const adaptiveBufferEth = (getScopedEnv('GAS_TOPUP_BUFFER_ETH', networkOverride) || '0.002').trim();
+  const maxTopupAmount = getScopedEnv('GAS_TOPUP_MAX_AMOUNT', networkOverride)?.trim();
+  const fundingLowBalanceAlertEth = (getScopedEnv('FUNDING_LOW_BALANCE_ALERT_ETH', networkOverride) || '0.03').trim();
+  const fundingGasReserveEth = (getScopedEnv('FUNDING_GAS_RESERVE_ETH', networkOverride) || '0.001').trim();
 
   if (!fundingKey) {
     // nothing to do if no funding key configured

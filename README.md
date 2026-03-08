@@ -361,11 +361,12 @@ Revenue automation hardening:
 - Uses workflow concurrency guard to prevent overlapping payout jobs
 
 Autonomous self-healing bot:
-- Workflow: `.github/workflows/self-heal.yml` (runs every 10 minutes + manual trigger)
+- Workflow: `.github/workflows/self-heal.yml` (runs every 5 minutes + manual trigger)
 - Script: `npm run self-heal`
 - Detects errors using `/api/alchemy/health` and `/api/status`
 - Sends Discord alert when issue is detected
 - Attempts multi-step remediation: `POST /api/status`, wallet warmup, and distribution kick
+- Applies a mission-aligned profit guard before distribution kick to avoid forcing low-quality payout attempts during weak profitability windows
 - Runs a second remediation pass automatically if first pass does not clear the issue
 - Re-checks service and sends a second Discord alert when issue is cleared (or unresolved)
 
@@ -373,6 +374,14 @@ Required for self-heal workflow:
 - Repo secret `ALERT_WEBHOOK_URL`
 - Optional repo secret `ALERT_MENTION`
 - Optional repo variable `APP_BASE_URL` (defaults to production URL)
+- Optional repo variables for remediation profit guard tuning:
+	- `SELF_HEAL_PROFIT_GUARD_ENABLED` (default `true`)
+	- `SELF_HEAL_PROFIT_GUARD_LOOKBACK_HOURS` (default `2`)
+	- `SELF_HEAL_PROFIT_GUARD_MIN_NET_ETH` (default `0.0005`)
+	- `SELF_HEAL_PROFIT_GUARD_MIN_SUCCESS_RATE` (default `0.75`)
+	- `SELF_HEAL_PROFIT_GUARD_MIN_ATTEMPTS` (default `3`)
+	- `SELF_HEAL_PROFIT_GUARD_LOG_LIMIT` (default `800`)
+	- `SELF_HEAL_DRY_RUN` (default `false`; set `true` for diagnostics-only, no remediation actions)
 
 ### Persistent logging
 

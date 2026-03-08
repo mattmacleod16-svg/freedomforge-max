@@ -39,6 +39,19 @@ async function main() {
 
   console.log(`geo_watch risk=${risk.toFixed(3)} regime=${regime} signals=${signals.join(',') || 'none'}`);
 
+  // Publish to cross-agent signal bus
+  try {
+    const bus = require('../lib/agent-signal-bus');
+    bus.publish({
+      type: 'geo_risk',
+      source: 'geopolitical-watch',
+      confidence: Math.min(1, risk),
+      payload: { risk, regime, signals, headlineCount: heads.length },
+    });
+  } catch (busErr) {
+    // signal-bus unavailable -- non-fatal
+  }
+
   if (risk < THRESHOLD) {
     return;
   }

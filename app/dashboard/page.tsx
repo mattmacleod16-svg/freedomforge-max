@@ -186,6 +186,24 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const keepAlive = async () => {
+      try {
+        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const data = await res.json();
+        if (!data?.authenticated) {
+          router.replace('/login?next=/dashboard');
+        }
+      } catch {
+        // no-op
+      }
+    };
+
+    keepAlive();
+    const id = setInterval(keepAlive, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [router]);
+
   const walletEth = weiToEth(metrics?.walletBalanceWei);
   const inflowEth = weiToEth(metrics?.estimatedRevenueInflowWei);
   const payoutsEth = weiToEth(metrics?.payoutsWei);

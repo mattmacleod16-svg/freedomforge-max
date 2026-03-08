@@ -50,19 +50,24 @@ export function createSessionToken(user: string) {
 }
 
 export function verifySessionToken(token?: string | null) {
-  if (!token) return false;
+  return Boolean(parseSessionToken(token));
+}
+
+export function parseSessionToken(token?: string | null): SessionPayload | null {
+  if (!token) return null;
   const [encodedPayload, signature] = token.split('.');
-  if (!encodedPayload || !signature) return false;
+  if (!encodedPayload || !signature) return null;
 
   const expected = sign(encodedPayload);
-  if (!safeEqual(signature, expected)) return false;
+  if (!safeEqual(signature, expected)) return null;
 
   try {
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as SessionPayload;
-    if (!payload?.exp || payload.exp < Math.floor(Date.now() / 1000)) return false;
-    return true;
+    if (!payload?.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    if (!payload?.user || typeof payload.user !== 'string') return null;
+    return payload;
   } catch {
-    return false;
+    return null;
   }
 }
 

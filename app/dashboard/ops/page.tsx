@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -69,6 +70,7 @@ type ProtocolStatus = {
 };
 
 export default function OpsDashboardPage() {
+  const router = useRouter();
   const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_EMBED_URL || DEFAULT_GRAFANA_URL;
   const [autonomy, setAutonomy] = useState<AutonomyStatus | null>(null);
   const [risk, setRisk] = useState<RiskStatus | null>(null);
@@ -114,6 +116,24 @@ export default function OpsDashboardPage() {
       setStatusMessage('Failed to load autonomy status.');
     });
   }, [refreshOpsStatus]);
+
+  useEffect(() => {
+    const keepAlive = async () => {
+      try {
+        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const data = await res.json();
+        if (!data?.authenticated) {
+          router.replace('/login?next=/dashboard/ops');
+        }
+      } catch {
+        // no-op
+      }
+    };
+
+    keepAlive();
+    const id = setInterval(keepAlive, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [router]);
 
   async function setPolicy(mode: 'assisted' | 'balanced' | 'autonomous') {
     setLoading(true);

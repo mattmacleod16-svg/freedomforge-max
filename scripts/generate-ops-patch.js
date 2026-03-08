@@ -148,8 +148,7 @@ function inferPatch(summary, wallet) {
   }
 
   if (c.distributionStart + c.distributionStartToken === 0) {
-    env.ALERT_ON_SUCCESS = 'true';
-    reasons.push('No distribution starts seen in lookback; enable success alerts for better observability while tuning inbound revenue and thresholds.');
+    reasons.push('No distribution starts seen in lookback; review payout thresholds and inbound flow before enabling any success notifications.');
   }
 
   if (Object.keys(env).length === 0) {

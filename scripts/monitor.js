@@ -19,6 +19,7 @@ const appBaseUrl = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel
 const DIST_URL = process.env.DISTRIBUTION_URL || `${appBaseUrl}/api/alchemy/wallet/distribute`;
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL;
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
+const ALERT_MODE = String(process.env.MONITOR_ALERT_MODE || 'critical').toLowerCase();
 const POLL_MS = parseInt(process.env.MONITOR_INTERVAL_MS || '900000', 10); // default 15m
 
 if (!DIST_URL) {
@@ -26,8 +27,11 @@ if (!DIST_URL) {
   process.exit(1);
 }
 
-async function sendAlert(msg) {
+async function sendAlert(msg, options = {}) {
   if (!ALERT_URL) return;
+  const level = String(options.level || 'info').toLowerCase();
+  if (ALERT_MODE === 'off') return;
+  if (ALERT_MODE !== 'all' && level !== 'critical') return;
   const shouldMention = /discord(?:app)?\.com\/api\/webhooks\//i.test(ALERT_URL) && ALERT_MENTION;
   const finalMsg = shouldMention ? `${ALERT_MENTION} ${msg}` : msg;
   try {
@@ -50,7 +54,7 @@ async function checkOnce() {
     console.log(new Date().toISOString(), 'distribution OK');
   } catch (e) {
     console.error('distribution check failed', e);
-    await sendAlert('Monitor script: distribution failure: ' + e);
+    await sendAlert('Monitor script: distribution failure: ' + e, { level: 'critical' });
   }
 }
 

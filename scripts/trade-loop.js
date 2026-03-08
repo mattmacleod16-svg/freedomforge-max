@@ -24,12 +24,34 @@ const jitterMs = Math.max(0, parseInt(process.env.TRADE_LOOP_JITTER_MS || '200',
 const shardPhaseMs = Math.max(0, parseInt(process.env.TRADE_LOOP_SHARD_PHASE_MS || '300', 10));
 const healthEvery = Math.max(1, parseInt(process.env.TRADE_LOOP_HEALTH_EVERY || '30', 10));
 const requestTimeoutMs = Math.max(1000, parseInt(process.env.TRADE_LOOP_REQUEST_TIMEOUT_MS || '12000', 10));
+const profitGuardEnabled = String(process.env.TRADE_LOOP_PROFIT_GUARD_ENABLED || 'true').toLowerCase() !== 'false';
+const profitGuardLookbackHours = Math.max(1, parseInt(process.env.TRADE_LOOP_PROFIT_GUARD_LOOKBACK_HOURS || '2', 10));
+const profitGuardMinNetEth = Number(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_NET_ETH || '0.001');
+const profitGuardMinSuccessRate = Number(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_SUCCESS_RATE || '0.8');
+const profitGuardMinAttempts = Math.max(1, parseInt(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_ATTEMPTS || '3', 10));
+const profitGuardLogLimit = Math.max(200, parseInt(process.env.TRADE_LOOP_PROFIT_GUARD_LOG_LIMIT || '1500', 10));
 
 let running = true;
 let tick = 0;
 let failures = 0;
 let skipStreak = 0;
 let successCooldownUntil = 0;
+
+function parseBigIntSafe(value) {
+  try {
+    if (value === undefined || value === null || value === '') return BigInt(0);
+    return BigInt(String(value));
+  } catch {
+    return BigInt(0);
+  }
+}
+
+function weiToEthNumber(wei) {
+  const base = BigInt('1000000000000000000');
+  const whole = Number(wei / base);
+  const frac = Number(wei % base) / 1e18;
+  return whole + frac;
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -104,6 +126,65 @@ async function doDistribution() {
   return { botId, payload };
 }
 
+async function shouldBlockForProfitGuard() {
+  if (!profitGuardEnabled) return { blocked: false };
+
+  let payload;
+  try {
+    payload = await getJson(`${appBaseUrl}/api/alchemy/wallet/logs?limit=${profitGuardLogLimit}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[trade-loop] profit-guard warning: log fetch failed (${message}); defaulting to no-block`);
+    return { blocked: false };
+  }
+
+  const logs = Array.isArray(payload?.logs) ? payload.logs : [];
+  const cutoff = Date.now() - profitGuardLookbackHours * 60 * 60 * 1000;
+
+  let transferSuccess = 0;
+  let transferFailed = 0;
+  let payoutsWei = BigInt(0);
+  let topupsWei = BigInt(0);
+
+  for (const row of logs) {
+    const ts = Date.parse(row?.time || '');
+    if (!Number.isFinite(ts) || ts < cutoff) continue;
+
+    const type = row?.type;
+    const itemPayload = row?.payload || {};
+
+    if (type === 'transfer') {
+      transferSuccess += 1;
+      payoutsWei += parseBigIntSafe(itemPayload.amount);
+    }
+    if (type === 'transfer_failed') transferFailed += 1;
+
+    if (type === 'gas_topup') {
+      const amountEth = Number(itemPayload.amount || 0) || 0;
+      topupsWei += BigInt(Math.floor(amountEth * 1e18));
+    }
+  }
+
+  const attempts = transferSuccess + transferFailed;
+  if (attempts < profitGuardMinAttempts) {
+    return {
+      blocked: false,
+      reason: `min-attempts-not-met (${attempts}/${profitGuardMinAttempts})`,
+    };
+  }
+
+  const successRate = attempts > 0 ? transferSuccess / attempts : 1;
+  const netEth = weiToEthNumber(payoutsWei - topupsWei);
+  const blocked = successRate < profitGuardMinSuccessRate || netEth < profitGuardMinNetEth;
+
+  return {
+    blocked,
+    reason: blocked
+      ? `profit-guard-block successRate=${(successRate * 100).toFixed(1)}% netEth=${netEth.toFixed(6)} thresholds(rate>=${profitGuardMinSuccessRate}, net>=${profitGuardMinNetEth})`
+      : `profit-guard-pass successRate=${(successRate * 100).toFixed(1)}% netEth=${netEth.toFixed(6)}`,
+  };
+}
+
 async function loop() {
   console.log(`[trade-loop] start interval=${intervalMs}ms max_interval=${maxAdaptiveIntervalMs}ms backoff=${skipBackoffFactor} success_cooldown=${successCooldownMs}ms jitter=${jitterMs}ms shard=${shard}/${shards} network=${tradeLoopNetwork || 'default'} app=${appBaseUrl}`);
 
@@ -120,6 +201,19 @@ async function loop() {
     try {
       if (tick % healthEvery === 1) {
         await doHealthCheck();
+      }
+
+      const guard = await shouldBlockForProfitGuard();
+      if (guard.blocked) {
+        skipStreak += 1;
+        failures = 0;
+        console.warn(`[trade-loop] ${new Date().toISOString()} tick=${tick} ${guard.reason} skip_streak=${skipStreak}`);
+        const targetInterval = getAdaptiveInterval();
+        const elapsed = Date.now() - started;
+        const jitterWait = jitterMs > 0 ? Math.floor(Math.random() * (jitterMs + 1)) : 0;
+        const waitMs = Math.max(0, targetInterval - elapsed) + jitterWait;
+        if (waitMs > 0) await sleep(waitMs);
+        continue;
       }
 
       const { botId, payload } = await doDistribution();

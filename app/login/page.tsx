@@ -103,7 +103,7 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 flex items-center justify-between text-xs text-zinc-400">
-            <span>Session expires automatically.</span>
+            <span>Session lasts up to 7 days and renews while active.</span>
             <Link href="/" className="text-orange-400 hover:text-orange-300">
               Back home
             </Link>

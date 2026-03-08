@@ -201,6 +201,36 @@ async function main() {
   });
 
   console.log(JSON.stringify(report, null, 2));
+
+  // Publish intelligence findings to the cross-agent signal bus
+  try {
+    const bus = require('../lib/agent-signal-bus');
+    const autonomyStep = report.steps.find((s) => s.name === 'autonomy-status');
+    if (autonomyStep) {
+      bus.publish({
+        type: 'market_regime',
+        source: 'continuous-learning',
+        confidence: 0.8,
+        payload: { regime: autonomyStep.marketRegime, geopoliticalRisk: autonomyStep.geopoliticalRisk },
+      });
+    }
+    for (const step of report.steps.filter((s) => s.name.startsWith('forecast-'))) {
+      bus.publish({
+        type: 'forecast',
+        source: 'continuous-learning',
+        confidence: step.avgBrier != null ? Math.max(0.1, 1 - step.avgBrier) : 0.5,
+        payload: { horizon: step.name, decisionSignal: step.decisionSignal, avgBrier: step.avgBrier },
+      });
+    }
+    bus.publish({
+      type: 'intelligence_cycle',
+      source: 'continuous-learning',
+      confidence: 1,
+      payload: { completedAt: Date.now(), stepsCount: report.steps.length },
+    });
+  } catch (busErr) {
+    console.warn('signal-bus publish skipped:', busErr.message || busErr);
+  }
 }
 
 main().catch((error) => {

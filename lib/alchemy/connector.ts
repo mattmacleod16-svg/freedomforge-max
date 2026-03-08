@@ -8,7 +8,7 @@ import { Wallet, parseEther, JsonRpcProvider, Contract } from "ethers";
 import { getAuthorizedRecipients } from './recipients';
 import { sendAlert } from '../alerts';
 import { ensureRevenueWalletHasGas } from '../gasTopup';
-import { logEvent } from '../logger';
+import { logEvent, readLast } from '../logger';
 
 type DistributionOptions = {
   shardIndex?: number;
@@ -100,6 +100,63 @@ function getNetworkScopedEnv(baseKey: string, networkOverride?: string): string 
   const rpcSlug = resolveNetworkConfig(networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
   const scopedKey = `${baseKey}_${getNetworkEnvSuffix(rpcSlug)}`;
   return process.env[scopedKey] ?? process.env[baseKey];
+}
+
+const ETH_USD_CACHE_TTL_MS = 2 * 60 * 1000;
+let cachedEthUsdPrice: { value: number; expiresAt: number } | null = null;
+
+function parseFiniteNumber(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return parsed;
+}
+
+function formatEthAmount(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0';
+  const normalized = value.toFixed(18).replace(/0+$/, '').replace(/\.$/, '');
+  return normalized.length > 0 ? normalized : '0';
+}
+
+async function getEthUsdSpotPrice(): Promise<number | null> {
+  const now = Date.now();
+  if (cachedEthUsdPrice && cachedEthUsdPrice.expiresAt > now) {
+    return cachedEthUsdPrice.value;
+  }
+
+  try {
+    const response = await fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot', {
+      headers: { 'content-type': 'application/json' },
+      cache: 'no-store',
+    });
+    if (!response.ok) return null;
+    const payload: any = await response.json();
+    const amount = Number(payload?.data?.amount || 0);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    cachedEthUsdPrice = { value: amount, expiresAt: now + ETH_USD_CACHE_TTL_MS };
+    return amount;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveUsdMinPayoutWei(minUsd: number): Promise<{ minWei: bigint; ethUsd: number | null; source: string }> {
+  if (!Number.isFinite(minUsd) || minUsd <= 0) {
+    return { minWei: BigInt(0), ethUsd: null, source: 'disabled' };
+  }
+
+  const spot = await getEthUsdSpotPrice();
+  if (spot && spot > 0) {
+    const minEth = minUsd / spot;
+    return { minWei: parseEther(formatEthAmount(minEth)), ethUsd: spot, source: 'coinbase-spot' };
+  }
+
+  const fallbackEthUsd = parseFiniteNumber(process.env.PAYOUT_USD_FALLBACK_ETH_PRICE, 0);
+  if (fallbackEthUsd > 0) {
+    const minEth = minUsd / fallbackEthUsd;
+    return { minWei: parseEther(formatEthAmount(minEth)), ethUsd: fallbackEthUsd, source: 'env-fallback' };
+  }
+
+  return { minWei: BigInt(0), ethUsd: null, source: 'unavailable' };
 }
 
 export function getRpcProvider(networkOverride?: string): JsonRpcProvider | null {
@@ -319,17 +376,135 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
 
   const maxRetries = Math.max(1, parseInt(process.env.DISTRIBUTION_MAX_RETRIES || '3', 10));
   const retryBaseMs = Math.max(100, parseInt(process.env.DISTRIBUTION_RETRY_BASE_MS || '1000', 10));
-  const alertOnSuccess = String(process.env.ALERT_ON_SUCCESS || 'false').toLowerCase() === 'true';
-  const gasReserveEth = (process.env.GAS_RESERVE_ETH || process.env.SELF_SUSTAIN_RESERVE_ETH || '0.02').trim();
-  const reinvestBpsRaw = parseInt(process.env.SELF_SUSTAIN_REINVEST_BPS || '2000', 10);
-  const reinvestBps = Math.max(0, Math.min(9000, Number.isFinite(reinvestBpsRaw) ? reinvestBpsRaw : 2000));
-  const treasuryTargetEth = (process.env.TREASURY_TARGET_ETH || '0.03').trim();
-  const treasuryMaxReinvestBpsRaw = parseInt(process.env.TREASURY_MAX_REINVEST_BPS || '9000', 10);
-  const treasuryMaxReinvestBps = Math.max(reinvestBps, Math.min(9000, Number.isFinite(treasuryMaxReinvestBpsRaw) ? treasuryMaxReinvestBpsRaw : 9000));
+  const gasReserveEth = (getNetworkScopedEnv('GAS_RESERVE_ETH', options.networkOverride) || process.env.SELF_SUSTAIN_RESERVE_ETH || '0.02').trim();
+  const reinvestBpsRaw = parseInt(getNetworkScopedEnv('SELF_SUSTAIN_REINVEST_BPS', options.networkOverride) || '2000', 10);
+  const reinvestBps = Math.max(0, Math.min(9900, Number.isFinite(reinvestBpsRaw) ? reinvestBpsRaw : 2000));
+  const treasuryTargetEth = (getNetworkScopedEnv('TREASURY_TARGET_ETH', options.networkOverride) || '0.03').trim();
+  const treasuryMaxReinvestBpsRaw = parseInt(getNetworkScopedEnv('TREASURY_MAX_REINVEST_BPS', options.networkOverride) || '9000', 10);
+  const treasuryMaxReinvestBps = Math.max(reinvestBps, Math.min(9900, Number.isFinite(treasuryMaxReinvestBpsRaw) ? treasuryMaxReinvestBpsRaw : 9000));
+  const selfFundingMode = String(getNetworkScopedEnv('SELF_FUNDING_MODE', options.networkOverride) || 'false').toLowerCase() === 'true';
+  const selfFundingBalanceTargetEth = (getNetworkScopedEnv('SELF_FUNDING_BALANCE_TARGET_ETH', options.networkOverride) || treasuryTargetEth || '0.05').trim();
+  const selfFundingBelowTargetBpsRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_REINVEST_BPS_BELOW_TARGET', options.networkOverride) || '9700', 10);
+  const selfFundingAboveTargetBpsRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_REINVEST_BPS_ABOVE_TARGET', options.networkOverride) || '9400', 10);
+  const selfFundingBelowTargetBps = Math.max(0, Math.min(9900, Number.isFinite(selfFundingBelowTargetBpsRaw) ? selfFundingBelowTargetBpsRaw : 9700));
+  const selfFundingAboveTargetBps = Math.max(0, Math.min(9900, Number.isFinite(selfFundingAboveTargetBpsRaw) ? selfFundingAboveTargetBpsRaw : 9400));
+  const selfFundingCriticalBalanceEth = (getNetworkScopedEnv('SELF_FUNDING_CRITICAL_BALANCE_ETH', options.networkOverride) || '0.02').trim();
+  const selfFundingCriticalReinvestBpsRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_CRITICAL_REINVEST_BPS', options.networkOverride) || '9900', 10);
+  const selfFundingCriticalReinvestBps = Math.max(0, Math.min(9950, Number.isFinite(selfFundingCriticalReinvestBpsRaw) ? selfFundingCriticalReinvestBpsRaw : 9900));
+  const selfFundingPauseOverflowOnCritical = String(getNetworkScopedEnv('SELF_FUNDING_PAUSE_OVERFLOW_ON_CRITICAL', options.networkOverride) || 'true').toLowerCase() !== 'false';
+  const selfFundingCriticalDynamicEnabled = String(getNetworkScopedEnv('SELF_FUNDING_CRITICAL_DYNAMIC_ENABLED', options.networkOverride) || 'true').toLowerCase() !== 'false';
+  const selfFundingCriticalDynamicPerFailureBpsRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_CRITICAL_DYNAMIC_PER_FAILURE_BPS', options.networkOverride) || '250', 10);
+  const selfFundingCriticalDynamicPerFailureBps = Number.isFinite(selfFundingCriticalDynamicPerFailureBpsRaw)
+    ? Math.max(0, Math.min(5000, selfFundingCriticalDynamicPerFailureBpsRaw))
+    : 250;
+  const selfFundingCriticalDynamicMaxExtraBpsRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_CRITICAL_DYNAMIC_MAX_EXTRA_BPS', options.networkOverride) || '3000', 10);
+  const selfFundingCriticalDynamicMaxExtraBps = Number.isFinite(selfFundingCriticalDynamicMaxExtraBpsRaw)
+    ? Math.max(0, Math.min(10000, selfFundingCriticalDynamicMaxExtraBpsRaw))
+    : 3000;
+  const failSafeEnabled = String(getNetworkScopedEnv('SELF_FUNDING_TRANSFER_FAILSAFE_ENABLED', options.networkOverride) || 'true').toLowerCase() !== 'false';
+  const failSafeWindowMinRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_TRANSFER_FAILSAFE_WINDOW_MIN', options.networkOverride) || '30', 10);
+  const failSafeWindowMin = Number.isFinite(failSafeWindowMinRaw) ? Math.max(5, failSafeWindowMinRaw) : 30;
+  const failSafeFailureThresholdRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_TRANSFER_FAILSAFE_FAILURE_THRESHOLD', options.networkOverride) || '2', 10);
+  const failSafeFailureThreshold = Number.isFinite(failSafeFailureThresholdRaw) ? Math.max(1, failSafeFailureThresholdRaw) : 2;
+  const failSafeReinvestBpsRaw = parseInt(getNetworkScopedEnv('SELF_FUNDING_TRANSFER_FAILSAFE_REINVEST_BPS', options.networkOverride) || '9900', 10);
+  const failSafeReinvestBps = Math.max(0, Math.min(9950, Number.isFinite(failSafeReinvestBpsRaw) ? failSafeReinvestBpsRaw : 9900));
+  const distributionMinIntervalSecRaw = parseInt(getNetworkScopedEnv('DISTRIBUTION_MIN_INTERVAL_SEC', options.networkOverride) || '180', 10);
+  const distributionMinIntervalSec = Number.isFinite(distributionMinIntervalSecRaw) ? Math.max(0, distributionMinIntervalSecRaw) : 180;
+  const minOverflowEth = (getNetworkScopedEnv('DISTRIBUTION_MIN_OVERFLOW_ETH', options.networkOverride) || '0.00005').trim();
+  const payoutEnforceBaseNativeOnly = String(getNetworkScopedEnv('PAYOUT_ENFORCE_BASE_NATIVE_ONLY', options.networkOverride) || 'true').toLowerCase() !== 'false';
+  const payoutAllowToken = String(getNetworkScopedEnv('PAYOUT_ALLOW_TOKEN', options.networkOverride) || 'false').toLowerCase() === 'true';
+  const minPayoutUsd = parseFiniteNumber(getNetworkScopedEnv('PAYOUT_MIN_USD', options.networkOverride) || process.env.MIN_PAYOUT_USD || '50', 50);
+
+  const activeRpcSlug = resolveNetworkConfig(options.networkOverride || process.env.ALCHEMY_NETWORK).rpcSlug;
+  if (payoutEnforceBaseNativeOnly && activeRpcSlug !== 'base-mainnet') {
+    await logEvent('distribution_skipped_non_base_network', {
+      wallet: w.address,
+      botId,
+      shardIndex,
+      totalShards,
+      activeNetwork: activeRpcSlug,
+      requiredNetwork: 'base-mainnet',
+    });
+    return {};
+  }
+
+  const telemetryEventsRaw = await readLast(1200);
+  const telemetryEvents = Array.isArray(telemetryEventsRaw) ? telemetryEventsRaw : [];
+  const walletLower = w.address.toLowerCase();
+  const failSafeCutoff = Date.now() - failSafeWindowMin * 60 * 1000;
+  let recentTransferFailCount = 0;
+  let lastSuccessfulTransferAt = 0;
+
+  for (const event of telemetryEvents) {
+    const ts = Date.parse(event?.time || '');
+    if (!Number.isFinite(ts)) continue;
+
+    const eventWallet = String(event?.payload?.wallet || '').toLowerCase();
+    if (eventWallet && eventWallet !== walletLower) continue;
+
+    if (event?.type === 'transfer' || event?.type === 'transfer_token') {
+      if (ts > lastSuccessfulTransferAt) lastSuccessfulTransferAt = ts;
+    }
+
+    if ((event?.type === 'transfer_failed' || event?.type === 'transfer_token_failed') && ts >= failSafeCutoff) {
+      recentTransferFailCount += 1;
+    }
+  }
+
+  const baseSelfFundingCriticalWei = parseEther(selfFundingCriticalBalanceEth);
+  const selfFundingCriticalExtraBps = selfFundingCriticalDynamicEnabled
+    ? Math.min(selfFundingCriticalDynamicMaxExtraBps, recentTransferFailCount * selfFundingCriticalDynamicPerFailureBps)
+    : 0;
+  const effectiveSelfFundingCriticalWei = baseSelfFundingCriticalWei > BigInt(0)
+    ? (baseSelfFundingCriticalWei * BigInt(10000 + selfFundingCriticalExtraBps)) / BigInt(10000)
+    : BigInt(0);
+
+  const resolveEffectiveReinvestBps = (nativeBalanceWei: bigint) => {
+    if (failSafeEnabled && recentTransferFailCount >= failSafeFailureThreshold) {
+      return failSafeReinvestBps;
+    }
+
+    if (selfFundingMode) {
+      if (effectiveSelfFundingCriticalWei > BigInt(0) && nativeBalanceWei < effectiveSelfFundingCriticalWei) {
+        return selfFundingCriticalReinvestBps;
+      }
+
+      const selfFundingTargetWei = parseEther(selfFundingBalanceTargetEth);
+      if (selfFundingTargetWei > BigInt(0) && nativeBalanceWei < selfFundingTargetWei) {
+        return selfFundingBelowTargetBps;
+      }
+      return selfFundingAboveTargetBps;
+    }
+
+    const treasuryTargetWei = parseEther(treasuryTargetEth);
+    let effective = reinvestBps;
+    if (treasuryTargetWei > BigInt(0) && nativeBalanceWei < treasuryTargetWei) {
+      const deficit = treasuryTargetWei - nativeBalanceWei;
+      const dynamicBoost = Number((deficit * BigInt(treasuryMaxReinvestBps - reinvestBps)) / treasuryTargetWei);
+      effective = Math.min(treasuryMaxReinvestBps, reinvestBps + Math.max(0, dynamicBoost));
+    }
+    return effective;
+  };
+
+  if (distributionMinIntervalSec > 0 && lastSuccessfulTransferAt > 0) {
+    const elapsedSec = Math.floor((Date.now() - lastSuccessfulTransferAt) / 1000);
+    if (elapsedSec < distributionMinIntervalSec) {
+      await logEvent('distribution_skipped_interval', {
+        wallet: w.address,
+        botId,
+        shardIndex,
+        totalShards,
+        elapsedSec,
+        minIntervalSec: distributionMinIntervalSec,
+        lastSuccessfulTransferAt: new Date(lastSuccessfulTransferAt).toISOString(),
+      });
+      return {};
+    }
+  }
 
   // ensure revenue wallet has gas before attempting distribution
   try {
-    const topupOk = await ensureRevenueWalletHasGas(w.address);
+    const topupOk = await ensureRevenueWalletHasGas(w.address, options.networkOverride);
     await logEvent('gas_check', { wallet: w.address, topupOk, botId, shardIndex, totalShards });
     if (!topupOk) {
       await logEvent('distribution_skipped_no_gas', { wallet: w.address, botId, shardIndex, totalShards });
@@ -342,7 +517,17 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     // continue -- distribution will likely fail if there's no gas
   }
 
-  const payoutToken = process.env.PAYOUT_TOKEN_ADDRESS?.trim();
+  const payoutToken = payoutAllowToken ? process.env.PAYOUT_TOKEN_ADDRESS?.trim() : '';
+
+  if (!payoutAllowToken && process.env.PAYOUT_TOKEN_ADDRESS?.trim()) {
+    await logEvent('distribution_token_disabled_by_policy', {
+      wallet: w.address,
+      botId,
+      shardIndex,
+      totalShards,
+      token: process.env.PAYOUT_TOKEN_ADDRESS.trim(),
+    });
+  }
 
   if (payoutToken) {
     const token = new Contract(
@@ -367,15 +552,37 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     if (tokenBalance <= BigInt(0)) return null;
 
     const nativeBalanceForPolicy = await provider.getBalance(w.address);
-    const treasuryTargetWei = parseEther(treasuryTargetEth);
-    let effectiveReinvestBps = reinvestBps;
-    if (treasuryTargetWei > BigInt(0) && nativeBalanceForPolicy < treasuryTargetWei) {
-      const deficit = treasuryTargetWei - nativeBalanceForPolicy;
-      const dynamicBoost = Number((deficit * BigInt(treasuryMaxReinvestBps - reinvestBps)) / treasuryTargetWei);
-      effectiveReinvestBps = Math.min(treasuryMaxReinvestBps, reinvestBps + Math.max(0, dynamicBoost));
-    }
+    const effectiveReinvestBps = resolveEffectiveReinvestBps(nativeBalanceForPolicy);
     const effectiveKeepBps = 10000 - effectiveReinvestBps;
+    if (selfFundingMode && selfFundingPauseOverflowOnCritical && effectiveSelfFundingCriticalWei > BigInt(0) && nativeBalanceForPolicy < effectiveSelfFundingCriticalWei) {
+      await logEvent('distribution_skipped_self_funding_critical', {
+        wallet: w.address,
+        botId,
+        shardIndex,
+        totalShards,
+        token: payoutToken,
+        balanceWei: nativeBalanceForPolicy.toString(),
+        criticalBalanceWei: effectiveSelfFundingCriticalWei.toString(),
+        baseCriticalBalanceWei: baseSelfFundingCriticalWei.toString(),
+        criticalExtraBps: selfFundingCriticalExtraBps,
+        recentTransferFailCount,
+      });
+      return {};
+    }
     const distributableToken = (tokenBalance * BigInt(effectiveKeepBps)) / BigInt(10000);
+    const minOverflowWei = parseEther(minOverflowEth);
+    if (minOverflowWei > BigInt(0) && distributableToken < minOverflowWei) {
+      await logEvent('distribution_skipped_overflow_batch', {
+        wallet: w.address,
+        botId,
+        shardIndex,
+        totalShards,
+        token: payoutToken,
+        distributableWei: distributableToken.toString(),
+        minOverflowWei: minOverflowWei.toString(),
+      });
+      return {};
+    }
 
     const tokenShare = distributableToken / BigInt(allRecipients.length);
     if (tokenShare <= BigInt(0)) return null;
@@ -430,9 +637,6 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
           tokenResults[addr] = tx.hash;
           success = true;
           await logEvent('transfer_token', { to: addr, token: payoutToken, amount: tokenShare.toString(), txHash: tx.hash, wallet: w.address, botId, shardIndex, totalShards });
-          if (alertOnSuccess) {
-            sendAlert(`Token payout sent to ${addr}: ${tokenShare.toString()} wei of ${payoutToken} (tx ${tx.hash})`);
-          }
         } catch (e) {
           lastError = e;
           console.warn(`token transfer attempt ${attempt} failed for ${addr}`, e);
@@ -461,14 +665,22 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     return null;
   }
 
-  const treasuryTargetWei = parseEther(treasuryTargetEth);
-  let effectiveReinvestBps = reinvestBps;
-  if (treasuryTargetWei > BigInt(0) && balanceWei < treasuryTargetWei) {
-    const deficit = treasuryTargetWei - balanceWei;
-    const dynamicBoost = Number((deficit * BigInt(treasuryMaxReinvestBps - reinvestBps)) / treasuryTargetWei);
-    effectiveReinvestBps = Math.min(treasuryMaxReinvestBps, reinvestBps + Math.max(0, dynamicBoost));
-  }
+  const effectiveReinvestBps = resolveEffectiveReinvestBps(balanceWei);
   const effectiveKeepBps = 10000 - effectiveReinvestBps;
+  if (selfFundingMode && selfFundingPauseOverflowOnCritical && effectiveSelfFundingCriticalWei > BigInt(0) && balanceWei < effectiveSelfFundingCriticalWei) {
+    await logEvent('distribution_skipped_self_funding_critical', {
+      wallet: w.address,
+      botId,
+      shardIndex,
+      totalShards,
+      balanceWei: balanceWei.toString(),
+      criticalBalanceWei: effectiveSelfFundingCriticalWei.toString(),
+      baseCriticalBalanceWei: baseSelfFundingCriticalWei.toString(),
+      criticalExtraBps: selfFundingCriticalExtraBps,
+      recentTransferFailCount,
+    });
+    return {};
+  }
 
   const gasReserve = parseEther(gasReserveEth);
   if (balanceWei <= gasReserve) {
@@ -487,11 +699,25 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
   const distributable = (availableAfterReserve * BigInt(effectiveKeepBps)) / BigInt(10000);
   if (distributable <= BigInt(0)) return {};
 
+  const minOverflowWei = parseEther(minOverflowEth);
+  if (minOverflowWei > BigInt(0) && distributable < minOverflowWei) {
+    await logEvent('distribution_skipped_overflow_batch', {
+      wallet: w.address,
+      botId,
+      shardIndex,
+      totalShards,
+      distributableWei: distributable.toString(),
+      minOverflowWei: minOverflowWei.toString(),
+    });
+    return {};
+  }
+
   const share = distributable / BigInt(allRecipients.length);
   if (share <= BigInt(0)) return null;
 
   const minPayoutEth = (getNetworkScopedEnv('MIN_PAYOUT_ETH', options.networkOverride) || '0').trim();
   const configuredMinPayoutWei = parseEther(minPayoutEth);
+  const { minWei: usdMinPayoutWei, ethUsd: ethUsdForUsdFloor, source: usdFloorSource } = await resolveUsdMinPayoutWei(minPayoutUsd);
 
   let dynamicGasGuardWei = BigInt(0);
   try {
@@ -501,13 +727,20 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     const multiplierRaw = Number(getNetworkScopedEnv('MIN_PAYOUT_GAS_MULTIPLIER', options.networkOverride) || 3);
     const gasMultiplier = Number.isFinite(multiplierRaw) ? Math.max(1, Math.min(20, Math.round(multiplierRaw))) : 3;
     dynamicGasGuardWei = gasPriceWei * transferGasUnits * BigInt(gasMultiplier);
+
+    const maxDynamicGasGuardRaw = (getNetworkScopedEnv('MIN_PAYOUT_MAX_DYNAMIC_GAS_GUARD_WEI', options.networkOverride) || '').trim();
+    if (maxDynamicGasGuardRaw) {
+      const maxDynamicGasGuardWei = BigInt(maxDynamicGasGuardRaw);
+      if (maxDynamicGasGuardWei > BigInt(0) && dynamicGasGuardWei > maxDynamicGasGuardWei) {
+        dynamicGasGuardWei = maxDynamicGasGuardWei;
+      }
+    }
   } catch {
     dynamicGasGuardWei = BigInt(0);
   }
 
-  const effectiveMinPayoutWei = configuredMinPayoutWei > dynamicGasGuardWei
-    ? configuredMinPayoutWei
-    : dynamicGasGuardWei;
+  const effectiveMinPayoutWei = [configuredMinPayoutWei, dynamicGasGuardWei, usdMinPayoutWei]
+    .reduce((max, value) => (value > max ? value : max), BigInt(0));
 
   if (share < effectiveMinPayoutWei) {
     await logEvent('distribution_skipped_threshold', {
@@ -519,6 +752,10 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
       minPayoutWei: effectiveMinPayoutWei.toString(),
       configuredMinPayoutWei: configuredMinPayoutWei.toString(),
       dynamicGasGuardWei: dynamicGasGuardWei.toString(),
+      minPayoutUsd,
+      usdMinPayoutWei: usdMinPayoutWei.toString(),
+      ethUsdForUsdFloor,
+      usdFloorSource,
     });
     return null;
   }
@@ -535,6 +772,11 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     gasReserveWei: gasReserve.toString(),
     baseReinvestBps: reinvestBps,
     effectiveReinvestBps,
+    baseSelfFundingCriticalWei: baseSelfFundingCriticalWei.toString(),
+    effectiveSelfFundingCriticalWei: effectiveSelfFundingCriticalWei.toString(),
+    selfFundingCriticalExtraBps,
+    recentTransferFailCount,
+    failSafeTriggered: failSafeEnabled && recentTransferFailCount >= failSafeFailureThreshold,
     recipients,
   });
 
@@ -548,9 +790,6 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
         results[addr] = tx.hash;
         success = true;
         await logEvent('transfer', { to: addr, amount: share.toString(), txHash: tx.hash, wallet: w.address, botId, shardIndex, totalShards });
-        if (alertOnSuccess) {
-          sendAlert(`Revenue payout sent to ${addr}: ${share.toString()} wei native ETH (tx ${tx.hash})`);
-        }
       } catch (e) {
         lastError = e;
         console.warn(`attempt ${attempt} failed for ${addr}`, e);

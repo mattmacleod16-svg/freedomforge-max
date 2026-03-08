@@ -65,6 +65,30 @@ docker compose up -d
 docker compose ps
 ```
 
+### Optional: Start always-on trade-loop workers (no laptop required)
+
+From repo root on the VM:
+
+```bash
+bash scripts/oracle-trade-loop-bootstrap.sh \
+  --app-base-url https://freedomforge-max.vercel.app \
+  --user "$USER"
+```
+
+This creates persistent systemd services that auto-restart on crash and reboot.
+It also installs a nightly update timer that pulls latest code and restarts trade-loop services when updates are detected.
+It additionally installs a nightly intelligence-maintenance timer so learning/policy routines continue autonomously.
+It also installs a nightly CLOB burn-in timer that audits the last 24h for persistent CLOB skips/errors and auto-flags when thresholds are breached.
+When burn-in remains `warn` for 2 consecutive days, it automatically applies a conservative CLOB profile to production env and requests redeploy.
+When burn-in remains `ok` for 3 consecutive days, it automatically restores the normal CLOB profile and requests redeploy.
+The intelligence cycle now also runs automatic cashflow tuning (`cashflow:autotune`) that adapts per-chain payout and reinvest thresholds from real transfer/skip outcomes.
+
+Default schedules (UTC):
+
+- Auto-update rollout: `03:15` (`freedomforge-trade-loop-update.timer`)
+- Intelligence maintenance: `00:45`, `06:45`, `12:45`, `18:45` (`freedomforge-trade-loop-intelligence.timer`)
+- CLOB burn-in check: `23:55` (`freedomforge-trade-loop-clob-burnin.timer`)
+
 Grafana (HTTPS): `https://<YOUR_CADDY_DOMAIN>`
 
 Optional Caddy basic auth:
@@ -112,4 +136,21 @@ cd freedomforge-max/monitoring
 docker compose logs -f
 docker compose restart
 docker compose down
+```
+
+Trade-loop services:
+
+```bash
+systemctl list-units --type=service | grep freedomforge-trade-loop
+journalctl -u freedomforge-trade-loop-eth-shard0.service -f
+systemctl list-timers freedomforge-trade-loop-update.timer --no-pager
+systemctl list-timers freedomforge-trade-loop-intelligence.timer --no-pager
+systemctl list-timers freedomforge-trade-loop-clob-burnin.timer --no-pager
+systemctl list-timers freedomforge-superagent-selftest.timer --no-pager
+sudo systemctl start freedomforge-trade-loop-update.service
+sudo systemctl start freedomforge-trade-loop-intelligence.service
+sudo systemctl start freedomforge-trade-loop-clob-burnin.service
+sudo systemctl start freedomforge-superagent-selftest.service
+npm run wallet:forensics
+npm run mission:health
 ```
