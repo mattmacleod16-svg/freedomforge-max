@@ -265,6 +265,12 @@ export async function GET() {
       venuePerformance: venuePerf,
       strategy,
       mandate,
+      tunnelUrl: (() => {
+        try {
+          const u = fs.readFileSync(path.resolve(process.cwd(), 'data/tunnel-url.txt'), 'utf8').trim();
+          return u || null;
+        } catch { return null; }
+      })(),
     });
   } catch (error) {
     return NextResponse.json(
