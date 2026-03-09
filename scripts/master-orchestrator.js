@@ -418,6 +418,15 @@ async function phaseTradeExecution(signals) {
         if (!isVenueEnabled(venue)) continue;
         if (venue === 'prediction') continue; // prediction engine handles its own assets
 
+        // Per-venue guardian check — skip venues that are margin-blocked
+        if (liquidationGuardian) {
+          const venueCheck = liquidationGuardian.shouldAllowNewTrade(venue);
+          if (!venueCheck.allowed) {
+            log('info', `  Skipping ${venue} for ${signal.asset}: guardian-blocked (${venueCheck.reason})`);
+            continue;
+          }
+        }
+
         const result = executeVenueTrade(venue, signal, orderUsd);
         executions.push(result);
 
@@ -454,6 +463,12 @@ async function phaseTradeExecution(signals) {
 
         if (!result.skipped) {
           log('warn', `  ${venue} execution failed for ${signal.asset}, trying next venue`);
+        } else {
+          // Log skip reason from venue engine for observability
+          try {
+            const parsed = JSON.parse(result.stdout || '{}');
+            if (parsed.reason) log('info', `  ${venue} skipped ${signal.asset}: ${parsed.reason}`);
+          } catch {}
         }
       }
 
