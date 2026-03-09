@@ -136,6 +136,15 @@ interface EmpireData {
     roiPct: number;
     message: string;
   } | null;
+  agents: {
+    total: number;
+    active: number;
+    roles: Array<{
+      role: string;
+      icon: string;
+      agents: Array<{ name: string; status: string; detail: string }>;
+    }>;
+  } | null;
 }
 
 /* ─── Utility ─────────────────────────────────────────────────────────────── */
@@ -786,6 +795,71 @@ export default function CommandCenter() {
                 </table>
               </div>
             </div>
+
+            {/* ─── Agent Roster ───────────────────────────────────────── */}
+            {data.agents && (
+              <div className="holo-card rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-8 h-8 flex items-center justify-center">
+                      <div className="absolute inset-0 border border-emerald-500/30 rotate-45" />
+                      <span className="text-sm">🤖</span>
+                    </div>
+                    <div>
+                      <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400/70">Agent Workforce</h3>
+                      <div className="text-[9px] font-mono text-zinc-600 mt-0.5">Autonomous agents deployed across the empire</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-3xl font-black neon-text-green">{data.agents.total}</div>
+                      <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">Total Agents</div>
+                    </div>
+                    <div className="w-px h-10 bg-zinc-800" />
+                    <div className="text-right">
+                      <div className="text-2xl font-black text-emerald-400">{data.agents.active}</div>
+                      <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">Active</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                  {data.agents.roles.map(role => {
+                    const roleActive = role.agents.filter(a => a.status === 'active').length;
+                    return (
+                      <div key={role.role} className="bg-white/[0.02] rounded-xl p-4 border border-cyan-500/5 hover:border-cyan-500/15 transition-all group">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-base">{role.icon}</span>
+                          <div>
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-300/70">{role.role}</div>
+                            <div className="text-[9px] font-mono text-zinc-600">{roleActive}/{role.agents.length} active</div>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          {role.agents.map(agent => (
+                            <div key={agent.name} className="flex items-center gap-2 text-[10px] font-mono">
+                              <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                {agent.status === 'active' && (
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                )}
+                                <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                                  agent.status === 'active' ? 'bg-emerald-400' :
+                                  agent.status === 'error' ? 'bg-red-500 animate-pulse' :
+                                  'bg-zinc-600'
+                                }`} />
+                              </span>
+                              <span className="text-zinc-400 group-hover:text-zinc-300 transition-colors truncate">{agent.name}</span>
+                              <span className="ml-auto text-zinc-600 text-[8px] truncate max-w-[60px]">{agent.detail}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

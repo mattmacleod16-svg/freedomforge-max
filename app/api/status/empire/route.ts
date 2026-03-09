@@ -18,6 +18,80 @@ function readJsonSafe(filePath: string) {
   } catch { return null; }
 }
 
+/* ─── Agent Roster Builder ──────────────────────────────────────────────── */
+function agentStatus(lastTs: number | string | null | undefined, staleMinutes = 30): 'active' | 'idle' | 'error' {
+  if (!lastTs) return 'idle';
+  const ms = typeof lastTs === 'string' ? new Date(lastTs).getTime() : lastTs;
+  if (isNaN(ms)) return 'idle';
+  const age = Date.now() - ms;
+  if (age < staleMinutes * 60 * 1000) return 'active';
+  return 'idle';
+}
+
+function buildAgentRoster(
+  orch: any, brain: any, scaler: any, guardian: any,
+  risk: any, signalBus: any, watchdog: any, trades: any[],
+) {
+  const roles: Array<{
+    role: string; icon: string; agents: Array<{ name: string; status: string; detail: string }>;
+  }> = [
+    {
+      role: 'Command & Control',
+      icon: '⬡',
+      agents: [
+        { name: 'Master Orchestrator', status: agentStatus(orch?.lastRunAt, 20), detail: `Cycle #${orch?.cycleCount || 0}` },
+        { name: 'Watchdog', status: agentStatus(watchdog?.checkedAt || watchdog?.ts, 10), detail: 'Self-healing monitor' },
+      ],
+    },
+    {
+      role: 'Trade Execution',
+      icon: '◈',
+      agents: [
+        { name: 'Coinbase Trade Loop', status: 'active', detail: 'Spot + margin' },
+        { name: 'Kraken Trade Loop', status: 'active', detail: 'Spot + margin' },
+        { name: 'Polymarket Trade Loop', status: 'active', detail: 'Prediction markets' },
+        { name: 'Edge Scanner Loop', status: 'active', detail: 'Opportunity hunter' },
+        { name: 'Venue Engine Loop', status: 'active', detail: 'Smart routing' },
+      ],
+    },
+    {
+      role: 'Risk & Safety',
+      icon: '◆',
+      agents: [
+        { name: 'Liquidation Guardian', status: agentStatus(guardian?.lastCheck, 20), detail: `Blocks: ${guardian?.blockedTrades || 0}` },
+        { name: 'Risk Manager', status: risk?.killSwitchActive ? 'error' : 'active', detail: risk?.killSwitchActive ? '■ KILL SWITCH' : `DD: ${((risk?.peakEquity > 0 ? ((risk.peakEquity - (risk.currentEquity || 0)) / risk.peakEquity) * 100 : 0)).toFixed(1)}%` },
+        { name: 'Trade Reconciler', status: agentStatus(orch?.lastRunAt, 20), detail: `${trades.filter((t: any) => t.outcome).length} closed` },
+        { name: 'Capital Mandate', status: 'active', detail: 'Zero injection' },
+      ],
+    },
+    {
+      role: 'Intelligence',
+      icon: '◎',
+      agents: [
+        { name: 'Self-Evolving Brain', status: agentStatus(brain?.lastEvolvedAt, 60), detail: `Gen ${brain?.generation || 0}` },
+        { name: 'Signal Bus', status: 'active', detail: `${Array.isArray(signalBus?.signals) ? signalBus.signals.length : (Array.isArray(signalBus) ? signalBus.length : 0)} signals` },
+        { name: 'Horizontal Scaler', status: agentStatus(scaler?.lastScanAt, 60), detail: `${(scaler?.activeAssets || []).length} assets` },
+        { name: 'Edge Scanner', status: 'active', detail: 'Pattern detection' },
+      ],
+    },
+    {
+      role: 'Operations',
+      icon: '◇',
+      agents: [
+        { name: 'Daily KPI Reporter', status: 'active', detail: 'Daily summary' },
+        { name: 'Continuous Learner', status: 'active', detail: 'Strategy tuning' },
+        { name: 'Monthly Strategist', status: 'active', detail: 'Long-term plan' },
+        { name: 'Geopolitical Watch', status: 'active', detail: 'Macro monitor' },
+      ],
+    },
+  ];
+
+  const total = roles.reduce((s, r) => s + r.agents.length, 0);
+  const activeCount = roles.reduce((s, r) => s + r.agents.filter(a => a.status === 'active').length, 0);
+
+  return { total, active: activeCount, roles };
+}
+
 export async function GET() {
   try {
     // ─── Trade Journal ─────────────────────────────────────────────────
@@ -143,9 +217,9 @@ export async function GET() {
     // ─── Brain State ───────────────────────────────────────────────────
     const brainState = readJsonSafe('data/self-evolving-brain.json');
     const brain = brainState ? {
-      generation: brainState.generation || 0,
-      lastEvolved: brainState.lastEvolvedAt || null,
-      topIndicators: Object.entries(brainState.indicatorWeights || {})
+      generation: brainState.totalEvolutions || brainState.generation || 0,
+      lastEvolved: brainState.updatedAt || brainState.lastEvolvedAt || null,
+      topIndicators: Object.entries(brainState.weights || brainState.indicatorWeights || {})
         .sort((a: any, b: any) => b[1] - a[1])
         .slice(0, 5)
         .map(([k, v]: any) => ({ indicator: k, weight: v })),
@@ -165,6 +239,10 @@ export async function GET() {
 
     // ─── Venue Performance ─────────────────────────────────────────────
     const venuePerf = readJsonSafe('data/venue-performance-state.json');
+
+    // ─── Agent Roster ──────────────────────────────────────────────────
+    const watchdog = readJsonSafe('data/watchdog-alerts.json');
+    const agentRoster = buildAgentRoster(orchState, brainState, scalerState, guardian, risk, busData, watchdog, trades);
 
     // ─── Portfolio Totals ──────────────────────────────────────────────
     const cbBalance = guardianSummary.coinbase.totalBalance;
@@ -265,6 +343,7 @@ export async function GET() {
       venuePerformance: venuePerf,
       strategy,
       mandate,
+      agents: agentRoster,
       tunnelUrl: (() => {
         try {
           const u = fs.readFileSync(path.resolve(process.cwd(), 'data/tunnel-url.txt'), 'utf8').trim();

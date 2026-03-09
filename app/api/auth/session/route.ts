@@ -19,11 +19,12 @@ export async function GET() {
 
   const renewed = createSessionToken(payload.user);
   const response = NextResponse.json({ authenticated: true, user: payload.user });
+  const forceInsecure = process.env.DASHBOARD_COOKIE_SECURE === 'false';
   response.cookies.set({
     name: DASHBOARD_SESSION_COOKIE,
     value: renewed,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: forceInsecure ? false : process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
     maxAge: getSessionCookieMaxAge(),

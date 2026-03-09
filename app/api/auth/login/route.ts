@@ -20,11 +20,12 @@ export async function POST(req: Request) {
 
     const token = createSessionToken(username);
     const response = NextResponse.json({ ok: true });
+    const forceInsecure = process.env.DASHBOARD_COOKIE_SECURE === 'false';
     response.cookies.set({
       name: DASHBOARD_SESSION_COOKIE,
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: forceInsecure ? false : process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
       maxAge: getSessionCookieMaxAge(),
