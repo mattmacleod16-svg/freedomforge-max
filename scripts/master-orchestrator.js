@@ -383,8 +383,8 @@ async function phaseTradeExecution(signals) {
 
       // Liquidation guardian gate — check ALL venues before attempting
       if (liquidationGuardian) {
-        const cbCheck = liquidationGuardian.shouldAllowNewTrade('coinbase');
-        const krCheck = liquidationGuardian.shouldAllowNewTrade('kraken');
+        const cbCheck = liquidationGuardian.shouldAllowNewTrade('coinbase', { tradeType: 'spot' });
+        const krCheck = liquidationGuardian.shouldAllowNewTrade('kraken', { tradeType: 'spot' });
         if (!cbCheck.allowed && !krCheck.allowed) {
           log('warn', `  Guardian blocked ${signal.asset}: CB=${cbCheck.reason} KR=${krCheck.reason}`);
           executions.push({
@@ -420,7 +420,7 @@ async function phaseTradeExecution(signals) {
 
         // Per-venue guardian check — skip venues that are margin-blocked
         if (liquidationGuardian) {
-          const venueCheck = liquidationGuardian.shouldAllowNewTrade(venue);
+          const venueCheck = liquidationGuardian.shouldAllowNewTrade(venue, { tradeType: 'spot' });
           if (!venueCheck.allowed) {
             log('info', `  Skipping ${venue} for ${signal.asset}: guardian-blocked (${venueCheck.reason})`);
             continue;

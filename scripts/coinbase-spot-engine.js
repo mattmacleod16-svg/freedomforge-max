@@ -411,7 +411,7 @@ async function main() {
 
   // Liquidation guardian gate
   if (liquidationGuardian) {
-    const marginCheck = liquidationGuardian.shouldAllowNewTrade('coinbase');
+    const marginCheck = liquidationGuardian.shouldAllowNewTrade('coinbase', { tradeType: 'spot' });
     if (!marginCheck.allowed) {
       console.log(JSON.stringify({ status: 'skipped', reason: `guardian-blocked: ${marginCheck.reason}`, marginPct: marginCheck.marginPct }, null, 2));
       return;
