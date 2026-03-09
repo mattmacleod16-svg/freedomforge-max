@@ -632,6 +632,10 @@ async function main() {
   // Phase 1: Health Check (includes liquidation guardian)
   const health = await phaseHealthCheck();
   if (health.abort) {
+    // Still update state so watchdog knows we ran
+    state.lastRunAt = startMs;
+    state.lastCycle = { ts: new Date().toISOString(), aborted: true, reason: health.reason };
+    saveState(state);
     const report = { status: 'aborted', reason: health.reason, health, ts: new Date().toISOString() };
     console.log(JSON.stringify(report, null, 2));
     await sendAlert(`🛑 Orchestrator ABORTED: ${health.reason}`, 'critical');
