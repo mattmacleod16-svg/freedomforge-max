@@ -64,6 +64,8 @@ try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
 try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
 try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
 try { capitalMandate = require('../lib/capital-mandate'); } catch { capitalMandate = null; }
+let tradeReconciler;
+try { tradeReconciler = require('../lib/trade-reconciler'); } catch { tradeReconciler = null; }
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -578,6 +580,27 @@ function phaseDataMaintenance() {
   }
 
   if (cleaned > 0) log('info', `  Cleaned ${cleaned} arrays`);
+
+  // Prune stale signals from signal bus (signals older than 6 hours)
+  try {
+    const busFile = path.join(dataDir, 'agent-signal-bus.json');
+    if (fs.existsSync(busFile)) {
+      const busData = JSON.parse(fs.readFileSync(busFile, 'utf8'));
+      const signals = Array.isArray(busData) ? busData : (busData.signals || []);
+      const now = Date.now();
+      const maxAge = 6 * 60 * 60 * 1000; // 6 hours
+      const fresh = signals.filter(s => now - (s.ts || s.publishedAt || 0) < maxAge);
+      const pruned = signals.length - fresh.length;
+      if (pruned > 0) {
+        const output = Array.isArray(busData) ? fresh : { ...busData, signals: fresh };
+        fs.writeFileSync(busFile, JSON.stringify(output, null, 2));
+        log('info', `  Pruned ${pruned} stale signals (kept ${fresh.length})`);
+        cleaned += pruned;
+      }
+    }
+  } catch (e) {
+    log('error', `Signal bus prune failed: ${e.message}`);
+  }
 }
 
 // ─── Main Orchestrator Loop ──────────────────────────────────────────────────
@@ -627,6 +650,23 @@ async function main() {
   // Phase 5: Trade Execution
   const execution = await phaseTradeExecution(signals);
 
+  // Phase 5b: Trade Reconciliation (close open trades, compute P&L)
+  let reconcileResult = { closedCount: 0, totalPnl: 0 };
+  if (tradeReconciler) {
+    try {
+      log('info', '═══ Phase 5b: Trade Reconciliation ═══');
+      reconcileResult = await tradeReconciler.reconcileOpenTrades();
+      log('info', `  Closed ${reconcileResult.closedCount} trades, P&L: $${reconcileResult.totalPnl.toFixed(2)}`);
+      if (reconcileResult.closed) {
+        for (const c of reconcileResult.closed) {
+          log('info', `    ${c.asset} ${c.side}: $${c.pnl.toFixed(2)} (${c.reason})`);
+        }
+      }
+    } catch (e) {
+      log('error', `Reconciliation failed: ${e.message}`);
+    }
+  }
+
   // Phase 6: Prediction Markets
   const predResult = phasePredictionMarkets();
 
@@ -634,15 +674,14 @@ async function main() {
   const durationMs = Date.now() - startMs;
   phasePublishState(health, brainResult, signals, execution, predResult, durationMs);
 
-  // Phase 8: Data Maintenance (run every 10th cycle)
-  if ((state.cycleCount + 1) % 10 === 0) {
-    phaseDataMaintenance();
-  }
+  // Phase 8: Data Maintenance (signal pruning every cycle, heavy trim every 10th)
+  phaseDataMaintenance();
 
   // Update state
   state.lastRunAt = startMs;
   state.cycleCount++;
   state.totalTrades += execution.tradesPlaced;
+  state.totalPnl = (state.totalPnl || 0) + (reconcileResult.totalPnl || 0);
   state.lastCycle = {
     ts: new Date().toISOString(),
     durationMs,
