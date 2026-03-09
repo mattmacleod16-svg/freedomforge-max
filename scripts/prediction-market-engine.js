@@ -32,7 +32,7 @@ const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.PRED_MARKET_MAX_ORD
 const MIN_INTERVAL_SEC = Math.max(0, Number(process.env.PRED_MARKET_MIN_INTERVAL_SEC || 300));
 const REQUEST_TIMEOUT_MS = Math.max(3000, Number(process.env.PRED_MARKET_TIMEOUT_MS || 15000));
 const STATE_FILE = process.env.PRED_MARKET_STATE_FILE || 'data/prediction-market-state.json';
-const MAX_ORDERS_PER_CYCLE = Math.max(1, Math.min(5, Number(process.env.PRED_MARKET_MAX_ORDERS || 2)));
+const MAX_ORDERS_PER_CYCLE = Math.max(1, Math.min(10, Number(process.env.PRED_MARKET_MAX_ORDERS || 4)));
 
 // Coinbase futures config
 const CB_API_KEY = (process.env.COINBASE_API_KEY || '').trim();
@@ -308,9 +308,24 @@ async function scanCoinbaseFutures() {
 
 // ─── Kraken Event Token Scanner ──────────────────────────────────────────────
 
-// Event tokens available on Kraken — expand this as more are listed
+// Event/prediction-adjacent tokens on Kraken — auto-expanded from API probe
 const KRAKEN_EVENT_TOKENS = [
+  // Political / event tokens
   { pair: 'TRUMPUSD', name: 'TRUMP', category: 'politics' },
+  // Meme / prediction-adjacent tokens (high volatility = high opportunity)
+  { pair: 'PEPEUSD', name: 'PEPE', category: 'meme' },
+  { pair: 'BONKUSD', name: 'BONK', category: 'meme' },
+  { pair: 'WIFUSD', name: 'WIF', category: 'meme' },
+  { pair: 'FLOKIUSD', name: 'FLOKI', category: 'meme' },
+  { pair: 'MOGUSD', name: 'MOG', category: 'meme' },
+  { pair: 'POPCATUSD', name: 'POPCAT', category: 'meme' },
+  { pair: 'PNUTUSD', name: 'PNUT', category: 'meme' },
+  { pair: 'SPXUSD', name: 'SPX', category: 'meme' },
+  { pair: 'TURBOUSD', name: 'TURBO', category: 'meme' },
+  { pair: 'NEIROUSD', name: 'NEIRO', category: 'meme' },
+  { pair: 'ACTUSD', name: 'ACT', category: 'meme' },
+  { pair: 'MEMEUSD', name: 'MEME', category: 'meme' },
+  { pair: 'SHIBUSD', name: 'SHIB', category: 'meme' },
 ];
 
 async function scanKrakenEventTokens(polymarketIntel) {
@@ -426,6 +441,132 @@ async function scanKrakenEventTokens(polymarketIntel) {
   return opportunities;
 }
 
+// ─── Coinbase Spot Event Token Scanner ────────────────────────────────────────
+
+// Prediction/event tokens available on Coinbase spot
+const COINBASE_EVENT_TOKENS = [
+  { productId: 'TRUMP-USD', name: 'TRUMP', category: 'politics' },
+  { productId: 'PEPE-USD', name: 'PEPE', category: 'meme' },
+  { productId: 'BONK-USD', name: 'BONK', category: 'meme' },
+  { productId: 'WIF-USD', name: 'WIF', category: 'meme' },
+  { productId: 'POPCAT-USD', name: 'POPCAT', category: 'meme' },
+  { productId: 'SPX-USD', name: 'SPX', category: 'meme' },
+  { productId: 'MOG-USD', name: 'MOG', category: 'meme' },
+  { productId: 'TURBO-USD', name: 'TURBO', category: 'meme' },
+];
+
+async function scanCoinbaseEventTokens(polymarketIntel) {
+  const opportunities = [];
+
+  for (const token of COINBASE_EVENT_TOKENS) {
+    try {
+      const data = await cbPrivate('GET', `/api/v3/brokerage/products/${encodeURIComponent(token.productId)}`);
+      const price = Number(data?.price || 0);
+      if (price <= 0) continue;
+
+      // Get 24h candles for momentum
+      const end = Math.floor(Date.now() / 1000);
+      const start = end - 86400;
+      let high24h = price, low24h = price;
+      try {
+        const candles = await cbPrivate('GET', `/api/v3/brokerage/products/${encodeURIComponent(token.productId)}/candles?start=${start}&end=${end}&granularity=ONE_HOUR`);
+        if (Array.isArray(candles?.candles) && candles.candles.length > 0) {
+          for (const c of candles.candles) {
+            const h = Number(c.high || 0);
+            const l = Number(c.low || 0);
+            if (h > high24h) high24h = h;
+            if (l > 0 && l < low24h) low24h = l;
+          }
+        }
+      } catch {}
+
+      const range24h = high24h > 0 && low24h > 0 ? (high24h - low24h) / price : 0;
+
+      // Use edge detector for directional signal
+      let signal = null;
+      if (edgeDetector) {
+        try {
+          signal = await edgeDetector.getCompositeSignal({ asset: token.name });
+        } catch {}
+      }
+
+      // Cross-reference with Polymarket intelligence for political tokens
+      let polySignal = null;
+      if (polymarketIntel.length > 0 && token.category === 'politics') {
+        const tokenRe = new RegExp(token.name, 'i');
+        const related = polymarketIntel.filter(m => tokenRe.test(m.question));
+        if (related.length > 0) {
+          const avgYes = related.reduce((s, m) => s + m.yesPrice, 0) / related.length;
+          polySignal = {
+            avgProbability: avgYes,
+            marketCount: related.length,
+            sentiment: avgYes > 0.6 ? 'bullish' : avgYes < 0.4 ? 'bearish' : 'neutral',
+          };
+        }
+      }
+
+      // Compute trade signal
+      let side = 'neutral';
+      let confidence = 0.5;
+      let edge = 0;
+
+      if (signal && signal.side !== 'neutral' && signal.confidence >= MIN_CONFIDENCE) {
+        side = signal.side;
+        confidence = signal.confidence;
+        edge = signal.edge || 0;
+      } else {
+        // Momentum from 24h range
+        const momentum = price > 0 && high24h !== low24h ? (price - low24h) / (high24h - low24h) : 0.5;
+        if (momentum > 0.65) { side = 'buy'; confidence = 0.5 + momentum * 0.2; }
+        else if (momentum < 0.35) { side = 'sell'; confidence = 0.5 + (1 - momentum) * 0.2; }
+        edge = Math.abs(momentum - 0.5) * range24h;
+      }
+
+      // Boost confidence if Polymarket confirms direction
+      if (polySignal) {
+        if (
+          (polySignal.sentiment === 'bullish' && side === 'buy') ||
+          (polySignal.sentiment === 'bearish' && side === 'sell')
+        ) {
+          confidence = Math.min(0.95, confidence + 0.05);
+          edge += 0.02;
+        } else if (
+          (polySignal.sentiment === 'bullish' && side === 'sell') ||
+          (polySignal.sentiment === 'bearish' && side === 'buy')
+        ) {
+          confidence = Math.max(0.5, confidence - 0.05);
+        }
+      }
+
+      if (side !== 'neutral' && confidence >= MIN_CONFIDENCE && edge >= MIN_EVENT_EDGE) {
+        const orderUsd = edgeDetector
+          ? edgeDetector.dynamicOrderSize({ edge, confidence, compositeScore: edge }, ORDER_USD, MAX_ORDER_USD / ORDER_USD)
+          : ORDER_USD;
+
+        opportunities.push({
+          venue: 'coinbase_event',
+          type: 'event_token',
+          productId: token.productId,
+          name: token.name,
+          category: token.category,
+          price,
+          range24h: Number((range24h * 100).toFixed(2)),
+          side,
+          confidence: Number(confidence.toFixed(3)),
+          edge: Number(edge.toFixed(4)),
+          orderUsd: Number(orderUsd.toFixed(2)),
+          polySignal,
+          compositeSignal: signal ? { side: signal.side, confidence: signal.confidence } : null,
+        });
+      }
+    } catch (err) {
+      console.error(`[coinbase-event] ${token.name} error:`, err.message);
+    }
+  }
+
+  return opportunities;
+}
+
 // ─── Order Execution ─────────────────────────────────────────────────────────
 
 async function executeCoinbaseFuturesOrder(opp) {
@@ -479,6 +620,60 @@ async function executeCoinbaseFuturesOrder(opp) {
     type: opp.type,
     product: opp.productId,
     side: opp.side,
+    result,
+  };
+}
+
+async function executeCoinbaseEventOrder(opp) {
+  // Use Coinbase Advanced Trade spot order
+  const clientOrderId = crypto.randomUUID();
+  const volume = opp.orderUsd / opp.price;
+  // Get product details for size increments
+  let productDetail;
+  try { productDetail = await cbPrivate('GET', `/api/v3/brokerage/products/${encodeURIComponent(opp.productId)}`); } catch {}
+  const baseIncrement = Number(productDetail?.base_increment || 0.01);
+  const precision = Math.max(0, -Math.floor(Math.log10(baseIncrement)));
+  const roundedVolume = roundDown(volume, precision);
+  const minSize = Number(productDetail?.base_min_size || 0);
+  if (roundedVolume <= 0 || (minSize > 0 && roundedVolume < minSize)) {
+    return { status: 'skipped', reason: 'volume too low', volume: roundedVolume, minSize };
+  }
+
+  const payload = {
+    client_order_id: clientOrderId,
+    product_id: opp.productId,
+    side: opp.side.toUpperCase(),
+    order_configuration: {
+      market_market_ioc: {
+        base_size: String(roundedVolume),
+      },
+    },
+  };
+
+  if (DRY_RUN) {
+    return {
+      status: 'dry-run',
+      venue: 'coinbase_event',
+      type: 'event_token',
+      product: opp.productId,
+      name: opp.name,
+      side: opp.side,
+      volume: roundedVolume,
+      usdNotional: Number((roundedVolume * opp.price).toFixed(2)),
+      confidence: opp.confidence,
+      edge: opp.edge,
+    };
+  }
+
+  const result = await cbPrivate('POST', '/api/v3/brokerage/orders', payload);
+  return {
+    status: 'placed',
+    venue: 'coinbase_event',
+    type: 'event_token',
+    product: opp.productId,
+    name: opp.name,
+    side: opp.side,
+    volume: roundedVolume,
     result,
   };
 }
@@ -561,17 +756,18 @@ async function main() {
   console.error(`[pred-market] Polymarket intelligence: ${polyIntel.length} markets`);
 
   // ─── Phase 2: Scan all venues for opportunities ───
-  const [cbFuturesOpps, krakenEventOpps] = await Promise.all([
+  const [cbFuturesOpps, krakenEventOpps, cbEventOpps] = await Promise.all([
     CB_API_KEY && CB_API_SECRET ? scanCoinbaseFutures() : [],
     K_API_KEY && K_API_SECRET ? scanKrakenEventTokens(polyIntel) : [],
+    CB_API_KEY && CB_API_SECRET ? scanCoinbaseEventTokens(polyIntel) : [],
   ]);
 
-  const allOpps = [...cbFuturesOpps, ...krakenEventOpps];
+  const allOpps = [...cbFuturesOpps, ...krakenEventOpps, ...cbEventOpps];
 
   // Sort by confidence * edge (best opportunities first)
   allOpps.sort((a, b) => (b.confidence * (b.edge || 0.01)) - (a.confidence * (a.edge || 0.01)));
 
-  console.error(`[pred-market] Found ${allOpps.length} opportunities (${cbFuturesOpps.length} Coinbase futures, ${krakenEventOpps.length} Kraken events)`);
+  console.error(`[pred-market] Found ${allOpps.length} opportunities (${cbFuturesOpps.length} CB futures, ${krakenEventOpps.length} KR events, ${cbEventOpps.length} CB events)`);
 
   if (allOpps.length === 0) {
     // Publish to signal bus
@@ -583,6 +779,7 @@ async function main() {
         payload: {
           polymarketMarkets: polyIntel.length,
           coinbaseFutures: cbFuturesOpps.length,
+          coinbaseEvents: cbEventOpps.length,
           krakenEvents: krakenEventOpps.length,
           result: 'no_opportunities',
         },
@@ -628,8 +825,10 @@ async function main() {
 
     // Liquidation guardian gate — check venue margin before every order
     if (liquidationGuardian) {
-      const venue = opp.venue === 'coinbase_futures' ? 'coinbase' : 'kraken';
-      const marginCheck = liquidationGuardian.shouldAllowNewTrade(venue);
+      const guardianVenue = opp.venue === 'coinbase_futures' ? 'coinbase' : opp.venue === 'coinbase_event' ? 'coinbase' : 'kraken';
+      // Spot/event token trades bypass futures margin check; only futures need margin gate
+      const tradeType = opp.venue === 'coinbase_futures' ? 'futures' : 'spot';
+      const marginCheck = liquidationGuardian.shouldAllowNewTrade(guardianVenue, { tradeType });
       if (!marginCheck.allowed) {
         console.error(`[pred-market] Guardian blocked ${opp.venue} trade: ${marginCheck.reason}`);
         actions.push({ status: 'guardian_blocked', venue: opp.venue, reason: marginCheck.reason, marginPct: marginCheck.marginPct });
@@ -641,6 +840,8 @@ async function main() {
     try {
       if (opp.venue === 'coinbase_futures') {
         action = await executeCoinbaseFuturesOrder(opp);
+      } else if (opp.venue === 'coinbase_event') {
+        action = await executeCoinbaseEventOrder(opp);
       } else if (opp.venue === 'kraken_event') {
         action = await executeKrakenEventOrder(opp);
       }
@@ -733,6 +934,7 @@ async function main() {
     opportunities: {
       total: allOpps.length,
       coinbaseFutures: cbFuturesOpps.length,
+      coinbaseEvents: cbEventOpps.length,
       krakenEvents: krakenEventOpps.length,
       basisTrades: allOpps.filter(o => o.type === 'basis_trade').length,
       perpDirectional: allOpps.filter(o => o.type === 'perp_directional').length,

@@ -226,6 +226,36 @@ function phaseAssetList() {
   // Fallback to configured scan assets
   const assets = String(process.env.EDGE_SCAN_ASSETS || 'BTC,ETH,SOL,DOGE,AVAX,LINK,XRP,ARB,OP')
     .split(',').map(a => a.trim().toUpperCase()).filter(Boolean);
+
+  // ═══ PERFORMANCE-BASED ASSET FILTER ═══
+  // Auto-exclude assets with < 25% win rate over 5+ trades
+  if (tradeJournal) {
+    try {
+      const j = JSON.parse(fs.readFileSync(tradeJournal.JOURNAL_FILE, 'utf8'));
+      const closed = (j.trades || []).filter(t => t.outcome);
+      const byAsset = {};
+      for (const t of closed) {
+        const a = (t.asset || '').toUpperCase();
+        if (!byAsset[a]) byAsset[a] = { w: 0, l: 0 };
+        if (t.outcome === 'win') byAsset[a].w++; else byAsset[a].l++;
+      }
+      const filtered = assets.filter(a => {
+        const stats = byAsset[a];
+        if (!stats || (stats.w + stats.l) < 5) return true; // keep under-sampled
+        const wr = stats.w / (stats.w + stats.l);
+        if (wr < 0.25) {
+          log('info', `  Excluding ${a}: ${(wr * 100).toFixed(0)}% win rate over ${stats.w + stats.l} trades`);
+          return false;
+        }
+        return true;
+      });
+      if (filtered.length >= 3) {
+        log('info', `Using filtered asset list: ${filtered.join(', ')} (${filtered.length}/${assets.length} assets)`);
+        return filtered;
+      }
+    } catch {}
+  }
+
   log('info', `Using default asset list: ${assets.join(', ')} (${assets.length} assets)`);
   return assets;
 }
