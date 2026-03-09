@@ -46,8 +46,8 @@ const K_BASE = (process.env.KRAKEN_BASE_URL || 'https://api.kraken.com').replace
 
 // Minimum basis (annualized %) to trigger a futures basis trade
 const MIN_BASIS_ANNUAL_PCT = Math.max(1, Number(process.env.PRED_MARKET_MIN_BASIS_PCT || 5));
-// Minimum edge for event token trades
-const MIN_EVENT_EDGE = Math.max(0.01, Number(process.env.PRED_MARKET_MIN_EVENT_EDGE || 0.05));
+// Minimum edge for event token trades (meme tokens typically yield 0.005-0.015)
+const MIN_EVENT_EDGE = Math.max(0.005, Number(process.env.PRED_MARKET_MIN_EVENT_EDGE || 0.01));
 
 let edgeDetector, tradeJournal, signalBus, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
@@ -389,7 +389,9 @@ async function scanKrakenEventTokens(polymarketIntel) {
         const momentum = price > 0 ? (price - low24h) / (high24h - low24h || 1) : 0.5;
         if (momentum > 0.65) { side = 'buy'; confidence = 0.5 + momentum * 0.2; }
         else if (momentum < 0.35) { side = 'sell'; confidence = 0.5 + (1 - momentum) * 0.2; }
+        // Edge = directional strength * volatility, with range as floor for volatile tokens
         edge = Math.abs(momentum - 0.5) * range24h;
+        if (range24h > 0.03 && side !== 'neutral') edge = Math.max(edge, range24h * 0.15);
       }
 
       // Boost confidence if Polymarket confirms direction
@@ -519,7 +521,9 @@ async function scanCoinbaseEventTokens(polymarketIntel) {
         const momentum = price > 0 && high24h !== low24h ? (price - low24h) / (high24h - low24h) : 0.5;
         if (momentum > 0.65) { side = 'buy'; confidence = 0.5 + momentum * 0.2; }
         else if (momentum < 0.35) { side = 'sell'; confidence = 0.5 + (1 - momentum) * 0.2; }
+        // Edge = directional strength * volatility, with range as floor for volatile tokens
         edge = Math.abs(momentum - 0.5) * range24h;
+        if (range24h > 0.03 && side !== 'neutral') edge = Math.max(edge, range24h * 0.15);
       }
 
       // Boost confidence if Polymarket confirms direction
