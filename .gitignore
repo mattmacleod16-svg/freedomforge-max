@@ -46,5 +46,9 @@ data/
 logs/
 
 # iOS local workspace noise (while iOS wrapper is paused)
+ios/
 ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+
+# monitoring stack (docker-compose, grafana, prometheus)
+monitoring/
