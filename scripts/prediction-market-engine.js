@@ -44,6 +44,8 @@ const K_API_KEY = (process.env.KRAKEN_API_KEY || '').trim();
 const K_API_SECRET = (process.env.KRAKEN_API_SECRET || '').trim();
 const K_BASE = (process.env.KRAKEN_BASE_URL || 'https://api.kraken.com').replace(/\/$/, '');
 
+// Coinbase futures toggle (disable when margin is high or performance is poor)
+const CB_FUTURES_ENABLED = String(process.env.PRED_MARKET_FUTURES_ENABLED || 'true').toLowerCase() === 'true';
 // Minimum basis (annualized %) to trigger a futures basis trade
 const MIN_BASIS_ANNUAL_PCT = Math.max(1, Number(process.env.PRED_MARKET_MIN_BASIS_PCT || 5));
 // Minimum edge for event token trades (meme tokens typically yield 0.005-0.015)
@@ -761,7 +763,7 @@ async function main() {
 
   // ─── Phase 2: Scan all venues for opportunities ───
   const [cbFuturesOpps, krakenEventOpps, cbEventOpps] = await Promise.all([
-    CB_API_KEY && CB_API_SECRET ? scanCoinbaseFutures() : [],
+    CB_API_KEY && CB_API_SECRET && CB_FUTURES_ENABLED ? scanCoinbaseFutures() : [],
     K_API_KEY && K_API_SECRET ? scanKrakenEventTokens(polyIntel) : [],
     CB_API_KEY && CB_API_SECRET ? scanCoinbaseEventTokens(polyIntel) : [],
   ]);

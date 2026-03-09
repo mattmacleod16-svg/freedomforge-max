@@ -22,9 +22,7 @@ function main() {
     const isZombie =
       !t.entryPrice ||
       !Number.isFinite(t.ts) ||
-      !t.ts ||
-      t.venue === 'coinbase_futures' ||
-      t.venue === 'kraken_event';
+      !t.ts;
 
     if (isZombie) {
       t.closedAt = now;
