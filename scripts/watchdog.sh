@@ -83,6 +83,13 @@ fi
 
 # ─── 7. Write status ──────────────────────────────────────────────────────────
 ALERTS="${ALERTS%,}"  # trim trailing comma
+
+# ─── Data rotation guard (rotate files >50MB) ─────────────────────────────────
+ROTATE_SCRIPT="$REPO_DIR/scripts/data-rotate.sh"
+if [[ -x "$ROTATE_SCRIPT" ]]; then
+  bash "$ROTATE_SCRIPT" 2>/dev/null
+fi
+
 cat > "$ALERT_FILE" << ENDSTATUS
 {
   "lastCheck": "$(date -u +%FT%TZ)",
