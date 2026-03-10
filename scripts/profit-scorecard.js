@@ -1,10 +1,24 @@
 #!/usr/bin/env node
+/**
+ * FreedomForge Profit Scorecard + Ironclad Owner Payout Protocol
+ *
+ * Mission Hardening:
+ *   - Enforces 15% minimum payout (can never decrease)
+ *   - Tracks payout state in data/payout-state.json
+ *   - Escalation: +1% every 90 consecutive profit days
+ *   - Updates payout history for dashboard transparency
+ *   - Owner wallet: 0xEbf5Fc610Bd7BC27Fc1E26596DD1da186C1436b9 (Base/USDC)
+ */
 
+const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
+
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const PAYOUT_STATE_FILE = path.join(DATA_DIR, 'payout-state.json');
 
 const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL || '';
@@ -16,6 +30,62 @@ const MIN_SUCCESS_RATE = Number(process.env.SCORECARD_MIN_SUCCESS_RATE || '0.85'
 const MIN_NET_ETH = Number(process.env.SCORECARD_MIN_NET_ETH || '0.001');
 const HARD_FAIL_TOPUP_ERRORS = Math.max(0, parseInt(process.env.SCORECARD_HARD_FAIL_TOPUP_ERRORS || '2', 10));
 const NO_PAYOUT_MAX_SKIPS = Math.max(10, parseInt(process.env.SCORECARD_NO_PAYOUT_MAX_SKIPS || '120', 10));
+
+// ─── Payout State Management (Ironclad Protocol) ─────────────────────────────
+function readPayoutState() {
+  try {
+    return JSON.parse(fs.readFileSync(PAYOUT_STATE_FILE, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function writePayoutState(state) {
+  state.updatedAt = new Date().toISOString();
+  fs.writeFileSync(PAYOUT_STATE_FILE, JSON.stringify(state, null, 2));
+}
+
+function enforcePayoutFloor(state) {
+  // Ironclad: payout can NEVER go below 15%
+  const FLOOR = 15;
+  if (!state) return;
+  if ((state.payoutPct || 0) < FLOOR) {
+    state.payoutPct = FLOOR;
+    console.log(`[IRONCLAD] Payout restored to ${FLOOR}% floor`);
+  }
+  state.payoutPctFloor = FLOOR;
+}
+
+function checkEscalation(state) {
+  if (!state || !state.escalationEnabled) return;
+  const streakDays = state.consecutiveProfitDays || 0;
+  const threshold = state.escalationRules?.profitStreakDaysForEscalation || 90;
+  const increment = state.escalationRules?.escalationIncrementPct || 1;
+  const newEscalation = Math.floor(streakDays / threshold) * increment;
+  if (newEscalation > (state.currentEscalationPct || 0)) {
+    state.currentEscalationPct = newEscalation;
+    state.payoutPct = Math.max(state.payoutPctFloor || 15, 15) + newEscalation;
+    console.log(`[IRONCLAD] Payout escalated to ${state.payoutPct}% (+${newEscalation}% from ${streakDays}-day streak)`);
+  }
+}
+
+function recordPayoutRun(state, decision, metrics) {
+  if (!state) return;
+  enforcePayoutFloor(state);
+  checkEscalation(state);
+  // Append to history (keep last 100)
+  if (!state.payoutHistory) state.payoutHistory = [];
+  state.payoutHistory.push({
+    ts: new Date().toISOString(),
+    decision: decision.decision,
+    score: decision.score,
+    netEth: decision.netEth,
+    successRate: decision.successRate,
+    payoutPct: state.payoutPct,
+  });
+  if (state.payoutHistory.length > 100) state.payoutHistory = state.payoutHistory.slice(-100);
+  writePayoutState(state);
+}
 
 function parseBigIntSafe(value) {
   try {
@@ -158,6 +228,13 @@ async function main() {
   const metrics = aggregate(logs);
   const summary = decide(metrics);
   const message = buildMessage(wallet, metrics, summary);
+
+  // ─── Ironclad Protocol: Track payout state ────────────────────────
+  const payoutState = readPayoutState();
+  if (payoutState) {
+    recordPayoutRun(payoutState, summary, metrics);
+    console.log(`[IRON] Payout state updated: ${payoutState.payoutPct}% | Wallet: ${payoutState.wallet?.slice(0,10)}...`);
+  }
 
   await sendAlert(message);
   console.log(message);

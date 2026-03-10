@@ -18,7 +18,7 @@ const CIRCUIT_FAIL_SPIKE = Math.max(1, Number(process.env.CASHFLOW_CIRCUIT_FAIL_
 const CIRCUIT_NOGAS_SPIKE = Math.max(1, Number(process.env.CASHFLOW_CIRCUIT_NOGAS_SPIKE || 3));
 const CIRCUIT_MIN_SUCCESS_RATE = clamp(Number(process.env.CASHFLOW_CIRCUIT_MIN_SUCCESS_RATE || 0.7), 0.1, 0.99);
 const CIRCUIT_MIN_ATTEMPTS = Math.max(1, Number(process.env.CASHFLOW_CIRCUIT_MIN_ATTEMPTS || 4));
-const CIRCUIT_REINVEST_BPS = Math.round(clamp(Number(process.env.CASHFLOW_CIRCUIT_REINVEST_BPS || 7000), 2000, 9500));
+const CIRCUIT_REINVEST_BPS = Math.round(clamp(Number(process.env.CASHFLOW_CIRCUIT_REINVEST_BPS || 7000), 2000, 8500));
 
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
 const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || '';
@@ -269,7 +269,8 @@ function decideTuning(networkSuffix, stats) {
 
   minPayoutEth = roundEth(clamp(minPayoutEth, floors[networkSuffix], ceilings[networkSuffix]));
   gasMultiplier = clamp(gasMultiplier, 1, 10);
-  reinvestBps = clamp(reinvestBps, 1200, 9000);
+  // ═══ IRONCLAD FLOOR: Owner gets ≥15% of net revenue. Max reinvest = 85% (8500 BPS) ═══
+  reinvestBps = clamp(reinvestBps, 1200, 8500);
   gasReserveEth = roundEth(clamp(gasReserveEth, baseReserve * 0.7, baseReserve * 3.0));
   gasTopupThresholdEth = roundEth(clamp(gasTopupThresholdEth, baseTopupThreshold * 0.7, baseTopupThreshold * 3.0));
   gasTopupAmountEth = roundEth(clamp(gasTopupAmountEth, baseTopupAmount * 0.7, baseTopupAmount * 3.0));

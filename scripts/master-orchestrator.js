@@ -132,6 +132,18 @@ async function phaseHealthCheck() {
       if (guardianResult.actions?.length > 0) {
         log('warn', `Guardian took ${guardianResult.actions.length} emergency actions this cycle`);
       }
+
+      // ═══ KEEP TREASURY CURRENT CAPITAL LIVE ═══
+      // Update treasury ledger with live exchange balance every cycle
+      // so dashboard metrics never go stale
+      if (treasuryLedger) {
+        const cbTotal = guardianResult.coinbase?.totalBalance || 0;
+        const krTotal = guardianResult.kraken?.equity || 0;
+        const liveCapital = cbTotal + krTotal;
+        if (liveCapital > 0) {
+          treasuryLedger.updateCapital(liveCapital);
+        }
+      }
     } catch (e) {
       log('error', `Guardian check failed: ${e.message}`);
     }

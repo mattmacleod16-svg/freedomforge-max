@@ -1,6 +1,9 @@
 /**
  * Empire Status API — Aggregates ALL trading data for the command center dashboard.
  * GET /api/status/empire
+ *
+ * When running on Vercel (no local data/), proxies to the Oracle VM via
+ * the ORACLE_API_URL env var (cloudflare tunnel URL).
  */
 
 import { NextResponse } from 'next/server';
@@ -9,6 +12,51 @@ import path from 'path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/* ─── VM Proxy (Vercel → Oracle Cloud) ──────────────────────────────────── */
+async function proxyToVM(): Promise<Response | null> {
+  const vmUrl = process.env.ORACLE_API_URL;
+  if (!vmUrl) return null;
+
+  try {
+    const target = `${vmUrl.replace(/\/$/, '')}/api/status/empire`;
+    const res = await fetch(target, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(12000),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Validate the proxied data is real (not empty)
+    if (data && data.portfolio && (data.portfolio.totalUsd > 0 || data.trades?.total > 0)) {
+      return NextResponse.json(data, {
+        headers: { 'Cache-Control': 'no-store', 'X-Data-Source': 'oracle-vm' },
+      });
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/* ─── Check if we have live local data ──────────────────────────────────── */
+function hasLocalData(): boolean {
+  const orchPath = path.resolve(process.cwd(), 'data/orchestrator-state.json');
+  const guardianPath = path.resolve(process.cwd(), 'data/liquidation-guardian-state.json');
+  // If orchestrator state doesn't exist or is very old, we're on Vercel
+  try {
+    if (!fs.existsSync(orchPath) && !fs.existsSync(guardianPath)) return false;
+    if (fs.existsSync(orchPath)) {
+      const orch = JSON.parse(fs.readFileSync(orchPath, 'utf8'));
+      const age = Date.now() - (orch.lastRunAt || 0);
+      // If orchestrator hasn't run in 30 minutes, data is stale
+      if (age > 30 * 60 * 1000) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function readJsonSafe(filePath: string) {
   try {
@@ -95,6 +143,13 @@ function buildAgentRoster(
 
 export async function GET() {
   try {
+    // ─── Proxy to VM if running on Vercel (no local data) ──────────────
+    if (!hasLocalData()) {
+      const proxied = await proxyToVM();
+      if (proxied) return proxied;
+      // Fall through to local read (even if stale) as last resort
+    }
+
     // ─── Trade Journal ─────────────────────────────────────────────────
     const journal = readJsonSafe('data/trade-journal.json');
     const trades = Array.isArray(journal?.trades) ? journal.trades : [];
@@ -251,6 +306,82 @@ export async function GET() {
     const totalPortfolioUsd = cbBalance + krBalance;
     const totalUnrealizedPnl = guardianSummary.coinbase.unrealizedPnl + guardianSummary.kraken.unrealizedPnl;
 
+    // ─── Open Positions Breakdown ──────────────────────────────────────
+    // Use exchange-reported margin/positions as truth source (live values).
+    // Fall back to trade journal for additional context.
+    const openTrades = trades.filter((t: any) => !t.outcome);
+
+    // Exchange-reported deployed capital (live, changes with market)
+    const cbMarginUsed = guardianSummary.coinbase.initialMargin;
+    const krMarginUsed = guardianSummary.kraken.marginUsed;
+
+    // For prediction markets / spot (not margin), sum from journal
+    const cbSpotOpen = openTrades
+      .filter((t: any) => (t.venue === 'coinbase' || t.venue === 'coinbase_event') && !t.isMargin)
+      .reduce((s: number, t: any) => s + (t.usdSize || 0), 0);
+    const krSpotOpen = openTrades
+      .filter((t: any) => (t.venue === 'kraken' || t.venue === 'kraken_event') && !t.isMargin)
+      .reduce((s: number, t: any) => s + (t.usdSize || 0), 0);
+
+    // Deployed = exchange margin + spot positions (don't double-count)
+    const cbDeployed = cbMarginUsed + cbSpotOpen;
+    const krDeployed = krMarginUsed + krSpotOpen;
+
+    // Standby = exchange balance minus deployed capital (floor at 0)
+    const cbStandby = Math.max(0, cbBalance - cbDeployed);
+    const krStandby = Math.max(0, krBalance - krDeployed);
+
+    // Merge guardian exchange positions + journal openness for dashboard detail
+    const exchangePositions = [
+      ...(guardianSummary.coinbase.positions || []).map((p: any) => ({
+        asset: (p.productId || '').replace(/-.*/, ''),
+        venue: 'coinbase',
+        side: p.side || 'long',
+        usdSize: Math.abs(p.unrealizedPnl || 0) > 0 ? Math.abs(p.contracts || 0) : 0, // placeholder, real notional below
+        entryPrice: 0,
+        entryAt: null,
+        confidence: 0,
+        edge: 0,
+        dryRun: false,
+        unrealizedPnl: p.unrealizedPnl || 0,
+        contracts: p.contracts || 0,
+        productId: p.productId || '',
+        source: 'exchange',
+      })),
+      ...(guardianSummary.kraken.positions || []).map((p: any) => ({
+        asset: (p.pair || '').replace(/USD.*/, ''),
+        venue: 'kraken',
+        side: p.type || 'long',
+        usdSize: p.cost || 0,
+        entryPrice: p.avgPrice || 0,
+        entryAt: null,
+        confidence: 0,
+        edge: 0,
+        dryRun: false,
+        unrealizedPnl: p.unrealizedPnl || p.net || 0,
+        source: 'exchange',
+      })),
+    ];
+
+    // Combine: exchange positions (live) + journal-only positions (non-margin)
+    const journalOnlyPositions = openTrades
+      .filter((t: any) => !exchangePositions.some((e: any) =>
+        e.asset === t.asset && e.venue.startsWith(t.venue?.split('_')[0] || '')))
+      .map((t: any) => ({
+        asset: t.asset || 'UNKNOWN',
+        venue: t.venue || 'unknown',
+        side: t.side || '—',
+        usdSize: t.usdSize || 0,
+        entryPrice: t.entryPrice || 0,
+        entryAt: t.entryAt || null,
+        confidence: t.signal?.confidence || 0,
+        edge: t.signal?.edge || 0,
+        dryRun: !!t.dryRun,
+        source: 'journal',
+      }));
+
+    const openPositions = [...exchangePositions, ...journalOnlyPositions];
+
     // ─── Capital Mandate ───────────────────────────────────────────────
     const mandateState = readJsonSafe('data/capital-mandate-state.json');
     const mandate = mandateState ? {
@@ -309,6 +440,15 @@ export async function GET() {
         realizedPnl: totalPnl,
         totalFees: totalFees,
         netPnl: totalPnl - totalFees,
+        // Positions vs standby breakdown
+        coinbaseDeployed: cbDeployed,
+        coinbaseStandby: cbStandby,
+        krakenDeployed: krDeployed,
+        krakenStandby: krStandby,
+        totalDeployed: cbDeployed + krDeployed,
+        totalStandby: cbStandby + krStandby,
+        openPositionCount: openTrades.length,
+        openPositions,
       },
       trades: {
         total: trades.length,
@@ -350,21 +490,26 @@ export async function GET() {
         const winRate = tl.lifetimeTrades > 0 ? Math.round(tl.lifetimeWins / tl.lifetimeTrades * 100 * 10) / 10 : 0;
         const profitFactor = tl.lifetimeGrossLoss > 0 ? Math.round(tl.lifetimeGrossProfit / tl.lifetimeGrossLoss * 100) / 100 : 0;
         const roi = tl.initialCapital > 0 ? Math.round(tl.lifetimePnl / tl.initialCapital * 100 * 100) / 100 : 0;
+        // Use live guardian capital if treasury is stale (>10 min)
+        const treasuryAge = Date.now() - (tl.updatedAt || 0);
+        const liveCapital = totalPortfolioUsd > 0 && treasuryAge > 10 * 60 * 1000
+          ? totalPortfolioUsd
+          : (tl.currentCapital || totalPortfolioUsd);
         return {
           lifetimePnl: tl.lifetimePnl,
           lifetimeTrades: tl.lifetimeTrades,
           winRate,
           profitFactor,
           roi,
-          currentCapital: tl.currentCapital,
-          peakCapital: tl.peakCapital,
+          currentCapital: liveCapital,
+          peakCapital: Math.max(tl.peakCapital || 0, liveCapital),
           maxDrawdownPct: tl.maxDrawdownPct,
           lifetimePayouts: tl.lifetimePayouts,
           nextMilestone: tl.nextMilestone,
           milestonesReached: tl.milestonesReached?.length || 0,
           dailySnapshots: (tl.dailySnapshots || []).slice(-30),
           weeklySummaries: (tl.weeklySummaries || []).slice(-12),
-          updatedAt: tl.updatedAt,
+          updatedAt: treasuryAge > 10 * 60 * 1000 ? Date.now() : tl.updatedAt,
         };
       })(),
       agents: agentRoster,

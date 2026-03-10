@@ -29,6 +29,24 @@ interface EmpireData {
     realizedPnl: number;
     totalFees: number;
     netPnl: number;
+    coinbaseDeployed: number;
+    coinbaseStandby: number;
+    krakenDeployed: number;
+    krakenStandby: number;
+    totalDeployed: number;
+    totalStandby: number;
+    openPositionCount: number;
+    openPositions: Array<{
+      asset: string;
+      venue: string;
+      side: string;
+      usdSize: number;
+      entryPrice: number;
+      entryAt: string | null;
+      confidence: number;
+      edge: number;
+      dryRun: boolean;
+    }>;
   };
   trades: {
     total: number;
@@ -681,7 +699,7 @@ export default function CommandCenter() {
                     </span>
                   </div>
                   <div className="text-[10px] font-mono text-slate-500 mt-1">
-                    SEED: {fmt$(data.mandate.initialCapital)} → NOW: {fmt$(data.portfolio.totalUsd)} | HWM: {fmt$(data.mandate.highWaterMark)} | DAY {data.mandate.totalDaysActive}
+                    SEED: {fmt$(data.mandate.initialCapital)} → NOW: {fmt$(data.portfolio.totalUsd)} ({fmt$(data.portfolio.totalDeployed)} deployed + {fmt$(data.portfolio.totalStandby)} standby) | HWM: {fmt$(data.mandate.highWaterMark)} | DAY {data.mandate.totalDaysActive}
                   </div>
                 </div>
               </div>
@@ -699,7 +717,7 @@ export default function CommandCenter() {
         {/* ─── Top KPI Row ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatCard icon="◈" label="Net Worth" color="neon-text-cyan" value={fmt$(data.portfolio.totalUsd)}
-            sub={`CB:${fmt$(data.portfolio.coinbaseUsd)} · KR:${fmt$(data.portfolio.krakenUsd)}`}
+            sub={`Deployed:${fmt$(data.portfolio.totalDeployed)} · Standby:${fmt$(data.portfolio.totalStandby)}`}
             trend={data.portfolio.netPnl > 0 ? 'up' : data.portfolio.netPnl < 0 ? 'down' : 'neutral'} />
           <StatCard icon="◉" label="Net P&L" value={fmt$(data.portfolio.netPnl)}
             color={data.portfolio.netPnl >= 0 ? 'neon-text-green' : 'neon-text-red'}
@@ -708,7 +726,7 @@ export default function CommandCenter() {
           <StatCard icon="◎" label="Win Rate" color="neon-text-purple" value={fmtPct(data.trades.winRate * 100)}
             sub={`${data.trades.wins}W / ${data.trades.losses}L`} />
           <StatCard icon="◆" label="Total Ops" color="text-cyan-300" value={String(data.trades.total)}
-            sub={`Live:${data.trades.liveCount} · Sim:${data.trades.dryRunCount}`} />
+            sub={`Live:${data.trades.liveCount} · Open:${data.portfolio.openPositionCount}`} />
           <StatCard icon="⬡" label="Volume" color="neon-text-gold" value={fmtCompact(data.trades.totalVolume)}
             sub={`Avg: ${fmtCompact(data.trades.totalVolume / Math.max(1, data.trades.total))}/op`} />
           <StatCard icon="◇" label="Signals" color="text-purple-400" value={String(data.signalBus.totalActive)}
@@ -746,6 +764,152 @@ export default function CommandCenter() {
                 <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">◉ Daily Volume Distribution</h3>
                 <div className="h-56"><Bar data={volumeChartData} options={chartDefaults as any} /></div>
               </div>
+            </div>
+
+            {/* ─── Portfolio Allocation: Positions vs Standby ──────────── */}
+            <div className="holo-card rounded-2xl p-5 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400/50">⬢ Capital Allocation · Positions vs Standby</h3>
+                <span className="text-[9px] font-mono text-slate-600">{data.portfolio.openPositionCount} OPEN POSITIONS</span>
+              </div>
+
+              {/* Exchange Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                {/* Coinbase */}
+                <div className="rounded-xl p-4 border border-teal-500/10 bg-teal-500/[0.02]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-teal-400/70">◈ Coinbase</span>
+                    <span className="text-sm font-mono font-bold neon-text-cyan">{fmt$(data.portfolio.coinbaseUsd)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span className="text-slate-500">In Positions</span>
+                      <span className="text-amber-300 font-bold">{fmt$(data.portfolio.coinbaseDeployed)}</span>
+                    </div>
+                    <div className="h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
+                      <div className="h-full rounded-full transition-all duration-1000 flex">
+                        <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400"
+                          style={{
+                            width: `${data.portfolio.coinbaseUsd > 0 ? (data.portfolio.coinbaseDeployed / data.portfolio.coinbaseUsd) * 100 : 0}%`,
+                            boxShadow: '0 0 6px rgba(251,191,36,0.25)',
+                          }} />
+                        <div className="h-full bg-gradient-to-r from-teal-500 to-teal-400 flex-1"
+                          style={{ boxShadow: '0 0 6px rgba(45,212,191,0.15)' }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span className="text-slate-500">On Standby</span>
+                      <span className="text-teal-300 font-bold">{fmt$(data.portfolio.coinbaseStandby)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kraken */}
+                <div className="rounded-xl p-4 border border-purple-500/10 bg-purple-500/[0.02]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-purple-400/70">◉ Kraken</span>
+                    <span className="text-sm font-mono font-bold text-purple-300">{fmt$(data.portfolio.krakenUsd)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span className="text-slate-500">In Positions</span>
+                      <span className="text-amber-300 font-bold">{fmt$(data.portfolio.krakenDeployed)}</span>
+                    </div>
+                    <div className="h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
+                      <div className="h-full rounded-full transition-all duration-1000 flex">
+                        <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400"
+                          style={{
+                            width: `${data.portfolio.krakenUsd > 0 ? (data.portfolio.krakenDeployed / data.portfolio.krakenUsd) * 100 : 0}%`,
+                            boxShadow: '0 0 6px rgba(251,191,36,0.25)',
+                          }} />
+                        <div className="h-full bg-gradient-to-r from-purple-500 to-purple-400 flex-1"
+                          style={{ boxShadow: '0 0 6px rgba(168,85,247,0.15)' }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span className="text-slate-500">On Standby</span>
+                      <span className="text-purple-300 font-bold">{fmt$(data.portfolio.krakenStandby)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Totals Summary Bar */}
+              <div className="rounded-xl p-3 border border-slate-700/20 bg-slate-800/20">
+                <div className="flex items-center justify-between text-[10px] font-mono mb-2">
+                  <span className="text-slate-500 uppercase tracking-wider">Total Capital</span>
+                  <span className="text-lg font-bold neon-text-cyan">{fmt$(data.portfolio.totalUsd)}</span>
+                </div>
+                <div className="h-3 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
+                  <div className="h-full rounded-full flex transition-all duration-1000">
+                    <div className="h-full bg-gradient-to-r from-amber-500 to-orange-400 rounded-l-full"
+                      style={{
+                        width: `${data.portfolio.totalUsd > 0 ? (data.portfolio.totalDeployed / data.portfolio.totalUsd) * 100 : 0}%`,
+                        boxShadow: '0 0 8px rgba(251,191,36,0.3)',
+                      }} />
+                    <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-r-full flex-1"
+                      style={{ boxShadow: '0 0 8px rgba(45,212,191,0.2)' }} />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-2 text-[9px] font-mono">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm bg-amber-500/60" />
+                    <span className="text-amber-300">Deployed: {fmt$(data.portfolio.totalDeployed)}</span>
+                    <span className="text-slate-600">({data.portfolio.totalUsd > 0 ? fmtPct((data.portfolio.totalDeployed / data.portfolio.totalUsd) * 100) : '0%'})</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm bg-teal-500/60" />
+                    <span className="text-teal-300">Standby: {fmt$(data.portfolio.totalStandby)}</span>
+                    <span className="text-slate-600">({data.portfolio.totalUsd > 0 ? fmtPct((data.portfolio.totalStandby / data.portfolio.totalUsd) * 100) : '0%'})</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Open Positions Table */}
+              {data.portfolio.openPositions.length > 0 && (
+                <div className="mt-5">
+                  <div className="text-[9px] font-mono text-amber-500/40 uppercase tracking-[0.15em] mb-3">Active Positions</div>
+                  <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                    <table className="w-full text-[10px] font-mono">
+                      <thead>
+                        <tr className="text-slate-600 uppercase tracking-wider">
+                          <th className="text-left pb-2">Asset</th>
+                          <th className="text-left pb-2">Venue</th>
+                          <th className="text-center pb-2">Side</th>
+                          <th className="text-right pb-2">Size</th>
+                          <th className="text-right pb-2">Entry</th>
+                          <th className="text-right pb-2">Conf</th>
+                          <th className="text-center pb-2">Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.portfolio.openPositions.sort((a, b) => b.usdSize - a.usdSize).map((p, i) => (
+                          <tr key={i} className="border-b border-white/[0.02] hover:bg-amber-500/[0.03] transition-colors">
+                            <td className="py-1.5 text-teal-300 font-semibold">{p.asset}</td>
+                            <td className="py-1.5 text-slate-500">{p.venue}</td>
+                            <td className="py-1.5 text-center">
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${
+                                p.side === 'buy' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'
+                              }`}>{p.side?.toUpperCase()}</span>
+                            </td>
+                            <td className="py-1.5 text-right text-amber-300">{fmt$(p.usdSize)}</td>
+                            <td className="py-1.5 text-right text-slate-400">{p.entryPrice ? `$${p.entryPrice.toLocaleString()}` : '—'}</td>
+                            <td className="py-1.5 text-right text-purple-400">{(p.confidence * 100).toFixed(0)}%</td>
+                            <td className="py-1.5 text-center">
+                              {p.dryRun ? (
+                                <span className="px-1.5 py-0.5 rounded text-[7px] bg-slate-500/10 text-slate-500 border border-slate-500/15">SIM</span>
+                              ) : (
+                                <span className="px-1.5 py-0.5 rounded text-[7px] bg-teal-500/10 text-teal-400 border border-teal-500/15 animate-pulse">LIVE</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -959,6 +1123,8 @@ export default function CommandCenter() {
                     <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-teal-500/5">
                       <div className="text-[10px] font-mono"><span className="text-slate-600">BALANCE:</span> <span className="text-teal-300">{fmt$(data.guardian.coinbase.totalBalance)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">MARGIN:</span> <span className="text-teal-300">{fmt$(data.guardian.coinbase.initialMargin)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">DEPLOYED:</span> <span className="text-amber-300">{fmt$(data.portfolio.coinbaseDeployed)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">STANDBY:</span> <span className="text-teal-300">{fmt$(data.portfolio.coinbaseStandby)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">UNREAL:</span> <span className={data.guardian.coinbase.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(data.guardian.coinbase.unrealizedPnl)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">POSITIONS:</span> <span className="text-teal-300">{data.guardian.coinbase.positions.length}</span></div>
                     </div>
@@ -993,6 +1159,8 @@ export default function CommandCenter() {
                     <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-purple-500/5">
                       <div className="text-[10px] font-mono"><span className="text-slate-600">EQUITY:</span> <span className="text-purple-300">{fmt$(data.guardian.kraken.equity)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">MARGIN:</span> <span className="text-purple-300">{fmt$(data.guardian.kraken.marginUsed)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">DEPLOYED:</span> <span className="text-amber-300">{fmt$(data.portfolio.krakenDeployed)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">STANDBY:</span> <span className="text-purple-300">{fmt$(data.portfolio.krakenStandby)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">UNREAL:</span> <span className={data.guardian.kraken.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(data.guardian.kraken.unrealizedPnl)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">POSITIONS:</span> <span className="text-purple-300">{data.guardian.kraken.positions.length}</span></div>
                     </div>

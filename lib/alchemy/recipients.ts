@@ -1,11 +1,14 @@
 /**
- * Recipient management for revenue wallet
- * Reads a list of authorized withdrawal addresses from environment
+ * Recipient management for revenue wallet — IRONCLAD OWNER SOVEREIGNTY
+ *
+ * The owner wallet is the SINGLE authorized payout destination.
+ * Enforced via ENFORCE_SINGLE_PAYOUT_RECIPIENT (default: true).
+ * Owner wallet (Base/USDC): 0xEbf5Fc610Bd7BC27Fc1E26596DD1da186C1436b9
  */
 
 import { isAddress, getAddress } from 'ethers';
 
-const DEFAULT_SINGLE_PAYOUT_RECIPIENT = '0x507d286480dDf20A18D2a218C84A81227A92F619';
+const DEFAULT_SINGLE_PAYOUT_RECIPIENT = '0xEbf5Fc610Bd7BC27Fc1E26596DD1da186C1436b9';
 
 export function getAuthorizedRecipients(): string[] {
   const enforceSingleRecipient = String(process.env.ENFORCE_SINGLE_PAYOUT_RECIPIENT || 'true').toLowerCase() !== 'false';
