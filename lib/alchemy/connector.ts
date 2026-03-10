@@ -428,6 +428,23 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     return {};
   }
 
+  // ─── Owner Weekly Payout Gate (Fridays only, UTC) ───────────────────────
+  // Payouts to the owner wallet are restricted to Fridays. Revenue continues
+  // to accumulate during the week and is distributed in a single weekly batch.
+  // Set PAYOUT_DAY_OF_WEEK to override (0=Sun..6=Sat). Default: 5 (Friday).
+  const payoutDayOfWeek = parseInt(process.env.PAYOUT_DAY_OF_WEEK || '5', 10);
+  const todayUTC = new Date().getUTCDay();
+  if (Number.isFinite(payoutDayOfWeek) && payoutDayOfWeek >= 0 && payoutDayOfWeek <= 6 && todayUTC !== payoutDayOfWeek) {
+    await logEvent('distribution_skipped_not_payout_day', {
+      wallet: w.address,
+      botId,
+      todayUTC,
+      requiredDay: payoutDayOfWeek,
+      requiredDayName: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][payoutDayOfWeek],
+    });
+    return {};
+  }
+
   const telemetryEventsRaw = await readLast(1200);
   const telemetryEvents = Array.isArray(telemetryEventsRaw) ? telemetryEventsRaw : [];
   const walletLower = w.address.toLowerCase();
