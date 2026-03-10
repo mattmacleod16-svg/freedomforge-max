@@ -82,6 +82,7 @@ function buildAgentRoster(
         { name: 'Continuous Learner', status: 'active', detail: 'Strategy tuning' },
         { name: 'Monthly Strategist', status: 'active', detail: 'Long-term plan' },
         { name: 'Geopolitical Watch', status: 'active', detail: 'Macro monitor' },
+        { name: 'Treasury Ledger', status: agentStatus(readJsonSafe('data/treasury-ledger.json')?.updatedAt, 30), detail: 'Lifetime P&L tracking' },
       ],
     },
   ];
@@ -343,6 +344,29 @@ export async function GET() {
       venuePerformance: venuePerf,
       strategy,
       mandate,
+      treasury: (() => {
+        const tl = readJsonSafe('data/treasury-ledger.json');
+        if (!tl) return null;
+        const winRate = tl.lifetimeTrades > 0 ? Math.round(tl.lifetimeWins / tl.lifetimeTrades * 100 * 10) / 10 : 0;
+        const profitFactor = tl.lifetimeGrossLoss > 0 ? Math.round(tl.lifetimeGrossProfit / tl.lifetimeGrossLoss * 100) / 100 : 0;
+        const roi = tl.initialCapital > 0 ? Math.round(tl.lifetimePnl / tl.initialCapital * 100 * 100) / 100 : 0;
+        return {
+          lifetimePnl: tl.lifetimePnl,
+          lifetimeTrades: tl.lifetimeTrades,
+          winRate,
+          profitFactor,
+          roi,
+          currentCapital: tl.currentCapital,
+          peakCapital: tl.peakCapital,
+          maxDrawdownPct: tl.maxDrawdownPct,
+          lifetimePayouts: tl.lifetimePayouts,
+          nextMilestone: tl.nextMilestone,
+          milestonesReached: tl.milestonesReached?.length || 0,
+          dailySnapshots: (tl.dailySnapshots || []).slice(-30),
+          weeklySummaries: (tl.weeklySummaries || []).slice(-12),
+          updatedAt: tl.updatedAt,
+        };
+      })(),
       agents: agentRoster,
       tunnelUrl: (() => {
         try {

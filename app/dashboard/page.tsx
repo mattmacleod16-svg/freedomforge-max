@@ -136,6 +136,22 @@ interface EmpireData {
     roiPct: number;
     message: string;
   } | null;
+  treasury: {
+    lifetimePnl: number;
+    lifetimeTrades: number;
+    winRate: number;
+    profitFactor: number;
+    roi: number;
+    currentCapital: number;
+    peakCapital: number;
+    maxDrawdownPct: number;
+    lifetimePayouts: number;
+    nextMilestone: number | null;
+    milestonesReached: number;
+    dailySnapshots: Array<{ date: string; pnl: number; trades: number; wins: number; capital: number; cumulativePnl: number }>;
+    weeklySummaries: Array<{ weekStart: string; pnl: number; trades: number; winRate: number; avgPnl: number; capital: number }>;
+    updatedAt: number;
+  } | null;
   agents: {
     total: number;
     active: number;
@@ -450,7 +466,7 @@ export default function CommandCenter() {
   const [data, setData] = useState<EmpireData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<number>(0);
-  const [tab, setTab] = useState<'overview' | 'trades' | 'risk' | 'intelligence'>('overview');
+  const [tab, setTab] = useState<'overview' | 'trades' | 'risk' | 'intelligence' | 'treasury'>('overview');
   const [pulseHeader, setPulseHeader] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -596,6 +612,7 @@ export default function CommandCenter() {
     { key: 'trades' as const, icon: '◉', label: 'TRADES' },
     { key: 'risk' as const, icon: '◆', label: 'RISK' },
     { key: 'intelligence' as const, icon: '◎', label: 'INTEL' },
+    { key: 'treasury' as const, icon: '◇', label: 'TREASURY' },
   ];
 
   /* ─── Render ────────────────────────────────────────────────────────── */
@@ -1134,6 +1151,127 @@ export default function CommandCenter() {
                   <p className="text-[10px] font-mono text-zinc-600">Scaler not yet initialized</p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── TREASURY TAB ────────────────────────────────────────── */}
+        {tab === 'treasury' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Treasury Header */}
+            <div className="holo-card rounded-2xl p-6 border-amber-500/20">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-8 h-8 rounded-full border border-amber-500/30 flex items-center justify-center">
+                  <div className="w-3 h-3 bg-amber-400 rounded-sm animate-pulse" />
+                </div>
+                <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-amber-400/80">Treasury Ledger · Wealth Empire</h3>
+              </div>
+
+              {data.treasury ? (
+                <div className="space-y-6">
+                  {/* Core Metrics Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Lifetime P&L</div>
+                      <div className={`text-lg font-mono font-bold ${data.treasury.lifetimePnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {data.treasury.lifetimePnl >= 0 ? '+' : ''}{fmt$(data.treasury.lifetimePnl)}
+                      </div>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Win Rate</div>
+                      <div className="text-lg font-mono font-bold text-cyan-400">{data.treasury.winRate}%</div>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Profit Factor</div>
+                      <div className="text-lg font-mono font-bold text-purple-400">{data.treasury.profitFactor}x</div>
+                    </div>
+                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Lifetime Trades</div>
+                      <div className="text-lg font-mono font-bold text-zinc-300">{data.treasury.lifetimeTrades}</div>
+                    </div>
+                  </div>
+
+                  {/* Capital Tracking */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Peak Capital</div>
+                      <div className="text-sm font-mono text-amber-400">{fmt$(data.treasury.peakCapital)}</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Max Drawdown</div>
+                      <div className="text-sm font-mono text-red-400">{data.treasury.maxDrawdownPct}%</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Next Milestone</div>
+                      <div className="text-sm font-mono text-emerald-400">{data.treasury.nextMilestone ? fmt$(data.treasury.nextMilestone) : 'ALL REACHED'}</div>
+                    </div>
+                  </div>
+
+                  {/* Milestones Progress */}
+                  {data.treasury.nextMilestone && (
+                    <div className="p-4 rounded-xl bg-zinc-900/50 border border-amber-500/10">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Milestone Progress</div>
+                      <div className="w-full bg-zinc-800 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-amber-500 to-emerald-400 h-2 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, (data.treasury.currentCapital / data.treasury.nextMilestone) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-[9px] font-mono text-zinc-600">{fmt$(data.treasury.currentCapital)}</span>
+                        <span className="text-[9px] font-mono text-amber-400/60">{fmt$(data.treasury.nextMilestone)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Daily P&L Chart */}
+                  {data.treasury.dailySnapshots?.length > 0 && (
+                    <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-3">Daily P&L (Last 30d)</div>
+                      <div className="flex items-end gap-1 h-24">
+                        {data.treasury.dailySnapshots.map((d: any, i: number) => {
+                          const maxAbs = Math.max(...(data.treasury?.dailySnapshots || []).map((s: any) => Math.abs(s.pnl)), 1);
+                          const h = Math.max(2, Math.abs(d.pnl) / maxAbs * 80);
+                          return (
+                            <div key={i} className="flex-1 flex flex-col items-center justify-end" title={`${d.date}: $${d.pnl}`}>
+                              <div
+                                className={`w-full rounded-sm ${d.pnl >= 0 ? 'bg-emerald-500/60' : 'bg-red-500/60'}`}
+                                style={{ height: `${h}%` }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Weekly Summaries */}
+                  {data.treasury.weeklySummaries?.length > 0 && (
+                    <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
+                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-3">Weekly Performance</div>
+                      <div className="space-y-2">
+                        {data.treasury.weeklySummaries.slice(-4).reverse().map((w: any, i: number) => (
+                          <div key={i} className="flex justify-between items-center text-[10px] font-mono">
+                            <span className="text-zinc-500">{w.weekStart}</span>
+                            <span className={w.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{w.pnl >= 0 ? '+' : ''}{fmt$(w.pnl)}</span>
+                            <span className="text-zinc-600">{w.trades} trades</span>
+                            <span className="text-cyan-400/60">{w.winRate}% WR</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-[9px] font-mono text-zinc-700 text-center">
+                    Updated {data.treasury.updatedAt ? timeAgo(data.treasury.updatedAt) : 'never'}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-[10px] font-mono text-zinc-600">Treasury Ledger initializing...</div>
+                  <div className="text-[9px] font-mono text-zinc-700 mt-1">Data will populate after the next orchestrator cycle</div>
+                </div>
+              )}
             </div>
           </div>
         )}

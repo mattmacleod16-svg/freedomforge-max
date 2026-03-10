@@ -263,7 +263,8 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
         return { status: 'dry-run', order: payload, usdNotional: quoteSize, estBaseSize: Number((quoteSize / price).toFixed(meta.decimals)) };
       }
       const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
-      return { status: 'placed', order: payload, result };
+      const success = result?.success !== false && !result?.error_response?.error;
+      return { status: success ? 'placed' : 'error', order: payload, result, ...(success ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
     }
 
     const rawSize = orderUsd / price;
@@ -291,7 +292,8 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
     }
 
     const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
-    return { status: 'placed', order: payload, result };
+    const sellSuccess = result?.success !== false && !result?.error_response?.error;
+    return { status: sellSuccess ? 'placed' : 'error', order: payload, result, ...(sellSuccess ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
   }
 
   if (side === 'buy') {
@@ -306,7 +308,8 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
       return { status: 'dry-run', order: payload, usdNotional: funds, estBaseSize: Number((funds / price).toFixed(meta.decimals)) };
     }
     const result = await coinbasePrivate('POST', '/orders', payload);
-    return { status: 'placed', order: payload, result };
+    const buyOk = !result?.message;
+    return { status: buyOk ? 'placed' : 'error', order: payload, result, ...(buyOk ? {} : { error: result?.message || 'order_rejected' }) };
   }
 
   const rawSize = orderUsd / price;
@@ -330,7 +333,8 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
   }
 
   const result = await coinbasePrivate('POST', '/orders', payload);
-  return { status: 'placed', order: payload, result };
+  const sellOk = !result?.message;
+  return { status: sellOk ? 'placed' : 'error', order: payload, result, ...(sellOk ? {} : { error: result?.message || 'order_rejected' }) };
 }
 
 async function main() {

@@ -66,6 +66,8 @@ try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { li
 try { capitalMandate = require('../lib/capital-mandate'); } catch { capitalMandate = null; }
 let tradeReconciler;
 try { tradeReconciler = require('../lib/trade-reconciler'); } catch { tradeReconciler = null; }
+let treasuryLedger;
+try { treasuryLedger = require('../lib/treasury-ledger'); } catch { treasuryLedger = null; }
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -728,6 +730,18 @@ async function main() {
     }
   }
 
+  // Phase 5c: Treasury Ledger (persistent lifetime P&L tracking)
+  if (treasuryLedger && reconcileResult.closedCount > 0) {
+    try {
+      treasuryLedger.recordReconciliation(reconcileResult);
+      treasuryLedger.takeDailySnapshot(reconcileResult.totalPnl, reconcileResult.closedCount,
+        (reconcileResult.closed || []).filter(c => (c.pnl || 0) > 0).length);
+      log('info', `  Treasury: recorded ${reconcileResult.closedCount} trades, lifetime P&L updated`);
+    } catch (e) {
+      log('error', `Treasury ledger update failed: ${e.message}`);
+    }
+  }
+
   // Phase 6: Prediction Markets
   const predResult = phasePredictionMarkets();
 
@@ -748,6 +762,9 @@ async function main() {
     durationMs,
     signals: signals.length,
     trades: execution.tradesPlaced,
+    reconciled: reconcileResult.closedCount || 0,
+    reconcilePnl: Math.round((reconcileResult.totalPnl || 0) * 100) / 100,
+    openRemaining: reconcileResult.openRemaining ?? null,
     brainEvolved: brainResult?.evolved || false,
     predStatus: predResult?.status || 'disabled',
   };
@@ -788,6 +805,11 @@ async function main() {
         })),
       },
       prediction: predResult,
+      reconciliation: {
+        closed: reconcileResult.closedCount || 0,
+        pnl: Math.round((reconcileResult.totalPnl || 0) * 100) / 100,
+        openRemaining: reconcileResult.openRemaining ?? null,
+      },
     },
     totals: {
       cycleCount: state.cycleCount,
