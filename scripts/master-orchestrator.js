@@ -592,6 +592,18 @@ function phasePublishState(health, brainResult, signals, execution, predResult, 
     },
     ttlMs: 10 * 60 * 1000,
   });
+
+  // Publish intelligence_cycle so venue-engine doesn't skip due to stale signal protection
+  signalBus.publish({
+    type: 'intelligence_cycle',
+    source: 'master-orchestrator',
+    confidence: 1.0,
+    payload: {
+      completedAt: Date.now(),
+      orchestratorCycle: true,
+    },
+    ttlMs: 30 * 60 * 1000,
+  });
 }
 
 // ─── Phase 8: Data Maintenance ───────────────────────────────────────────────
