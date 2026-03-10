@@ -188,7 +188,7 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="font-mono text-xs tracking-widest text-cyan-400/70">
+    <span className="font-mono text-xs tracking-widest text-teal-300/60">
       {now.toISOString().replace('T', ' ').slice(0, 19)} UTC
     </span>
   );
@@ -225,12 +225,12 @@ function HexStatus({ active, label, pulse }: { active: boolean; label: string; p
   return (
     <div className="flex items-center gap-2">
       <div className="relative">
-        <div className={`w-3 h-3 rotate-45 ${active ? 'bg-cyan-400' : 'bg-red-500'}`} />
+        <div className={`w-3 h-3 rotate-45 rounded-sm ${active ? 'bg-teal-400' : 'bg-red-400'}`} />
         {pulse && active && (
-          <div className="absolute inset-0 w-3 h-3 rotate-45 bg-cyan-400 animate-ping opacity-30" />
+          <div className="absolute inset-0 w-3 h-3 rotate-45 rounded-sm bg-teal-400 animate-ping opacity-20" />
         )}
       </div>
-      <span className={`text-xs uppercase tracking-wider font-mono ${active ? 'text-cyan-300' : 'text-red-400'}`}>{label}</span>
+      <span className={`text-xs uppercase tracking-wider font-mono ${active ? 'text-teal-300' : 'text-red-400'}`}>{label}</span>
     </div>
   );
 }
@@ -254,16 +254,16 @@ function RocketShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }
   []);
 
   return (
-    <div className="relative w-full h-80 rounded-2xl overflow-hidden border border-cyan-500/10 scanline-overlay">
+    <div className="relative w-full h-80 rounded-2xl overflow-hidden border border-teal-500/10 scanline-overlay">
       {/* Deep space gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#000814] via-[#001233] to-[#0a0a2e]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#071525] via-[#0c1e32] to-[#0b1a2b]" />
 
       {/* Grid overlay */}
-      <div className="absolute inset-0 cyber-grid-bg opacity-30" />
+      <div className="absolute inset-0 cyber-grid-bg opacity-20" />
 
       {/* Nebula glow */}
-      <div className="absolute top-10 right-10 w-40 h-40 rounded-full bg-purple-500/5 blur-3xl" />
-      <div className="absolute bottom-20 left-20 w-32 h-32 rounded-full bg-cyan-500/5 blur-3xl" />
+      <div className="absolute top-10 right-10 w-40 h-40 rounded-full bg-teal-500/[0.04] blur-3xl" />
+      <div className="absolute bottom-20 left-20 w-32 h-32 rounded-full bg-sky-500/[0.04] blur-3xl" />
 
       {/* Stars */}
       <div className="absolute inset-0">
@@ -336,8 +336,8 @@ function RocketShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }
 
       {/* HUD overlay - top left */}
       <div className="absolute top-4 left-4 text-left">
-        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-cyan-500/50">FREEDOMFORGE NET WORTH</div>
-        <div className="text-4xl font-black text-white mt-1" style={{ textShadow: '0 0 20px rgba(0,255,255,0.3)' }}>
+        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-teal-500/40">FREEDOMFORGE NET WORTH</div>
+        <div className="text-4xl font-black text-white mt-1" style={{ textShadow: '0 0 16px rgba(45,212,191,0.2)' }}>
           <AnimatedNumber value={portfolioUsd} />
         </div>
         <div className={`text-lg font-bold mt-1 flex items-center gap-2 ${roi >= 0 ? 'neon-text-green' : 'neon-text-red'}`}>
@@ -348,13 +348,13 @@ function RocketShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }
 
       {/* HUD overlay - top right */}
       <div className="absolute top-4 right-4 text-right">
-        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-cyan-500/50">ALTITUDE</div>
+        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-teal-500/40">ALTITUDE</div>
         <div className="text-2xl font-mono neon-text-cyan mt-1">{altitude.toFixed(0)}%</div>
-        <div className="text-[10px] font-mono text-purple-400/60 mt-1">PHASE: {altitude < 30 ? 'LAUNCH' : altitude < 60 ? 'ASCENT' : altitude < 85 ? 'ORBIT' : 'STRATOSPHERE'}</div>
+        <div className="text-[10px] font-mono text-amber-400/40 mt-1">PHASE: {altitude < 30 ? 'LAUNCH' : altitude < 60 ? 'ASCENT' : altitude < 85 ? 'ORBIT' : 'STRATOSPHERE'}</div>
       </div>
 
       {/* Bottom HUD bar */}
-      <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between text-[9px] font-mono text-cyan-500/40 uppercase tracking-widest">
+      <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between text-[9px] font-mono text-teal-500/30 uppercase tracking-widest">
         <span>SYS:NOMINAL</span>
         <span>ENGINES:{isRising ? 'FULL-BURN' : 'STANDBY'}</span>
         <span>FUEL:{(flameIntensity * 100).toFixed(0)}%</span>
@@ -368,24 +368,24 @@ function StatCard({ label, value, sub, color = 'text-white', icon, trend }: {
   label: string; value: string; sub?: string; color?: string; icon?: string; trend?: 'up' | 'down' | 'neutral';
 }) {
   return (
-    <div className="holo-card relative rounded-xl p-4 hud-corner overflow-hidden group">
+    <div className="holo-card relative rounded-xl p-5 hud-corner overflow-hidden group">
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-400/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-400/30 to-transparent" />
       </div>
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-cyan-400/50 font-mono">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-teal-400/50 font-mono">
         {icon && <span className="text-sm">{icon}</span>}
         {label}
       </div>
-      <div className={`mt-2 text-2xl font-black tracking-tight ${color}`} style={{ animation: 'counter-glow 3s ease-in-out infinite' }}>
+      <div className={`mt-2 text-2xl font-black tracking-tight ${color}`}>
         {value}
         {trend && (
-          <span className={`ml-1 text-xs ${trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-zinc-500'}`}>
+          <span className={`ml-1 text-xs ${trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-slate-500'}`}>
             {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}
           </span>
         )}
       </div>
-      {sub && <div className="text-[10px] text-zinc-500 mt-1 font-mono">{sub}</div>}
+      {sub && <div className="text-[10px] text-slate-500 mt-1 font-mono">{sub}</div>}
     </div>
   );
 }
@@ -395,21 +395,21 @@ function CyberGauge({ value, max, label, warn, danger }: {
   value: number; max: number; label: string; warn?: number; danger?: number;
 }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
-  let barClass = 'from-cyan-500 to-cyan-400';
-  let glowColor = 'rgba(0,255,255,0.3)';
-  if (danger && pct >= danger) { barClass = 'from-red-600 to-red-400'; glowColor = 'rgba(255,50,50,0.4)'; }
-  else if (warn && pct >= warn) { barClass = 'from-yellow-500 to-amber-400'; glowColor = 'rgba(255,200,0,0.3)'; }
+  let barClass = 'from-teal-500 to-teal-400';
+  let glowColor = 'rgba(45,212,191,0.25)';
+  if (danger && pct >= danger) { barClass = 'from-red-500 to-red-400'; glowColor = 'rgba(248,113,113,0.3)'; }
+  else if (warn && pct >= warn) { barClass = 'from-amber-500 to-amber-400'; glowColor = 'rgba(251,191,36,0.25)'; }
 
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-[10px] font-mono">
-        <span className="text-zinc-500 uppercase tracking-wider">{label}</span>
-        <span className="text-cyan-300">{fmtPct(pct)}</span>
+        <span className="text-slate-500 uppercase tracking-wider">{label}</span>
+        <span className="text-teal-300">{fmtPct(pct)}</span>
       </div>
-      <div className="h-2 bg-zinc-900/80 rounded-full overflow-hidden gauge-glow border border-zinc-800/50">
+      <div className="h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
         <div
           className={`h-full rounded-full bg-gradient-to-r ${barClass} transition-all duration-1000`}
-          style={{ width: `${pct}%`, boxShadow: `0 0 8px ${glowColor}` }}
+          style={{ width: `${pct}%`, boxShadow: `0 0 6px ${glowColor}` }}
         />
       </div>
     </div>
@@ -421,12 +421,12 @@ function VenueChip({ name, healthy }: { name: string; healthy: boolean }) {
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider border ${
       healthy
-        ? 'bg-cyan-500/5 text-cyan-400 border-cyan-500/20'
-        : 'bg-red-500/10 text-red-400 border-red-500/30 animate-pulse'
+        ? 'bg-teal-500/5 text-teal-300 border-teal-500/15'
+        : 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse'
     }`}>
       <span className="relative flex h-2 w-2">
-        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${healthy ? 'bg-cyan-400' : 'bg-red-400'}`} />
-        <span className={`relative inline-flex rounded-full h-2 w-2 ${healthy ? 'bg-cyan-400' : 'bg-red-500'}`} />
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${healthy ? 'bg-teal-400' : 'bg-red-400'}`} />
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${healthy ? 'bg-teal-400' : 'bg-red-500'}`} />
       </span>
       {name}
     </span>
@@ -440,20 +440,20 @@ const chartDefaults = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: 'rgba(0, 10, 30, 0.95)',
-      borderColor: 'rgba(0, 255, 255, 0.2)',
+      backgroundColor: 'rgba(11, 26, 43, 0.95)',
+      borderColor: 'rgba(45, 212, 191, 0.15)',
       borderWidth: 1,
-      titleColor: '#00ffff',
+      titleColor: '#2dd4bf',
       bodyColor: '#94a3b8',
       padding: 12,
-      cornerRadius: 8,
+      cornerRadius: 10,
       titleFont: { family: 'monospace', size: 11 },
       bodyFont: { family: 'monospace', size: 10 },
     },
   },
   scales: {
-    x: { grid: { color: 'rgba(0,255,255,0.04)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
-    y: { grid: { color: 'rgba(0,255,255,0.04)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
+    x: { grid: { color: 'rgba(56,189,248,0.03)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
+    y: { grid: { color: 'rgba(56,189,248,0.03)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
   },
 };
 
@@ -511,19 +511,19 @@ export default function CommandCenter() {
   /* ─── Loading State ─────────────────────────────────────────────────── */
   if (loading || !data) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center cyber-grid-bg">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0b1a2b 0%, #0f2235 50%, #0d1f30 100%)' }}>
+        <div className="text-center animate-fadeIn">
           <div className="relative w-20 h-20 mx-auto">
-            <div className="absolute inset-0 border-2 border-cyan-500/30 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
-            <div className="absolute inset-2 border-2 border-purple-500/30 rounded-full animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
-            <div className="absolute inset-4 border-2 border-cyan-400/50 rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
+            <div className="absolute inset-0 border-2 border-teal-500/30 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
+            <div className="absolute inset-2 border-2 border-amber-500/20 rounded-full animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
+            <div className="absolute inset-4 border-2 border-teal-400/40 rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-3 h-3 bg-cyan-400 rounded-full animate-pulse" />
+              <div className="w-3 h-3 bg-teal-400 rounded-full animate-pulse" />
             </div>
           </div>
-          <p className="mt-6 text-cyan-400/60 text-sm font-mono uppercase tracking-[0.3em]">Initializing Command Center</p>
-          <div className="mt-2 w-48 h-0.5 bg-zinc-900 rounded-full mx-auto overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full" style={{ animation: 'shimmer 1.5s linear infinite', width: '40%' }} />
+          <p className="mt-6 text-teal-300/60 text-sm font-mono uppercase tracking-[0.3em]">Initializing Command Center</p>
+          <div className="mt-2 w-48 h-1 bg-slate-800/60 rounded-full mx-auto overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-teal-500 to-amber-400 rounded-full" style={{ animation: 'shimmer 1.5s linear infinite', width: '40%' }} />
           </div>
         </div>
       </div>
@@ -537,10 +537,10 @@ export default function CommandCenter() {
 
   const mandateMode = data.mandate?.currentMode || 'normal';
   const modeConfig: Record<string, { gradient: string; borderColor: string; icon: string; label: string }> = {
-    capital_halt: { gradient: 'from-red-950/80 to-red-900/40', borderColor: 'border-red-500/40', icon: '🚨', label: 'CAPITAL HALT' },
-    survival: { gradient: 'from-amber-950/60 to-orange-900/30', borderColor: 'border-amber-500/30', icon: '⚠️', label: 'SURVIVAL' },
-    normal: { gradient: 'from-cyan-950/40 to-blue-900/20', borderColor: 'border-cyan-500/20', icon: '🔷', label: 'NORMAL OPS' },
-    growth: { gradient: 'from-emerald-950/40 to-green-900/20', borderColor: 'border-emerald-500/20', icon: '⚡', label: 'GROWTH' },
+    capital_halt: { gradient: 'from-red-950/60 to-red-900/30', borderColor: 'border-red-500/30', icon: '🚨', label: 'CAPITAL HALT' },
+    survival: { gradient: 'from-amber-950/40 to-orange-900/20', borderColor: 'border-amber-500/20', icon: '⚠️', label: 'SURVIVAL' },
+    normal: { gradient: 'from-teal-950/30 to-sky-900/15', borderColor: 'border-teal-500/15', icon: '🔷', label: 'NORMAL OPS' },
+    growth: { gradient: 'from-emerald-950/30 to-green-900/15', borderColor: 'border-emerald-500/15', icon: '⚡', label: 'GROWTH' },
   };
   const modeStyle = modeConfig[mandateMode] || modeConfig.normal;
 
@@ -550,12 +550,12 @@ export default function CommandCenter() {
     datasets: [{
       label: 'Cumulative P&L',
       data: data.pnlHistory.map(p => p.cumPnl),
-      borderColor: '#00ffff',
-      backgroundColor: 'rgba(0, 255, 255, 0.05)',
+      borderColor: '#2dd4bf',
+      backgroundColor: 'rgba(45, 212, 191, 0.05)',
       fill: true,
       tension: 0.4,
       pointRadius: 2,
-      pointBackgroundColor: data.pnlHistory.map(p => p.pnl >= 0 ? '#00ff88' : '#ff3366'),
+      pointBackgroundColor: data.pnlHistory.map(p => p.pnl >= 0 ? '#34d399' : '#f87171'),
       borderWidth: 2,
     }],
   };
@@ -566,10 +566,10 @@ export default function CommandCenter() {
     datasets: [{
       label: 'Volume ($)',
       data: volDays.map(([, v]) => v),
-      backgroundColor: 'rgba(139, 92, 246, 0.4)',
-      borderColor: '#8b5cf6',
+      backgroundColor: 'rgba(139, 92, 246, 0.3)',
+      borderColor: '#a78bfa',
       borderWidth: 1,
-      borderRadius: 4,
+      borderRadius: 6,
     }],
   };
 
@@ -577,9 +577,9 @@ export default function CommandCenter() {
     labels: data.confidenceDistribution.labels,
     datasets: [{
       data: data.confidenceDistribution.values,
-      backgroundColor: ['#1e293b', '#3b82f6', '#8b5cf6', '#f59e0b', '#00ffcc'],
+      backgroundColor: ['#1e293b', '#38bdf8', '#a78bfa', '#fbbf24', '#2dd4bf'],
       borderWidth: 1,
-      borderColor: ['#334155', '#2563eb', '#7c3aed', '#d97706', '#00cc99'],
+      borderColor: ['#334155', '#0ea5e9', '#8b5cf6', '#f59e0b', '#14b8a6'],
     }],
   };
 
@@ -588,9 +588,9 @@ export default function CommandCenter() {
     labels: venueNames,
     datasets: [{
       data: venueNames.map(v => data.venueStats[v].volume),
-      backgroundColor: ['rgba(0,255,255,0.2)', 'rgba(139,92,246,0.2)', 'rgba(255,51,102,0.2)', 'rgba(0,255,136,0.2)', 'rgba(255,170,0,0.2)'],
+      backgroundColor: ['rgba(45,212,191,0.15)', 'rgba(139,92,246,0.15)', 'rgba(248,113,113,0.15)', 'rgba(52,211,153,0.15)', 'rgba(251,191,36,0.15)'],
       borderWidth: 1,
-      borderColor: ['#00ffff', '#8b5cf6', '#ff3366', '#00ff88', '#ffaa00'],
+      borderColor: ['#2dd4bf', '#a78bfa', '#f87171', '#34d399', '#fbbf24'],
     }],
   };
 
@@ -600,10 +600,10 @@ export default function CommandCenter() {
     datasets: [{
       label: 'Signals',
       data: signalSourceNames.map(s => data.signalBus.sources[s]),
-      backgroundColor: 'rgba(255, 0, 255, 0.3)',
-      borderColor: '#ff00ff',
+      backgroundColor: 'rgba(168, 85, 247, 0.2)',
+      borderColor: '#a78bfa',
       borderWidth: 1,
-      borderRadius: 3,
+      borderRadius: 5,
     }],
   };
 
@@ -617,22 +617,23 @@ export default function CommandCenter() {
 
   /* ─── Render ────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-black cyber-grid-bg relative">
+    <div className="min-h-screen relative" style={{ background: 'linear-gradient(160deg, #0b1a2b 0%, #0f2235 40%, #0d1f30 70%, #0b1a2b 100%)' }}>
       {/* Ambient glow effects */}
-      <div className="fixed top-0 left-1/4 w-96 h-96 bg-cyan-500/[0.02] rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-purple-500/[0.02] rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-teal-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-sky-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-amber-500/[0.008] rounded-full blur-[120px] pointer-events-none" />
 
       {/* ─── Header ───────────────────────────────────────────────────── */}
-      <header className={`sticky top-0 z-50 backdrop-blur-2xl bg-black/80 border-b transition-all duration-300 ${pulseHeader ? 'border-cyan-400/40' : 'border-cyan-500/10'}`}>
+      <header className={`sticky top-0 z-50 backdrop-blur-2xl border-b transition-all duration-300 ${pulseHeader ? 'border-teal-400/30' : 'border-slate-700/30'}`} style={{ background: 'rgba(11, 26, 43, 0.85)' }}>
         <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative w-10 h-10 flex items-center justify-center">
-              <div className="absolute inset-0 border border-cyan-500/30 rotate-45 animate-pulse" />
+              <div className="absolute inset-0 border border-teal-500/25 rotate-45 rounded-sm" />
               <span className="text-lg font-black cyber-text">FF</span>
             </div>
             <div>
               <h1 className="text-lg font-black cyber-text tracking-wide">FREEDOMFORGE</h1>
-              <div className="text-[9px] font-mono text-cyan-500/40 uppercase tracking-[0.3em] -mt-0.5">Autonomous Command Center</div>
+              <div className="text-[9px] font-mono text-teal-500/40 uppercase tracking-[0.3em] -mt-0.5">Autonomous Command Center</div>
             </div>
           </div>
 
@@ -641,17 +642,17 @@ export default function CommandCenter() {
               <VenueChip name="COINBASE" healthy={data.guardian.coinbase.healthy} />
               <VenueChip name="KRAKEN" healthy={data.guardian.kraken.healthy} />
               {data.risk.killSwitchActive && (
-                <span className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse tracking-wider">
+                <span className="px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse tracking-wider">
                   ■ KILL SWITCH
                 </span>
               )}
             </div>
             <div className="hidden md:flex flex-col items-end">
               <LiveClock />
-              <span className="text-[9px] font-mono text-zinc-600 mt-0.5">Refreshed {timeAgo(lastRefresh)}</span>
+              <span className="text-[9px] font-mono text-slate-600 mt-0.5">Refreshed {timeAgo(lastRefresh)}</span>
             </div>
-            <button onClick={fetchData} className="w-8 h-8 rounded-lg border border-cyan-500/20 flex items-center justify-center text-cyan-400/50 hover:text-cyan-400 hover:border-cyan-400/50 transition-all text-sm">⟳</button>
-            <button onClick={handleLogout} className="text-[10px] font-mono text-zinc-600 hover:text-red-400 transition-colors uppercase tracking-wider">Logout</button>
+            <button onClick={fetchData} className="w-8 h-8 rounded-lg border border-teal-500/15 flex items-center justify-center text-teal-400/50 hover:text-teal-300 hover:border-teal-400/30 hover:bg-teal-500/5 transition-all text-sm">⟳</button>
+            <button onClick={handleLogout} className="text-[10px] font-mono text-slate-600 hover:text-red-400 transition-colors uppercase tracking-wider">Logout</button>
           </div>
         </div>
       </header>
@@ -669,26 +670,26 @@ export default function CommandCenter() {
                 <span className="text-xl">{modeStyle.icon}</span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-300/70">Zero Injection Protocol</span>
+                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-300/60">Zero Injection Protocol</span>
                     <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${
-                      mandateMode === 'capital_halt' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                      mandateMode === 'survival' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                      mandateMode === 'growth' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                      'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                      mandateMode === 'capital_halt' ? 'bg-red-500/15 text-red-400 border border-red-500/20' :
+                      mandateMode === 'survival' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' :
+                      mandateMode === 'growth' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
+                      'bg-teal-500/15 text-teal-400 border border-teal-500/20'
                     }`}>
                       {modeStyle.label}
                     </span>
                   </div>
-                  <div className="text-[10px] font-mono text-zinc-500 mt-1">
+                  <div className="text-[10px] font-mono text-slate-500 mt-1">
                     SEED: {fmt$(data.mandate.initialCapital)} → NOW: {fmt$(data.portfolio.totalUsd)} | HWM: {fmt$(data.mandate.highWaterMark)} | DAY {data.mandate.totalDaysActive}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-[10px] font-mono text-zinc-400">
+              <div className="flex items-center gap-4 text-[10px] font-mono text-slate-400">
                 <span>ROI: <strong className={roi >= 0 ? 'neon-text-green' : 'neon-text-red'}>{roi >= 0 ? '+' : ''}{fmtPct(roi)}</strong></span>
                 {data.mandate.consecutiveWinDays > 0 && <span className="text-emerald-400">🔥 {data.mandate.consecutiveWinDays} WIN STREAK</span>}
                 {data.mandate.consecutiveLossDays > 0 && <span className="text-red-400">❄️ {data.mandate.consecutiveLossDays} LOSS STREAK</span>}
-                {data.mandate.milestonesReached.length > 0 && <span className="text-purple-400">◆ {data.mandate.milestonesReached.length} MILESTONES</span>}
+                {data.mandate.milestonesReached.length > 0 && <span className="text-amber-400">◆ {data.mandate.milestonesReached.length} MILESTONES</span>}
                 <span>DENIALS: {data.mandate.tradeDenials}</span>
               </div>
             </div>
@@ -715,15 +716,15 @@ export default function CommandCenter() {
         </div>
 
         {/* ─── Tab Navigation ───────────────────────────────────────────── */}
-        <div className="flex gap-1 bg-black/50 backdrop-blur rounded-xl p-1 border border-cyan-500/10">
+        <div className="flex gap-1.5 rounded-2xl p-1.5 border border-slate-700/30" style={{ background: 'rgba(11, 26, 43, 0.6)', backdropFilter: 'blur(12px)' }}>
           {tabItems.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-mono uppercase tracking-wider transition-all duration-300 ${
+              className={`flex-1 py-2.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all duration-300 ${
                 tab === t.key
-                  ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-300 border border-cyan-500/20 shadow-[0_0_15px_rgba(0,255,255,0.1)]'
-                  : 'text-zinc-600 hover:text-zinc-400 hover:bg-white/[0.02]'
+                  ? 'bg-gradient-to-r from-teal-500/15 to-sky-500/10 text-teal-300 border border-teal-500/20 shadow-[0_0_12px_rgba(45,212,191,0.08)]'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.02] border border-transparent'
               }`}
             >
               <span className="mr-1.5">{t.icon}</span>{t.label}
@@ -736,12 +737,12 @@ export default function CommandCenter() {
           <div className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <div className="holo-card rounded-2xl p-5 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/50 mb-4">◈ Cumulative P&L Trajectory</h3>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-500/20 to-transparent" />
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◈ Cumulative P&L Trajectory</h3>
                 <div className="h-56"><Line data={pnlChartData} options={{ ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } } } as any} /></div>
               </div>
               <div className="holo-card rounded-2xl p-5 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
                 <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">◉ Daily Volume Distribution</h3>
                 <div className="h-56"><Bar data={volumeChartData} options={chartDefaults as any} /></div>
               </div>
@@ -749,34 +750,34 @@ export default function CommandCenter() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="holo-card rounded-2xl p-5">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/50 mb-4">◎ Confidence Spectrum</h3>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◎ Confidence Spectrum</h3>
                 <div className="h-48 flex items-center justify-center">
                   <Doughnut data={confChartData} options={{ ...chartDefaults, scales: undefined, cutout: '65%' } as any} />
                 </div>
               </div>
               <div className="holo-card rounded-2xl p-5">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/50 mb-4">◆ Venue Allocation</h3>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◆ Venue Allocation</h3>
                 <div className="h-48 flex items-center justify-center">
                   <Doughnut data={venueChartData} options={{ ...chartDefaults, scales: undefined, cutout: '65%' } as any} />
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3 justify-center">
                   {venueNames.map((v, i) => (
-                    <span key={v} className="text-[9px] font-mono text-zinc-500 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ['#00ffff', '#8b5cf6', '#ff3366', '#00ff88', '#ffaa00'][i], boxShadow: `0 0 4px ${['#00ffff', '#8b5cf6', '#ff3366', '#00ff88', '#ffaa00'][i]}` }} />
+                    <span key={v} className="text-[9px] font-mono text-slate-500 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ['#2dd4bf', '#a78bfa', '#f87171', '#34d399', '#fbbf24'][i], boxShadow: `0 0 4px ${['#2dd4bf', '#a78bfa', '#f87171', '#34d399', '#fbbf24'][i]}` }} />
                       {v}
                     </span>
                   ))}
                 </div>
               </div>
               <div className="holo-card rounded-2xl p-5">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/50 mb-4">⬡ Asset Performance Matrix</h3>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">⬡ Asset Performance Matrix</h3>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {Object.entries(data.assetStats).sort((a, b) => b[1].volume - a[1].volume).map(([asset, stats]) => (
                     <div key={asset} className="flex items-center justify-between text-xs group">
-                      <span className="text-zinc-400 font-mono group-hover:text-cyan-300 transition-colors">{asset}</span>
+                      <span className="text-slate-400 font-mono group-hover:text-teal-300 transition-colors">{asset}</span>
                       <div className="flex items-center gap-3">
-                        <span className="text-[9px] text-zinc-600 font-mono">{stats.trades}ops</span>
-                        <span className="text-[10px] font-mono text-zinc-500">{fmtCompact(stats.volume)}</span>
+                        <span className="text-[9px] text-slate-600 font-mono">{stats.trades}ops</span>
+                        <span className="text-[10px] font-mono text-slate-500">{fmtCompact(stats.volume)}</span>
                         <span className={`text-[10px] font-mono font-bold ${stats.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt$(stats.pnl)}</span>
                       </div>
                     </div>
@@ -786,11 +787,11 @@ export default function CommandCenter() {
             </div>
 
             <div className="holo-card rounded-2xl p-5">
-              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/50 mb-4">◈ Venue Performance Matrix</h3>
+              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◈ Venue Performance Matrix</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs font-mono">
                   <thead>
-                    <tr className="text-cyan-500/40 text-[9px] uppercase tracking-wider border-b border-cyan-500/10">
+                    <tr className="text-teal-500/30 text-[9px] uppercase tracking-wider border-b border-teal-500/8">
                       <th className="text-left pb-3">Venue</th>
                       <th className="text-right pb-3">Ops</th>
                       <th className="text-right pb-3">Volume</th>
@@ -800,12 +801,12 @@ export default function CommandCenter() {
                   </thead>
                   <tbody>
                     {Object.entries(data.venueStats).map(([venue, stats]) => (
-                      <tr key={venue} className="border-b border-white/[0.02] hover:bg-cyan-500/[0.03] transition-colors">
-                        <td className="py-2.5 text-zinc-300">{venue}</td>
-                        <td className="py-2.5 text-right text-zinc-500">{stats.trades}</td>
-                        <td className="py-2.5 text-right text-zinc-300">{fmtCompact(stats.volume)}</td>
+                      <tr key={venue} className="border-b border-white/[0.02] hover:bg-teal-500/[0.03] transition-colors">
+                        <td className="py-2.5 text-slate-300">{venue}</td>
+                        <td className="py-2.5 text-right text-slate-500">{stats.trades}</td>
+                        <td className="py-2.5 text-right text-slate-300">{fmtCompact(stats.volume)}</td>
                         <td className={`py-2.5 text-right font-bold ${stats.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmt$(stats.pnl)}</td>
-                        <td className="py-2.5 text-right text-zinc-400">{stats.wins + stats.losses > 0 ? fmtPct((stats.wins / (stats.wins + stats.losses)) * 100) : '—'}</td>
+                        <td className="py-2.5 text-right text-slate-400">{stats.wins + stats.losses > 0 ? fmtPct((stats.wins / (stats.wins + stats.losses)) * 100) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -816,7 +817,7 @@ export default function CommandCenter() {
             {/* ─── Agent Roster ───────────────────────────────────────── */}
             {data.agents && (
               <div className="holo-card rounded-2xl p-5 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
                     <div className="relative w-8 h-8 flex items-center justify-center">
@@ -825,18 +826,18 @@ export default function CommandCenter() {
                     </div>
                     <div>
                       <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400/70">Agent Workforce</h3>
-                      <div className="text-[9px] font-mono text-zinc-600 mt-0.5">Autonomous agents deployed across the empire</div>
+                      <div className="text-[9px] font-mono text-slate-600 mt-0.5">Autonomous agents deployed across the empire</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <div className="text-3xl font-black neon-text-green">{data.agents.total}</div>
-                      <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">Total Agents</div>
+                      <div className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">Total Agents</div>
                     </div>
-                    <div className="w-px h-10 bg-zinc-800" />
+                    <div className="w-px h-10 bg-slate-700/50" />
                     <div className="text-right">
                       <div className="text-2xl font-black text-emerald-400">{data.agents.active}</div>
-                      <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">Active</div>
+                      <div className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">Active</div>
                     </div>
                   </div>
                 </div>
@@ -845,12 +846,12 @@ export default function CommandCenter() {
                   {data.agents.roles.map(role => {
                     const roleActive = role.agents.filter(a => a.status === 'active').length;
                     return (
-                      <div key={role.role} className="bg-white/[0.02] rounded-xl p-4 border border-cyan-500/5 hover:border-cyan-500/15 transition-all group">
+                      <div key={role.role} className="bg-white/[0.02] rounded-xl p-4 border border-slate-700/20 hover:border-teal-500/15 transition-all group">
                         <div className="flex items-center gap-2 mb-3">
                           <span className="text-base">{role.icon}</span>
                           <div>
-                            <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-300/70">{role.role}</div>
-                            <div className="text-[9px] font-mono text-zinc-600">{roleActive}/{role.agents.length} active</div>
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-teal-300/60">{role.role}</div>
+                            <div className="text-[9px] font-mono text-slate-600">{roleActive}/{role.agents.length} active</div>
                           </div>
                         </div>
                         <div className="space-y-1.5">
@@ -866,8 +867,8 @@ export default function CommandCenter() {
                                   'bg-zinc-600'
                                 }`} />
                               </span>
-                              <span className="text-zinc-400 group-hover:text-zinc-300 transition-colors truncate">{agent.name}</span>
-                              <span className="ml-auto text-zinc-600 text-[8px] truncate max-w-[60px]">{agent.detail}</span>
+                              <span className="text-slate-400 group-hover:text-slate-300 transition-colors truncate">{agent.name}</span>
+                              <span className="ml-auto text-slate-600 text-[8px] truncate max-w-[60px]">{agent.detail}</span>
                             </div>
                           ))}
                         </div>
@@ -885,13 +886,13 @@ export default function CommandCenter() {
           <div className="space-y-5">
             <div className="holo-card rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/50">◉ Operation Log</h3>
-                <span className="text-[9px] font-mono text-zinc-600">{data.trades.total} total operations</span>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50">◉ Operation Log</h3>
+                <span className="text-[9px] font-mono text-slate-600">{data.trades.total} total operations</span>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-[10px] font-mono">
-                  <thead className="sticky top-0 bg-[#0a0a1e]/95 backdrop-blur">
-                    <tr className="text-cyan-500/40 text-[9px] uppercase tracking-wider border-b border-cyan-500/10">
+                  <thead className="sticky top-0 backdrop-blur" style={{ background: 'rgba(11, 26, 43, 0.95)' }}>
+                    <tr className="text-teal-500/30 text-[9px] uppercase tracking-wider border-b border-teal-500/8">
                       <th className="text-left pb-2 pl-2">Time</th>
                       <th className="text-left pb-2">Asset</th>
                       <th className="text-left pb-2">Venue</th>
@@ -905,30 +906,30 @@ export default function CommandCenter() {
                   </thead>
                   <tbody>
                     {[...data.tradeTimeline].reverse().map((t, i) => (
-                      <tr key={i} className="border-b border-white/[0.02] hover:bg-cyan-500/[0.03] transition-colors">
-                        <td className="py-2 pl-2 text-zinc-600">{t.time ? new Date(t.time).toLocaleString() : '—'}</td>
-                        <td className="py-2 text-cyan-300 font-semibold">{t.asset}</td>
-                        <td className="py-2 text-zinc-500">{t.venue}</td>
+                      <tr key={i} className="border-b border-white/[0.02] hover:bg-teal-500/[0.03] transition-colors">
+                        <td className="py-2 pl-2 text-slate-600">{t.time ? new Date(t.time).toLocaleString() : '—'}</td>
+                        <td className="py-2 text-teal-300 font-semibold">{t.asset}</td>
+                        <td className="py-2 text-slate-500">{t.venue}</td>
                         <td className="py-2 text-center">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${
                             t.side === 'buy' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'
                           }`}>{t.side?.toUpperCase()}</span>
                         </td>
-                        <td className="py-2 text-right text-zinc-300">{fmt$(t.usdSize || 0)}</td>
+                        <td className="py-2 text-right text-slate-300">{fmt$(t.usdSize || 0)}</td>
                         <td className="py-2 text-right text-purple-400">{((t.confidence || 0) * 100).toFixed(0)}%</td>
-                        <td className="py-2 text-right text-cyan-400">{((t.edge || 0) * 100).toFixed(1)}%</td>
+                        <td className="py-2 text-right text-teal-400">{((t.edge || 0) * 100).toFixed(1)}%</td>
                         <td className={`py-2 text-right font-bold ${(t.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {t.pnl != null ? fmt$(t.pnl) : '—'}
                         </td>
                         <td className="py-2 text-center">
                           {t.dryRun ? (
-                            <span className="px-2 py-0.5 rounded text-[8px] bg-zinc-500/10 text-zinc-500 border border-zinc-500/20">SIM</span>
+                            <span className="px-2 py-0.5 rounded text-[8px] bg-slate-500/10 text-slate-500 border border-slate-500/15">SIM</span>
                           ) : t.outcome ? (
                             <span className={`px-2 py-0.5 rounded text-[8px] font-bold border ${
-                              t.outcome === 'win' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'
+                              t.outcome === 'win' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/15' : 'bg-red-500/10 text-red-400 border-red-500/15'
                             }`}>{t.outcome.toUpperCase()}</span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded text-[8px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 animate-pulse">LIVE</span>
+                            <span className="px-2 py-0.5 rounded text-[8px] bg-teal-500/10 text-teal-400 border border-teal-500/15 animate-pulse">LIVE</span>
                           )}
                         </td>
                       </tr>
@@ -945,30 +946,30 @@ export default function CommandCenter() {
           <div className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Coinbase */}
-              <div className={`holo-card rounded-2xl p-5 relative overflow-hidden ${!data.guardian.coinbase.healthy ? 'border-red-500/30' : ''}`}>
-                {!data.guardian.coinbase.healthy && <div className="absolute inset-0 bg-red-500/[0.03]" />}
+              <div className={`holo-card rounded-2xl p-5 relative overflow-hidden ${!data.guardian.coinbase.healthy ? 'border-red-500/20' : ''}`}>
+                {!data.guardian.coinbase.healthy && <div className="absolute inset-0 bg-red-500/[0.02]" />}
                 <div className="relative">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/50">◈ Coinbase Margin Status</h3>
+                    <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50">◈ Coinbase Margin Status</h3>
                     <HexStatus active={data.guardian.coinbase.healthy} label={data.guardian.coinbase.healthy ? 'NOMINAL' : 'AT RISK'} pulse />
                   </div>
                   <div className="space-y-3">
                     <CyberGauge value={data.guardian.coinbase.marginPct} max={100} label="Margin Utilization" warn={70} danger={85} />
                     <CyberGauge value={data.guardian.coinbase.liquidationBuffer} max={200} label={`Liquidation Buffer (${fmt$(data.guardian.coinbase.liquidationBuffer)})`} />
-                    <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-cyan-500/5">
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">BALANCE:</span> <span className="text-cyan-300">{fmt$(data.guardian.coinbase.totalBalance)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">MARGIN:</span> <span className="text-cyan-300">{fmt$(data.guardian.coinbase.initialMargin)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">UNREAL:</span> <span className={data.guardian.coinbase.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(data.guardian.coinbase.unrealizedPnl)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">POSITIONS:</span> <span className="text-cyan-300">{data.guardian.coinbase.positions.length}</span></div>
+                    <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-teal-500/5">
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">BALANCE:</span> <span className="text-teal-300">{fmt$(data.guardian.coinbase.totalBalance)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">MARGIN:</span> <span className="text-teal-300">{fmt$(data.guardian.coinbase.initialMargin)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">UNREAL:</span> <span className={data.guardian.coinbase.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(data.guardian.coinbase.unrealizedPnl)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">POSITIONS:</span> <span className="text-teal-300">{data.guardian.coinbase.positions.length}</span></div>
                     </div>
                     {data.guardian.coinbase.positions.length > 0 && (
                       <div className="mt-3 space-y-1.5">
-                        <div className="text-[9px] font-mono text-cyan-500/40 uppercase tracking-wider">Open Positions</div>
+                        <div className="text-[9px] font-mono text-teal-500/30 uppercase tracking-wider">Open Positions</div>
                         {data.guardian.coinbase.positions.map((p: any, i: number) => (
-                          <div key={i} className="flex items-center justify-between text-[10px] font-mono bg-white/[0.02] rounded-lg px-3 py-2 border border-cyan-500/5">
-                            <span className="text-cyan-300">{p.productId}</span>
+                          <div key={i} className="flex items-center justify-between text-[10px] font-mono bg-white/[0.02] rounded-lg px-3 py-2 border border-teal-500/5">
+                            <span className="text-teal-300">{p.productId}</span>
                             <span className={`font-bold ${p.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>{p.side}</span>
-                            <span className="text-zinc-500">{p.contracts}x</span>
+                            <span className="text-slate-500">{p.contracts}x</span>
                             <span className={p.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(p.unrealizedPnl)}</span>
                           </div>
                         ))}
@@ -979,8 +980,8 @@ export default function CommandCenter() {
               </div>
 
               {/* Kraken */}
-              <div className={`holo-card rounded-2xl p-5 relative overflow-hidden ${!data.guardian.kraken.healthy ? 'border-red-500/30' : ''}`}>
-                {!data.guardian.kraken.healthy && <div className="absolute inset-0 bg-red-500/[0.03]" />}
+              <div className={`holo-card rounded-2xl p-5 relative overflow-hidden ${!data.guardian.kraken.healthy ? 'border-red-500/20' : ''}`}>
+                {!data.guardian.kraken.healthy && <div className="absolute inset-0 bg-red-500/[0.02]" />}
                 <div className="relative">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50">◉ Kraken Margin Status</h3>
@@ -990,10 +991,10 @@ export default function CommandCenter() {
                     <CyberGauge value={data.guardian.kraken.marginPct} max={100} label="Margin Utilization" warn={70} danger={85} />
                     <CyberGauge value={data.guardian.kraken.freeMargin} max={data.guardian.kraken.equity || 200} label={`Free Margin (${fmt$(data.guardian.kraken.freeMargin)})`} />
                     <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-purple-500/5">
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">EQUITY:</span> <span className="text-purple-300">{fmt$(data.guardian.kraken.equity)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">MARGIN:</span> <span className="text-purple-300">{fmt$(data.guardian.kraken.marginUsed)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">UNREAL:</span> <span className={data.guardian.kraken.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(data.guardian.kraken.unrealizedPnl)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-zinc-600">POSITIONS:</span> <span className="text-purple-300">{data.guardian.kraken.positions.length}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">EQUITY:</span> <span className="text-purple-300">{fmt$(data.guardian.kraken.equity)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">MARGIN:</span> <span className="text-purple-300">{fmt$(data.guardian.kraken.marginUsed)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">UNREAL:</span> <span className={data.guardian.kraken.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(data.guardian.kraken.unrealizedPnl)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">POSITIONS:</span> <span className="text-purple-300">{data.guardian.kraken.positions.length}</span></div>
                     </div>
                     {data.guardian.kraken.positions.length > 0 && (
                       <div className="mt-3 space-y-1.5">
@@ -1015,20 +1016,20 @@ export default function CommandCenter() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <StatCard icon="◆" label="Drawdown" value={fmtPct(data.risk.drawdownPct)} color={data.risk.drawdownPct > 10 ? 'neon-text-red' : 'neon-text-green'} />
               <StatCard icon="◇" label="Daily P&L" value={fmt$(data.risk.dailyPnl?.pnl || 0)} color={(data.risk.dailyPnl?.pnl || 0) >= 0 ? 'neon-text-green' : 'neon-text-red'} sub={data.risk.dailyPnl?.date || '—'} />
-              <StatCard icon="⬡" label="Emergency Ops" value={String(data.guardian.emergencyCloses)} color={data.guardian.emergencyCloses > 0 ? 'neon-text-gold' : 'text-zinc-500'} />
+              <StatCard icon="⬡" label="Emergency Ops" value={String(data.guardian.emergencyCloses)} color={data.guardian.emergencyCloses > 0 ? 'neon-text-gold' : 'text-slate-500'} />
               <StatCard icon="■" label="Kill Switch" value={data.risk.killSwitchActive ? 'ENGAGED' : 'DISARMED'} color={data.risk.killSwitchActive ? 'neon-text-red' : 'neon-text-green'} />
             </div>
 
             {data.guardian.actions.length > 0 && (
-              <div className="holo-card rounded-2xl p-5 border-amber-500/20">
+              <div className="holo-card rounded-2xl p-5 border-amber-500/15">
                 <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400/50 mb-4">⚡ Guardian Action Log</h3>
                 <div className="space-y-2">
                   {data.guardian.actions.map((a: any, i: number) => (
-                    <div key={i} className="flex items-center gap-3 text-[10px] font-mono bg-amber-500/[0.03] rounded-lg px-3 py-2 border border-amber-500/10">
+                    <div key={i} className="flex items-center gap-3 text-[10px] font-mono bg-amber-500/[0.02] rounded-lg px-3 py-2 border border-amber-500/8">
                       <span className="text-amber-400 font-bold">{a.action}</span>
-                      <span className="text-zinc-500">{a.venue}</span>
-                      {a.position && <span className="text-zinc-400">{a.position.productId || a.position.pair}</span>}
-                      <span className="ml-auto text-zinc-600">{a.ts ? timeAgo(a.ts) : ''}</span>
+                      <span className="text-slate-500">{a.venue}</span>
+                      {a.position && <span className="text-slate-400">{a.position.productId || a.position.pair}</span>}
+                      <span className="ml-auto text-slate-600">{a.ts ? timeAgo(a.ts) : ''}</span>
                     </div>
                   ))}
                 </div>
@@ -1044,20 +1045,20 @@ export default function CommandCenter() {
               <div className="holo-card rounded-2xl p-5">
                 <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-pink-400/50 mb-4">◎ Signal Source Distribution</h3>
                 <div className="h-56"><Bar data={signalChartData} options={chartDefaults as any} /></div>
-                <div className="text-[9px] font-mono text-zinc-600 mt-2">{data.signalBus.totalActive} active signals · {Object.keys(data.signalBus.sources).length} sources</div>
+                <div className="text-[9px] font-mono text-slate-600 mt-2">{data.signalBus.totalActive} active signals · {Object.keys(data.signalBus.sources).length} sources</div>
               </div>
               <div className="holo-card rounded-2xl p-5">
                 <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-pink-400/50 mb-4">◎ Signal Classification</h3>
                 <div className="space-y-2.5">
                   {Object.entries(data.signalBus.types).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
                     <div key={type} className="flex items-center justify-between group">
-                      <span className="text-[10px] font-mono text-zinc-500 group-hover:text-purple-300 transition-colors">{type.replace(/_/g, ' ')}</span>
+                      <span className="text-[10px] font-mono text-slate-500 group-hover:text-purple-300 transition-colors">{type.replace(/_/g, ' ')}</span>
                       <div className="flex items-center gap-3">
-                        <div className="w-28 h-1.5 bg-zinc-900 rounded-full overflow-hidden gauge-glow">
-                          <div className="h-full bg-gradient-to-r from-purple-600 to-pink-500 rounded-full transition-all duration-700"
-                            style={{ width: `${(count / data.signalBus.totalActive) * 100}%`, boxShadow: '0 0 6px rgba(168,85,247,0.4)' }} />
+                        <div className="w-28 h-1.5 bg-slate-800/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-700"
+                            style={{ width: `${(count / data.signalBus.totalActive) * 100}%`, boxShadow: '0 0 4px rgba(168,85,247,0.3)' }} />
                         </div>
-                        <span className="text-[10px] font-mono text-zinc-400 w-6 text-right">{count}</span>
+                        <span className="text-[10px] font-mono text-slate-400 w-6 text-right">{count}</span>
                       </div>
                     </div>
                   ))}
@@ -1076,17 +1077,17 @@ export default function CommandCenter() {
                 </div>
                 {data.brain ? (
                   <div className="space-y-3 text-[10px] font-mono">
-                    <div><span className="text-zinc-600">GENERATION:</span> <span className="neon-text-purple">{data.brain.generation}</span></div>
-                    <div><span className="text-zinc-600">PROFILES:</span> <span className="text-purple-300">{data.brain.assetProfiles}</span></div>
-                    <div><span className="text-zinc-600">EVOLVED:</span> <span className="text-zinc-500">{data.brain.lastEvolved ? timeAgo(new Date(data.brain.lastEvolved).getTime()) : 'never'}</span></div>
+                    <div><span className="text-slate-600">GENERATION:</span> <span className="neon-text-purple">{data.brain.generation}</span></div>
+                    <div><span className="text-slate-600">PROFILES:</span> <span className="text-purple-300">{data.brain.assetProfiles}</span></div>
+                    <div><span className="text-slate-600">EVOLVED:</span> <span className="text-slate-500">{data.brain.lastEvolved ? timeAgo(new Date(data.brain.lastEvolved).getTime()) : 'never'}</span></div>
                     {data.brain.topIndicators.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-purple-500/10">
                         <div className="text-[9px] text-purple-500/40 uppercase tracking-wider mb-2">Weight Matrix</div>
                         {data.brain.topIndicators.map(ind => (
                           <div key={ind.indicator} className="flex items-center justify-between mt-1.5">
-                            <span className="text-zinc-400 truncate max-w-[100px]">{ind.indicator}</span>
+                            <span className="text-slate-400 truncate max-w-[100px]">{ind.indicator}</span>
                             <div className="flex items-center gap-2">
-                              <div className="w-14 h-1 bg-zinc-900 rounded-full overflow-hidden">
+                              <div className="w-14 h-1 bg-slate-800/60 rounded-full overflow-hidden">
                                 <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(100, ind.weight * 100)}%` }} />
                               </div>
                               <span className="text-purple-400 w-8 text-right">{(ind.weight * 100).toFixed(0)}%</span>
@@ -1097,22 +1098,22 @@ export default function CommandCenter() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-[10px] font-mono text-zinc-600">Awaiting 8+ operations to initialize</p>
+                  <p className="text-[10px] font-mono text-slate-600">Awaiting 8+ operations to initialize</p>
                 )}
               </div>
 
               {/* Orchestrator */}
-              <div className="holo-card rounded-2xl p-5 border-cyan-500/20">
+              <div className="holo-card rounded-2xl p-5 border-teal-500/15">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-full border border-cyan-500/30 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-cyan-400 rotate-45" />
+                  <div className="w-6 h-6 rounded-full border border-teal-500/25 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-teal-400 rotate-45" />
                   </div>
-                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/70">Orchestrator</h3>
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/60">Orchestrator</h3>
                 </div>
-                <div className="space-y-3 text-[10px] font-mono">
-                  <div><span className="text-zinc-600">CYCLES:</span> <span className="text-2xl neon-text-cyan">{data.orchestrator.cycleCount}</span></div>
-                  <div><span className="text-zinc-600">OPS EXECUTED:</span> <span className="text-cyan-300">{data.orchestrator.totalTrades}</span></div>
-                  <div><span className="text-zinc-600">LAST CYCLE:</span> <span className="text-zinc-500">{data.orchestrator.lastRun ? timeAgo(new Date(data.orchestrator.lastRun).getTime()) : 'never'}</span></div>
+                  <div className="space-y-3 text-[10px] font-mono">
+                  <div><span className="text-slate-600">CYCLES:</span> <span className="text-2xl neon-text-cyan">{data.orchestrator.cycleCount}</span></div>
+                  <div><span className="text-slate-600">OPS EXECUTED:</span> <span className="text-teal-300">{data.orchestrator.totalTrades}</span></div>
+                  <div><span className="text-slate-600">LAST CYCLE:</span> <span className="text-slate-500">{data.orchestrator.lastRun ? timeAgo(new Date(data.orchestrator.lastRun).getTime()) : 'never'}</span></div>
                   {data.orchestrator.errors.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-red-500/10">
                       <div className="text-[9px] text-red-500/40 uppercase tracking-wider mb-1">Error Buffer</div>
@@ -1133,12 +1134,12 @@ export default function CommandCenter() {
                   <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400/70">Horizontal Scaler</h3>
                 </div>
                 {data.scaler ? (
-                  <div className="space-y-3 text-[10px] font-mono">
-                    <div><span className="text-zinc-600">ACTIVE:</span> <span className="text-emerald-300">{data.scaler.activeAssets.length} assets</span></div>
-                    <div><span className="text-zinc-600">CANDIDATES:</span> <span className="text-zinc-400">{data.scaler.candidateCount}</span></div>
-                    <div><span className="text-zinc-600">PROMOTED:</span> <span className="text-emerald-400">{data.scaler.promotions}</span></div>
-                    <div><span className="text-zinc-600">DEMOTED:</span> <span className="text-red-400">{data.scaler.demotions}</span></div>
-                    <div><span className="text-zinc-600">LAST SCAN:</span> <span className="text-zinc-500">{data.scaler.lastScan ? timeAgo(new Date(data.scaler.lastScan).getTime()) : 'never'}</span></div>
+                <div className="space-y-3 text-[10px] font-mono">
+                    <div><span className="text-slate-600">ACTIVE:</span> <span className="text-emerald-300">{data.scaler.activeAssets.length} assets</span></div>
+                    <div><span className="text-slate-600">CANDIDATES:</span> <span className="text-slate-400">{data.scaler.candidateCount}</span></div>
+                    <div><span className="text-slate-600">PROMOTED:</span> <span className="text-emerald-400">{data.scaler.promotions}</span></div>
+                    <div><span className="text-slate-600">DEMOTED:</span> <span className="text-red-400">{data.scaler.demotions}</span></div>
+                    <div><span className="text-slate-600">LAST SCAN:</span> <span className="text-slate-500">{data.scaler.lastScan ? timeAgo(new Date(data.scaler.lastScan).getTime()) : 'never'}</span></div>
                     {data.scaler.activeAssets.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-emerald-500/10">
                         {data.scaler.activeAssets.map((a: string) => (
@@ -1148,7 +1149,7 @@ export default function CommandCenter() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-[10px] font-mono text-zinc-600">Scaler not yet initialized</p>
+                  <p className="text-[10px] font-mono text-slate-600">Scaler not yet initialized</p>
                 )}
               </div>
             </div>
@@ -1159,75 +1160,75 @@ export default function CommandCenter() {
         {tab === 'treasury' && (
           <div className="space-y-6 animate-fadeIn">
             {/* Treasury Header */}
-            <div className="holo-card rounded-2xl p-6 border-amber-500/20">
+            <div className="holo-card rounded-2xl p-6 border-amber-500/15">
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-8 h-8 rounded-full border border-amber-500/30 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full border border-amber-500/25 flex items-center justify-center">
                   <div className="w-3 h-3 bg-amber-400 rounded-sm animate-pulse" />
                 </div>
-                <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-amber-400/80">Treasury Ledger · Wealth Empire</h3>
+                <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-amber-400/70">Treasury Ledger · Wealth Empire</h3>
               </div>
 
               {data.treasury ? (
                 <div className="space-y-6">
                   {/* Core Metrics Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Lifetime P&L</div>
+                    <div className="text-center p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Lifetime P&L</div>
                       <div className={`text-lg font-mono font-bold ${data.treasury.lifetimePnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {data.treasury.lifetimePnl >= 0 ? '+' : ''}{fmt$(data.treasury.lifetimePnl)}
                       </div>
                     </div>
-                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Win Rate</div>
-                      <div className="text-lg font-mono font-bold text-cyan-400">{data.treasury.winRate}%</div>
+                    <div className="text-center p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Win Rate</div>
+                      <div className="text-lg font-mono font-bold text-teal-400">{data.treasury.winRate}%</div>
                     </div>
-                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Profit Factor</div>
+                    <div className="text-center p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Profit Factor</div>
                       <div className="text-lg font-mono font-bold text-purple-400">{data.treasury.profitFactor}x</div>
                     </div>
-                    <div className="text-center p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Lifetime Trades</div>
-                      <div className="text-lg font-mono font-bold text-zinc-300">{data.treasury.lifetimeTrades}</div>
+                    <div className="text-center p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Lifetime Trades</div>
+                      <div className="text-lg font-mono font-bold text-slate-300">{data.treasury.lifetimeTrades}</div>
                     </div>
                   </div>
 
                   {/* Capital Tracking */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Peak Capital</div>
+                    <div className="p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Peak Capital</div>
                       <div className="text-sm font-mono text-amber-400">{fmt$(data.treasury.peakCapital)}</div>
                     </div>
-                    <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Max Drawdown</div>
+                    <div className="p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Max Drawdown</div>
                       <div className="text-sm font-mono text-red-400">{data.treasury.maxDrawdownPct}%</div>
                     </div>
-                    <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Next Milestone</div>
+                    <div className="p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Next Milestone</div>
                       <div className="text-sm font-mono text-emerald-400">{data.treasury.nextMilestone ? fmt$(data.treasury.nextMilestone) : 'ALL REACHED'}</div>
                     </div>
                   </div>
 
                   {/* Milestones Progress */}
                   {data.treasury.nextMilestone && (
-                    <div className="p-4 rounded-xl bg-zinc-900/50 border border-amber-500/10">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Milestone Progress</div>
-                      <div className="w-full bg-zinc-800 rounded-full h-2">
+                    <div className="p-4 rounded-xl bg-slate-800/30 border border-amber-500/8">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-2">Milestone Progress</div>
+                      <div className="w-full bg-slate-800/60 rounded-full h-2">
                         <div
                           className="bg-gradient-to-r from-amber-500 to-emerald-400 h-2 rounded-full transition-all"
                           style={{ width: `${Math.min(100, (data.treasury.currentCapital / data.treasury.nextMilestone) * 100)}%` }}
                         />
                       </div>
                       <div className="flex justify-between mt-1">
-                        <span className="text-[9px] font-mono text-zinc-600">{fmt$(data.treasury.currentCapital)}</span>
-                        <span className="text-[9px] font-mono text-amber-400/60">{fmt$(data.treasury.nextMilestone)}</span>
+                        <span className="text-[9px] font-mono text-slate-600">{fmt$(data.treasury.currentCapital)}</span>
+                        <span className="text-[9px] font-mono text-amber-400/50">{fmt$(data.treasury.nextMilestone)}</span>
                       </div>
                     </div>
                   )}
 
                   {/* Daily P&L Chart */}
                   {data.treasury.dailySnapshots?.length > 0 && (
-                    <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-3">Daily P&L (Last 30d)</div>
+                    <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-3">Daily P&L (Last 30d)</div>
                       <div className="flex items-end gap-1 h-24">
                         {data.treasury.dailySnapshots.map((d: any, i: number) => {
                           const maxAbs = Math.max(...(data.treasury?.dailySnapshots || []).map((s: any) => Math.abs(s.pnl)), 1);
@@ -1247,29 +1248,29 @@ export default function CommandCenter() {
 
                   {/* Weekly Summaries */}
                   {data.treasury.weeklySummaries?.length > 0 && (
-                    <div className="p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50">
-                      <div className="text-[9px] text-zinc-600 uppercase tracking-wider mb-3">Weekly Performance</div>
+                    <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/30">
+                      <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-3">Weekly Performance</div>
                       <div className="space-y-2">
                         {data.treasury.weeklySummaries.slice(-4).reverse().map((w: any, i: number) => (
                           <div key={i} className="flex justify-between items-center text-[10px] font-mono">
-                            <span className="text-zinc-500">{w.weekStart}</span>
+                            <span className="text-slate-500">{w.weekStart}</span>
                             <span className={w.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{w.pnl >= 0 ? '+' : ''}{fmt$(w.pnl)}</span>
-                            <span className="text-zinc-600">{w.trades} trades</span>
-                            <span className="text-cyan-400/60">{w.winRate}% WR</span>
+                            <span className="text-slate-600">{w.trades} trades</span>
+                            <span className="text-teal-400/50">{w.winRate}% WR</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div className="text-[9px] font-mono text-zinc-700 text-center">
+                  <div className="text-[9px] font-mono text-slate-700 text-center">
                     Updated {data.treasury.updatedAt ? timeAgo(data.treasury.updatedAt) : 'never'}
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="text-[10px] font-mono text-zinc-600">Treasury Ledger initializing...</div>
-                  <div className="text-[9px] font-mono text-zinc-700 mt-1">Data will populate after the next orchestrator cycle</div>
+                  <div className="text-[10px] font-mono text-slate-600">Treasury Ledger initializing...</div>
+                  <div className="text-[9px] font-mono text-slate-700 mt-1">Data will populate after the next orchestrator cycle</div>
                 </div>
               )}
             </div>
@@ -1277,9 +1278,9 @@ export default function CommandCenter() {
         )}
 
         {/* ─── Footer ──────────────────────────────────────────────────── */}
-        <div className="text-center py-6 space-y-1">
-          <div className="text-[10px] font-mono tracking-[0.3em] text-cyan-500/20 uppercase">FreedomForge Max · Autonomous Trading Empire</div>
-          <div className="text-[9px] font-mono text-zinc-700">All systems monitored 24/7 · Zero human intervention required</div>
+        <div className="text-center py-8 space-y-1">
+          <div className="text-[10px] font-mono tracking-[0.3em] text-teal-500/15 uppercase">FreedomForge Max · Autonomous Trading Empire</div>
+          <div className="text-[9px] font-mono text-slate-700">All systems monitored 24/7 · Zero human intervention required</div>
         </div>
       </main>
     </div>
