@@ -14,6 +14,9 @@ const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const LOGS_DIR = path.join(__dirname, '..', 'logs');
 
@@ -88,6 +91,12 @@ function trimDataFiles() {
     const filePath = path.join(DATA_DIR, rule.file);
     if (!fs.existsSync(filePath)) continue;
 
+    // Acquire file lock to prevent race conditions with engines writing simultaneously
+    let release;
+    try {
+      release = rio ? rio.acquireLock(filePath, { timeoutMs: 3000 }) : null;
+    } catch { release = null; }
+
     try {
       const beforeSize = fs.statSync(filePath).size;
       const raw = fs.readFileSync(filePath, 'utf8');
@@ -134,8 +143,11 @@ function trimDataFiles() {
       }
 
       if (changed) {
-        const out = JSON.stringify(data, null, 2);
-        fs.writeFileSync(filePath, out, 'utf8');
+        if (rio) {
+          rio.writeJsonAtomic(filePath, data);
+        } else {
+          fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+        }
         const afterSize = fs.statSync(filePath).size;
         const saved = beforeSize - afterSize;
         if (saved > 0) totalBytesSaved += saved;
@@ -145,6 +157,8 @@ function trimDataFiles() {
       processed.add(rule.file);
     } catch (err) {
       console.warn(`  WARN: ${rule.file}: ${err.message}`);
+    } finally {
+      if (release) release();
     }
   }
 

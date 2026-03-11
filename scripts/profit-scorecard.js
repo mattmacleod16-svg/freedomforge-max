@@ -17,6 +17,9 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const PAYOUT_STATE_FILE = path.join(DATA_DIR, 'payout-state.json');
 
@@ -34,6 +37,7 @@ const NO_PAYOUT_MAX_SKIPS = Math.max(10, parseInt(process.env.SCORECARD_NO_PAYOU
 // ─── Payout State Management (Ironclad Protocol) ─────────────────────────────
 function readPayoutState() {
   try {
+    if (rio) return rio.readJsonSafe(PAYOUT_STATE_FILE, { fallback: null });
     return JSON.parse(fs.readFileSync(PAYOUT_STATE_FILE, 'utf8'));
   } catch {
     return null;
@@ -42,7 +46,11 @@ function readPayoutState() {
 
 function writePayoutState(state) {
   state.updatedAt = new Date().toISOString();
-  fs.writeFileSync(PAYOUT_STATE_FILE, JSON.stringify(state, null, 2));
+  if (rio) {
+    rio.writeJsonAtomic(PAYOUT_STATE_FILE, state);
+  } else {
+    fs.writeFileSync(PAYOUT_STATE_FILE, JSON.stringify(state, null, 2));
+  }
 }
 
 function enforcePayoutFloor(state) {
@@ -143,11 +151,17 @@ async function sendAlert(message) {
 }
 
 async function fetchJson(pathname) {
-  const response = await fetch(`${APP_BASE_URL}${pathname}`);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} for ${pathname}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${APP_BASE_URL}${pathname}`, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} for ${pathname}`);
+    }
+    return response.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return response.json();
 }
 
 function aggregate(logs) {

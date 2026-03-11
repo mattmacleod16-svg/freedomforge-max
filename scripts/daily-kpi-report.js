@@ -68,13 +68,20 @@ async function sendAlert(message) {
 }
 
 async function fetchJson(pathname) {
-  const response = await fetch(`${APP_BASE_URL}${pathname}`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed ${pathname}: HTTP ${response.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${APP_BASE_URL}${pathname}`, {
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed ${pathname}: HTTP ${response.status}`);
+    }
+    return response.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return response.json();
 }
 
 function aggregateTransfers(logs, lookbackHours) {

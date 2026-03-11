@@ -15,15 +15,21 @@ const maxTopupErrors = parseInt(process.env.DAILY_MAX_TOPUP_ERRORS || '0', 10);
 const botId = `daily-${Date.now()}`;
 
 async function getJson(url) {
-  const response = await fetch(url);
-  const text = await response.text();
-  let data = null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text };
+    const response = await fetch(url, { signal: controller.signal });
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
+    return { status: response.status, data };
+  } finally {
+    clearTimeout(timer);
   }
-  return { status: response.status, data };
 }
 
 function statusLine(ok, label, details = '') {

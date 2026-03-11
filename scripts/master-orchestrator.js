@@ -38,7 +38,7 @@ const ORCHESTRATOR_ENABLED = String(process.env.ORCHESTRATOR_ENABLED || 'true').
 const DRY_RUN = String(process.env.DRY_RUN || 'false').toLowerCase() !== 'false';
 const MAX_TRADES_PER_CYCLE = Math.max(1, Math.min(10, parseInt(process.env.ORCH_MAX_TRADES_PER_CYCLE || '3', 10)));
 const CYCLE_TIMEOUT_MS = Math.max(30000, parseInt(process.env.ORCH_CYCLE_TIMEOUT_MS || '120000', 10));
-const MIN_CYCLE_INTERVAL_SEC = Math.max(60, parseInt(process.env.ORCH_MIN_INTERVAL_SEC || '180', 10));
+const MIN_CYCLE_INTERVAL_SEC = Math.max(60, parseInt(process.env.ORCH_MIN_INTERVAL_SEC || '170', 10));
 const STATE_FILE = path.resolve(process.cwd(), process.env.ORCH_STATE_FILE || 'data/orchestrator-state.json');
 const ALERT_WEBHOOK_URL = (process.env.ALERT_WEBHOOK_URL || '').trim();
 const ALERT_MODE = String(process.env.ALERT_MODE || 'critical-only').toLowerCase();

@@ -59,9 +59,15 @@ function formatWeiAsEth(wei, decimals = 6) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`request failed (${response.status}) for ${url}`);
-  return response.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`request failed (${response.status}) for ${url}`);
+    return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function summarize(logs, currentBalanceWei) {

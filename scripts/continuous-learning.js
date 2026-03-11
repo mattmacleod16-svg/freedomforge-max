@@ -29,11 +29,14 @@ async function call(path, { method = 'GET', body, retries = 2 } = {}) {
 
   let lastError = null;
   for (let attempt = 1; attempt <= retries + 1; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
     try {
       const response = await fetch(`${APP_BASE_URL}${path}`, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
       });
 
       const text = await response.text();
@@ -54,6 +57,8 @@ async function call(path, { method = 'GET', body, retries = 2 } = {}) {
       if (attempt <= retries) {
         await sleep(600 * attempt);
       }
+    } finally {
+      clearTimeout(timer);
     }
   }
 

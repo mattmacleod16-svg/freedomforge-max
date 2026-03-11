@@ -8,15 +8,21 @@
 const baseUrl = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
 
 async function getJson(url, init) {
-  const response = await fetch(url, init);
-  const text = await response.text();
-  let data = null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text };
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = { raw: text };
+    }
+    return { status: response.status, data };
+  } finally {
+    clearTimeout(timer);
   }
-  return { status: response.status, data };
 }
 
 function formatCheck(ok, label, details) {

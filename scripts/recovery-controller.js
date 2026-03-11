@@ -51,17 +51,28 @@ function loadState(absPath) {
   }
 }
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 function saveState(absPath, state) {
   fs.mkdirSync(path.dirname(absPath), { recursive: true });
-  fs.writeFileSync(absPath, JSON.stringify(state, null, 2));
+  if (rio) { rio.writeJsonAtomic(absPath, state); }
+  else { fs.writeFileSync(absPath, JSON.stringify(state, null, 2)); }
 }
 
 async function fetchJson(pathname) {
-  const response = await fetch(`${APP_BASE_URL}${pathname}`, {
-    headers: { 'content-type': 'application/json' },
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status} for ${pathname}`);
-  return response.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${APP_BASE_URL}${pathname}`, {
+      headers: { 'content-type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status} for ${pathname}`);
+    return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function summarizeWindow(logs) {

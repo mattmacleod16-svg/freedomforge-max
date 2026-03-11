@@ -7,13 +7,22 @@ async function call(path, method = 'POST', body) {
   const headers = { 'Content-Type': 'application/json' };
   if (adminKey) headers['x-autonomy-key'] = adminKey;
 
-  const res = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let res;
+  let text;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
 
-  const text = await res.text();
+    text = await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
   let data;
   try {
     data = JSON.parse(text);

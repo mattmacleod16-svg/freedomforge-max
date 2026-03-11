@@ -123,13 +123,20 @@ function makeStats() {
 }
 
 async function fetchJson(path) {
-  const response = await fetch(`${APP_BASE_URL}${path}`, {
-    headers: { 'content-type': 'application/json' },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed ${path}: HTTP ${response.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(`${APP_BASE_URL}${path}`, {
+      headers: { 'content-type': 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Failed ${path}: HTTP ${response.status}`);
+    }
+    return response.json();
+  } finally {
+    clearTimeout(timer);
   }
-  return response.json();
 }
 
 function vercelApiUrl(path) {
