@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { logEvent } from '@/lib/logger';
 
 type XPostHistory = {
@@ -71,7 +72,10 @@ function readState(): XState {
 function writeState(state: XState) {
   try {
     ensureDataDir();
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    // Atomic write: write to tmp then rename (crash-safe)
+    const tmpPath = STATE_FILE + '.tmp.' + process.pid + '.' + crypto.randomBytes(4).toString('hex');
+    fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), 'utf8');
+    fs.renameSync(tmpPath, STATE_FILE);
   } catch {
     // best effort
   }

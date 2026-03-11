@@ -59,6 +59,7 @@ fi
 
 # ─── 4. Check disk space ──────────────────────────────────────────────────────
 DISK_PCT=$(df / --output=pcent | tail -1 | tr -d ' %')
+DISK_PCT=${DISK_PCT:-0}
 if [[ "$DISK_PCT" -gt 85 ]]; then
   log "ALERT: Disk usage at ${DISK_PCT}%"
   sudo journalctl --vacuum-size=30M 2>/dev/null
@@ -67,6 +68,7 @@ fi
 
 # ─── 5. Check memory ──────────────────────────────────────────────────────────
 MEM_AVAIL=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
+MEM_AVAIL=${MEM_AVAIL:-0}
 if [[ "$MEM_AVAIL" -lt 500 ]]; then
   log "ALERT: Available memory low — ${MEM_AVAIL}MB"
   ALERTS="${ALERTS}\"mem_low_${MEM_AVAIL}mb\","
@@ -74,6 +76,7 @@ fi
 
 # ─── 6. Check dashboard responding ────────────────────────────────────────────
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000/api/status/empire 2>/dev/null)
+HTTP_CODE=${HTTP_CODE:-0}
 if [[ "$HTTP_CODE" != "200" ]]; then
   log "HEAL: Dashboard API returned $HTTP_CODE — restarting ff-dashboard"
   sudo systemctl restart ff-dashboard
@@ -90,7 +93,7 @@ if [[ -x "$ROTATE_SCRIPT" ]]; then
   bash "$ROTATE_SCRIPT" 2>/dev/null
 fi
 
-cat > "$ALERT_FILE" << ENDSTATUS
+cat > "${ALERT_FILE}.tmp" << ENDSTATUS
 {
   "lastCheck": "$(date -u +%FT%TZ)",
   "healed": $HEALED,
@@ -100,6 +103,7 @@ cat > "$ALERT_FILE" << ENDSTATUS
   "alerts": [${ALERTS}]
 }
 ENDSTATUS
+mv "${ALERT_FILE}.tmp" "$ALERT_FILE"
 
 if [[ $HEALED -gt 0 || -n "$ALERTS" ]]; then
   log "Watchdog complete: healed=$HEALED alerts=[$ALERTS]"

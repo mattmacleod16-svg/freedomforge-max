@@ -49,7 +49,10 @@ function writePayoutState(state) {
   if (rio) {
     rio.writeJsonAtomic(PAYOUT_STATE_FILE, state);
   } else {
-    fs.writeFileSync(PAYOUT_STATE_FILE, JSON.stringify(state, null, 2));
+    // Atomic write: tmp + rename (crash-safe)
+    const tmp = PAYOUT_STATE_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
+    fs.renameSync(tmp, PAYOUT_STATE_FILE);
   }
 }
 

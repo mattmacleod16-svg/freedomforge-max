@@ -94,7 +94,7 @@ function loadState() {
   const statePath = path.resolve(process.cwd(), STATE_FILE);
   if (!fs.existsSync(statePath)) return { statePath, byNetwork: {} };
   try {
-    const parsed = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    const parsed = rio ? rio.readJsonSafe(statePath, { fallback: {} }) : JSON.parse(fs.readFileSync(statePath, 'utf8'));
     return { statePath, byNetwork: parsed?.byNetwork || {} };
   } catch {
     return { statePath, byNetwork: {} };
@@ -442,47 +442,55 @@ async function main() {
   const uniqueNetworks = [...new Set(configuredNetworks)];
   const results = [];
   const nowMs = Date.now();
-  const state = loadState();
 
-  for (const network of uniqueNetworks) {
-    if (results.filter((row) => row.status === 'executed').length >= MAX_TX_PER_CYCLE) {
-      results.push({ network, status: 'skipped', reason: 'max tx per cycle reached' });
-      continue;
-    }
+  // Acquire state lock to prevent concurrent conversion-engine runs
+  const statePath = path.resolve(process.cwd(), STATE_FILE);
+  const release = rio ? rio.acquireLock(statePath) : null;
+  try {
+    const state = loadState();
 
-    try {
-      const row = await executeRoute(network, state.byNetwork[network] || {}, nowMs);
-      results.push(row);
-
-      const networkState = state.byNetwork[network] || {};
-      networkState.lastAttemptAt = nowMs;
-
-      if (row.status === 'executed') {
-        networkState.lastExecutedAt = nowMs;
-        networkState.lastSkipAt = undefined;
-        networkState.lastSkipReason = undefined;
-      } else if (row.status === 'skipped') {
-        networkState.lastSkipAt = nowMs;
-        networkState.lastSkipReason = row.reason || 'unspecified';
+    for (const network of uniqueNetworks) {
+      if (results.filter((row) => row.status === 'executed').length >= MAX_TX_PER_CYCLE) {
+        results.push({ network, status: 'skipped', reason: 'max tx per cycle reached' });
+        continue;
       }
 
-      state.byNetwork[network] = networkState;
-    } catch (error) {
-      results.push({
-        network,
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error),
-      });
+      try {
+        const row = await executeRoute(network, state.byNetwork[network] || {}, nowMs);
+        results.push(row);
 
-      const networkState = state.byNetwork[network] || {};
-      networkState.lastAttemptAt = nowMs;
-      networkState.lastSkipAt = nowMs;
-      networkState.lastSkipReason = 'error';
-      state.byNetwork[network] = networkState;
+        const networkState = state.byNetwork[network] || {};
+        networkState.lastAttemptAt = nowMs;
+
+        if (row.status === 'executed') {
+          networkState.lastExecutedAt = nowMs;
+          networkState.lastSkipAt = undefined;
+          networkState.lastSkipReason = undefined;
+        } else if (row.status === 'skipped') {
+          networkState.lastSkipAt = nowMs;
+          networkState.lastSkipReason = row.reason || 'unspecified';
+        }
+
+        state.byNetwork[network] = networkState;
+      } catch (error) {
+        results.push({
+          network,
+          status: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        const networkState = state.byNetwork[network] || {};
+        networkState.lastAttemptAt = nowMs;
+        networkState.lastSkipAt = nowMs;
+        networkState.lastSkipReason = 'error';
+        state.byNetwork[network] = networkState;
+      }
     }
-  }
 
-  saveState(state.statePath, state.byNetwork);
+    saveState(state.statePath, state.byNetwork);
+  } finally {
+    if (release) release();
+  }
 
   console.log(JSON.stringify({
     ts: new Date().toISOString(),
