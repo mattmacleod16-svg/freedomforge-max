@@ -37,7 +37,7 @@ const DATA = path.join(BASE, 'data');
 const LOGS = path.join(BASE, 'logs');
 const ENV_FILE = path.join(BASE, '.env.local');
 const AUDIT_HISTORY = path.join(DATA, 'audit-history.json');
-const EXPIRY = new Date('2026-03-31T23:59:59Z'); // Extended: mission-critical monitoring
+// No expiry — FreedomForge runs forever
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ function safeJSON(filePath) {
 
 const report = {
   auditTime: now(),
-  expiry: EXPIRY.toISOString(),
+  expiry: 'never',
   verdict: 'PASS',
   checks: {},
   patches: [],
@@ -507,16 +507,8 @@ function checkPortfolioBreakdown() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function main() {
-  // Check expiry
-  if (new Date() > EXPIRY) {
-    log('INFO', 'Audit period expired (7 days). Disabling timer.');
-    runSudo('systemctl stop ff-scheduled-audit.timer');
-    runSudo('systemctl disable ff-scheduled-audit.timer');
-    process.exit(0);
-  }
-
   log('INFO', '═══ FreedomForge Scheduled Deep Audit ═══');
-  log('INFO', `Audit #${getAuditNumber()} | Expires: ${EXPIRY.toISOString()}`);
+  log('INFO', `Audit #${getAuditNumber()} | Permanent — no expiry`);
 
   // Run all checks
   checkCoreServices();
