@@ -74,9 +74,8 @@ const EXPECTED_SERVICES = {
 // ─── EXPECTED ENV KEYS (must exist in .env.local) ─────────────────────────────
 
 const REQUIRED_ENV_KEYS = [
-  'COINBASE_CDP_KEY_NAME', 'COINBASE_CDP_PRIVATE_KEY',
+  'COINBASE_API_KEY', 'COINBASE_API_SECRET',
   'KRAKEN_API_KEY', 'KRAKEN_API_SECRET',
-  'INITIAL_CAPITAL',
 ];
 
 // ─── FINANCIAL SAFETY THRESHOLDS ──────────────────────────────────────────────
@@ -242,11 +241,10 @@ function auditCodeIntegrity() {
     }
   }
 
-  // 1e. Module require test
+  // 1e. Module require test (JS only — TS files are compiled by Next.js)
   const coreModules = [
     'lib/liquidation-guardian.js',
     'lib/treasury-ledger.js',
-    'lib/alerts.ts',
   ];
   let moduleOk = 0;
   for (const mod of coreModules) {
