@@ -22,10 +22,23 @@ async function getJson(url) {
   return { status: response.status, data };
 }
 
+async function postJson(url, body = {}) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  return { status: response.status, data };
+}
+
 async function main() {
   const health = await getJson(`${baseUrl}/api/alchemy/health`);
-  const distribution = await getJson(
-    `${baseUrl}/api/alchemy/wallet/distribute?shard=${encodeURIComponent(shard)}&shards=${encodeURIComponent(shards)}&botId=${encodeURIComponent(botId)}`
+  const distribution = await postJson(
+    `${baseUrl}/api/alchemy/wallet/distribute`,
+    { shard: parseInt(shard, 10), shards: parseInt(shards, 10), botId }
   );
   const wallet = await getJson(`${baseUrl}/api/alchemy/wallet`);
 

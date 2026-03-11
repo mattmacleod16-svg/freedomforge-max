@@ -3,7 +3,10 @@ import { requireAuth } from '@/lib/auth/apiGuard';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: Request) {
+  // H4 FIX: Ground-truth ingestion writes to autonomy state — require auth to prevent data poisoning
+  const denied = await requireAuth(req);
+  if (denied) return denied;
   try {
     const result = await ingestExternalGroundTruth();
     return Response.json({ status: 'ok', ...result });

@@ -20,7 +20,7 @@ const DIST_URL = process.env.DISTRIBUTION_URL || `${appBaseUrl}/api/alchemy/wall
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL;
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 const ALERT_MODE = String(process.env.MONITOR_ALERT_MODE || 'critical').toLowerCase();
-const POLL_MS = parseInt(process.env.MONITOR_INTERVAL_MS || '900000', 10); // default 15m
+const POLL_MS = Math.max(60000, parseInt(process.env.MONITOR_INTERVAL_MS || '900000', 10)); // default 15m, min 60s
 
 if (!DIST_URL) {
   console.error('DISTRIBUTION_URL not set');
@@ -62,8 +62,10 @@ async function checkOnce() {
     const timer = setTimeout(() => controller.abort(), 15000);
     let res;
     try {
-      res = await fetch(DIST_URL, { signal: controller.signal });
+      res = await fetch(DIST_URL, { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
     } finally { clearTimeout(timer); }
+    // Consume body to prevent connection/memory leaks in long-running process
+    try { await res.text(); } catch {}
     if (!res.ok) {
       throw new Error('bad status ' + res.status);
     }
@@ -74,6 +76,11 @@ async function checkOnce() {
   }
 }
 
+// Catch unhandled rejections to prevent silent process death
+process.on('unhandledRejection', (err) => {
+  console.error('[monitor] unhandled rejection:', err);
+});
+
 // start immediately
 checkOnce().catch(console.error);
-setInterval(checkOnce, POLL_MS);
+setInterval(() => checkOnce().catch(console.error), POLL_MS);

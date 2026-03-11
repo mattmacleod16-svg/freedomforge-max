@@ -6,8 +6,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
-import * as os from 'os';
-import * as crypto_mod from 'crypto';
 
 interface VectorDoc {
   id: string;
@@ -104,10 +102,7 @@ class VectorStore {
       if (!fs.existsSync(docsDir)) {
         fs.mkdirSync(docsDir, { recursive: true });
       }
-      // Atomic write: write to tmp then rename (crash-safe)
-      const tmpPath = this.storePath + '.tmp.' + process.pid + '.' + crypto_mod.randomBytes(4).toString('hex');
-      fs.writeFileSync(tmpPath, JSON.stringify(this.docs, null, 2));
-      fs.renameSync(tmpPath, this.storePath);
+      fs.writeFileSync(this.storePath, JSON.stringify(this.docs, null, 2));
     } catch (error) {
       console.error('Error persisting knowledge base:', error);
     }

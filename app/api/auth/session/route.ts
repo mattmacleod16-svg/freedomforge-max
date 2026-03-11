@@ -19,7 +19,8 @@ export async function GET() {
 
   const renewed = createSessionToken(payload.user);
   const response = NextResponse.json({ authenticated: true, user: payload.user });
-  const forceInsecure = process.env.DASHBOARD_COOKIE_SECURE === 'false';
+  // H5 FIX: Only allow insecure cookies in development — never in production
+  const forceInsecure = process.env.NODE_ENV !== 'production' && process.env.DASHBOARD_COOKIE_SECURE === 'false';
   response.cookies.set({
     name: DASHBOARD_SESSION_COOKIE,
     value: renewed,

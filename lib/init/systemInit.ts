@@ -26,11 +26,7 @@ export async function initializeSystem(): Promise<void> {
     return initializationPromise;
   }
 
-  initializationPromise = performInitialization().catch((err) => {
-    // Reset so subsequent calls can retry initialization
-    initializationPromise = null;
-    throw err;
-  });
+  initializationPromise = performInitialization();
   return initializationPromise;
 }
 

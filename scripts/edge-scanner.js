@@ -39,21 +39,38 @@ try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null
 
 async function sendWebhook(content) {
   if (!ALERT_WEBHOOK_URL) return;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
     await fetch(ALERT_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: content.slice(0, 1900) }),
+      signal: controller.signal,
     });
-  } catch {}
+  } catch (err) {
+    console.error('[edge-scanner] webhook delivery failed:', err.message || err);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function main() {
   const startMs = Date.now();
   console.log(`[edge-scanner] Scanning ${SCAN_ASSETS.length} assets: ${SCAN_ASSETS.join(', ')}`);
 
-  // 1. Scan all assets for opportunities
-  const opportunities = await edgeDetector.scanAssets(SCAN_ASSETS, TOP_OPPORTUNITIES * 2);
+  // 1. Scan all assets for opportunities (with timeout guard)
+  const SCAN_TIMEOUT_MS = Math.max(30000, parseInt(process.env.EDGE_SCAN_TIMEOUT_MS || '120000', 10));
+  let opportunities;
+  try {
+    opportunities = await Promise.race([
+      edgeDetector.scanAssets(SCAN_ASSETS, TOP_OPPORTUNITIES * 2),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('scanAssets timed out')), SCAN_TIMEOUT_MS)),
+    ]);
+  } catch (err) {
+    console.error('[edge-scanner] scan failed:', err.message);
+    process.exit(1);
+  }
 
   // 2. Filter by minimum thresholds
   const publishable = opportunities.filter(
@@ -108,7 +125,7 @@ async function main() {
   const highEdge = publishable.filter((o) => o.edge >= HIGH_EDGE_THRESHOLD);
   if (ALERT_ON_HIGH_EDGE && highEdge.length > 0) {
     const lines = highEdge.map((o) =>
-      `**${o.asset}** ${o.side.toUpperCase()} | edge: ${(o.edge * 100).toFixed(1)}% | conf: ${(o.confidence * 100).toFixed(1)}% | price: $${o.meta?.lastPrice?.toFixed(2) || '?'}`
+      `**${o.asset}** ${(o.side || 'UNKNOWN').toUpperCase()} | edge: ${(o.edge * 100).toFixed(1)}% | conf: ${(o.confidence * 100).toFixed(1)}% | price: $${Number(o.meta?.lastPrice || 0).toFixed(2) || '?'}`
     );
     await sendWebhook(`🎯 **Edge Scanner — High-Edge Opportunities**\n${lines.join('\n')}`);
   }
@@ -132,7 +149,9 @@ async function main() {
         },
         ttlMs: 4 * 60 * 60 * 1000,
       });
-    } catch {}
+    } catch (err) {
+      console.error('[edge-scanner] strategy evolution check failed:', err.message || err);
+    }
   }
 
   // 7. Output summary

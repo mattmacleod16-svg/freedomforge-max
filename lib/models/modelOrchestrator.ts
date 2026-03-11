@@ -219,23 +219,10 @@ export async function initializeModels() {
   }
 }
 
-// FIX H-11: Track initialization promise to prevent callers seeing empty models
-let initPromise: Promise<void> | null = null;
-
 function ensureModelsInitialized() {
   if (!initialized || models.length === 0 || (Date.now() - lastInitializedAt) > MODEL_REFRESH_MS) {
-    if (!initPromise) {
-      initPromise = initializeModels().finally(() => { initPromise = null; });
-    }
+    void initializeModels();
   }
-}
-
-/**
- * Await model initialization — call this before using models synchronously.
- */
-export async function awaitModelsReady() {
-  ensureModelsInitialized();
-  if (initPromise) await initPromise;
 }
 
 function normalizeResponseText(text: string) {
@@ -347,8 +334,7 @@ async function queryOpenAI(prompt: string, config: ModelConfig): Promise<string>
 async function queryGemini(prompt: string, config: ModelConfig): Promise<string> {
   const model = config.model || 'gemini-2.0-flash';
   const endpointBase = config.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models';
-  // FIX L-3: Use x-goog-api-key header instead of query string to avoid key in logs
-  const endpoint = `${endpointBase}/${model}:generateContent`;
+  const endpoint = `${endpointBase}/${model}:generateContent?key=${config.apiKey}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
@@ -357,7 +343,6 @@ async function queryGemini(prompt: string, config: ModelConfig): Promise<string>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': config.apiKey || '',
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
@@ -557,12 +542,12 @@ export async function getMultiModelResponse(
 }
 
 export async function getBestResponse(prompt: string): Promise<string> {
-  await awaitModelsReady();
+  ensureModelsInitialized();
   const responses = await getMultiModelResponse(prompt, 1);
   return responses[0]?.response || 'Unable to get response from any model';
 }
 
 export function getAvailableModels(): string[] {
-  ensureModelsInitialized(); // best-effort for sync function
+  ensureModelsInitialized();
   return models.map((m) => m.name);
 }

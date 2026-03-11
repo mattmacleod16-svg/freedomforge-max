@@ -4,9 +4,31 @@
 
 LOG_TAG="ff-watchdog"
 ALERT_FILE="/home/opc/freedomforge-max/data/watchdog-alerts.json"
+ALERT_TMP="${ALERT_FILE}.tmp.$$"
 REPO_DIR="/home/opc/freedomforge-max"
+RESTART_COOLDOWN_FILE="/tmp/ff-watchdog-restart-cooldown"
 
 log() { logger -t "$LOG_TAG" "$1"; echo "$(date -u +%FT%TZ) $1"; }
+
+# Cooldown check — prevent rapid restart loops (min 10 min between service restarts)
+COOLDOWN_SEC=600
+can_restart() {
+  local svc="$1"
+  local cooldown_marker="${RESTART_COOLDOWN_FILE}.${svc}"
+  if [[ -f "$cooldown_marker" ]]; then
+    local last_restart
+    last_restart=$(cat "$cooldown_marker" 2>/dev/null || echo 0)
+    local elapsed=$(( $(date +%s) - last_restart ))
+    if [[ "$elapsed" -lt "$COOLDOWN_SEC" ]]; then
+      log "COOLDOWN: $svc restarted ${elapsed}s ago (< ${COOLDOWN_SEC}s) — skipping"
+      return 1
+    fi
+  fi
+  return 0
+}
+mark_restart() {
+  date +%s > "${RESTART_COOLDOWN_FILE}.${1}" 2>/dev/null
+}
 
 HEALED=0
 ALERTS=""
@@ -15,15 +37,20 @@ ALERTS=""
 CRITICAL_SERVICES="ff-dashboard ff-tunnel caddy"
 for svc in $CRITICAL_SERVICES; do
   if ! systemctl is-active --quiet "$svc"; then
-    log "HEAL: $svc is down — restarting"
-    sudo systemctl restart "$svc"
-    sleep 2
-    if systemctl is-active --quiet "$svc"; then
-      log "HEAL: $svc restarted successfully"
-      HEALED=$((HEALED + 1))
+    if can_restart "$svc"; then
+      log "HEAL: $svc is down — restarting"
+      sudo systemctl restart "$svc"
+      mark_restart "$svc"
+      sleep 2
+      if systemctl is-active --quiet "$svc"; then
+        log "HEAL: $svc restarted successfully"
+        HEALED=$((HEALED + 1))
+      else
+        log "ALERT: $svc failed to restart!"
+        ALERTS="${ALERTS}\"${svc}_down\","
+      fi
     else
-      log "ALERT: $svc failed to restart!"
-      ALERTS="${ALERTS}\"${svc}_down\","
+      ALERTS="${ALERTS}\"${svc}_down_cooldown\","
     fi
   fi
 done
@@ -32,9 +59,21 @@ done
 TRADE_LOOPS="freedomforge-trade-loop-arb freedomforge-trade-loop-eth-shard0 freedomforge-trade-loop-eth-shard1 freedomforge-trade-loop-op freedomforge-trade-loop-pol"
 for svc in $TRADE_LOOPS; do
   if ! systemctl is-active --quiet "$svc"; then
-    log "HEAL: trade loop $svc is down — restarting"
-    sudo systemctl restart "$svc"
-    HEALED=$((HEALED + 1))
+    if can_restart "$svc"; then
+      log "HEAL: trade loop $svc is down — restarting"
+      sudo systemctl restart "$svc"
+      mark_restart "$svc"
+      sleep 2
+      if systemctl is-active --quiet "$svc"; then
+        log "HEAL: trade loop $svc restarted successfully"
+        HEALED=$((HEALED + 1))
+      else
+        log "ALERT: trade loop $svc failed to restart!"
+        ALERTS="${ALERTS}\"${svc}_down\","
+      fi
+    else
+      ALERTS="${ALERTS}\"${svc}_down_cooldown\","
+    fi
   fi
 done
 
@@ -42,13 +81,13 @@ done
 ORCH_STATE="$REPO_DIR/data/orchestrator-state.json"
 if [[ -f "$ORCH_STATE" ]]; then
   LAST_RUN=$(python3 -c "
-import json, time
-d = json.load(open('$ORCH_STATE'))
+import json, time, sys
+d = json.load(open(sys.argv[1]))
 ts = d.get('lastRunAt') or d.get('updatedAt') or 0
-if ts > 1e12: ts = ts / 1000  # ms to seconds
+if ts > 1e12: ts = ts / 1000
 age = time.time() - ts
 print(int(age))
-" 2>/dev/null)
+" "$ORCH_STATE" 2>/dev/null)
   LAST_RUN=${LAST_RUN:-9999}
   if [[ "$LAST_RUN" -gt 600 ]]; then
     log "ALERT: Orchestrator stale — last ran ${LAST_RUN}s ago (>10min). Triggering manual run."
@@ -58,7 +97,7 @@ print(int(age))
 fi
 
 # ─── 4. Check disk space ──────────────────────────────────────────────────────
-DISK_PCT=$(df / --output=pcent | tail -1 | tr -d ' %')
+DISK_PCT=$(df / --output=pcent 2>/dev/null | tail -1 | tr -d ' %')
 DISK_PCT=${DISK_PCT:-0}
 if [[ "$DISK_PCT" -gt 85 ]]; then
   log "ALERT: Disk usage at ${DISK_PCT}%"
@@ -67,7 +106,7 @@ if [[ "$DISK_PCT" -gt 85 ]]; then
 fi
 
 # ─── 5. Check memory ──────────────────────────────────────────────────────────
-MEM_AVAIL=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo)
+MEM_AVAIL=$(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null)
 MEM_AVAIL=${MEM_AVAIL:-0}
 if [[ "$MEM_AVAIL" -lt 500 ]]; then
   log "ALERT: Available memory low — ${MEM_AVAIL}MB"
@@ -78,10 +117,15 @@ fi
 HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000/api/status/empire 2>/dev/null)
 HTTP_CODE=${HTTP_CODE:-0}
 if [[ "$HTTP_CODE" != "200" ]]; then
-  log "HEAL: Dashboard API returned $HTTP_CODE — restarting ff-dashboard"
-  sudo systemctl restart ff-dashboard
-  HEALED=$((HEALED + 1))
-  ALERTS="${ALERTS}\"dashboard_${HTTP_CODE}\","
+  if can_restart "ff-dashboard"; then
+    log "HEAL: Dashboard API returned $HTTP_CODE — restarting ff-dashboard"
+    sudo systemctl restart ff-dashboard
+    mark_restart "ff-dashboard"
+    HEALED=$((HEALED + 1))
+    ALERTS="${ALERTS}\"dashboard_${HTTP_CODE}\","
+  else
+    ALERTS="${ALERTS}\"dashboard_${HTTP_CODE}_cooldown\","
+  fi
 fi
 
 # ─── 7. Write status ──────────────────────────────────────────────────────────
@@ -93,17 +137,17 @@ if [[ -x "$ROTATE_SCRIPT" ]]; then
   bash "$ROTATE_SCRIPT" 2>/dev/null
 fi
 
-cat > "${ALERT_FILE}.tmp" << ENDSTATUS
+cat > "$ALERT_TMP" << ENDSTATUS
 {
   "lastCheck": "$(date -u +%FT%TZ)",
-  "healed": $HEALED,
-  "diskPct": $DISK_PCT,
-  "memAvailMB": $MEM_AVAIL,
-  "dashboardHttp": $HTTP_CODE,
+  "healed": ${HEALED:-0},
+  "diskPct": ${DISK_PCT:-0},
+  "memAvailMB": ${MEM_AVAIL:-0},
+  "dashboardHttp": ${HTTP_CODE:-0},
   "alerts": [${ALERTS}]
 }
 ENDSTATUS
-mv "${ALERT_FILE}.tmp" "$ALERT_FILE"
+mv -f "$ALERT_TMP" "$ALERT_FILE" 2>/dev/null || true
 
 if [[ $HEALED -gt 0 || -n "$ALERTS" ]]; then
   log "Watchdog complete: healed=$HEALED alerts=[$ALERTS]"

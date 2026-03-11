@@ -389,20 +389,13 @@ async function main() {
   const capitalAllocation = computeCapitalAllocation(state.activeAssets);
   state.capitalAllocation = capitalAllocation;
 
-  // 6. Run brain evolution if available — FIX H-2: lock to prevent concurrent mutation
+  // 6. Run brain evolution if available
   let brainEvolution = null;
   if (brain) {
-    let brainRelease = null;
     try {
-      if (rio) {
-        const brainStateFile = path.resolve(process.cwd(), 'data/brain-state.json');
-        brainRelease = rio.acquireLock(brainStateFile);
-      }
       brainEvolution = brain.runEvolutionCycle();
     } catch (err) {
       console.log(`[scaler] Brain evolution error: ${err.message}`);
-    } finally {
-      if (brainRelease) brainRelease();
     }
   }
 

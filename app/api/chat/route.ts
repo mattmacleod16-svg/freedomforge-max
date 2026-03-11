@@ -120,6 +120,12 @@ export async function POST(req: Request): Promise<Response> {
       return Response.json({ error: 'Message is required' }, { status: 400 });
     }
 
+    // M1 FIX: Cap message length to prevent LLM cost abuse and OOM
+    const MAX_MESSAGE_LENGTH = parseInt(process.env.CHAT_MAX_MESSAGE_LENGTH || '10000', 10);
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return Response.json({ error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` }, { status: 400 });
+    }
+
     console.log('💬 Processing:', message.substring(0, 100));
 
     // Use the enhanced synthesis system

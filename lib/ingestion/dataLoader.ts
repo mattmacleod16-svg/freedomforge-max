@@ -8,7 +8,17 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-const FETCH_TIMEOUT_MS = 15000;
+const FETCH_TIMEOUT_MS = 30000;
+
+async function fetchWithTimeout(url: string, opts: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...opts, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface DataSource {
   name: string;
@@ -47,12 +57,6 @@ const availableDataSources: DataSource[] = [
 const CURSOR_FILE = path.join(process.cwd(), 'data', 'ingestion-cursors.json');
 const MIN_SOURCE_INTERVAL_MINUTES = Math.max(5, Number(process.env.KB_INGEST_MIN_INTERVAL_MINUTES || 60));
 
-function timedFetch(url: string, timeoutMs = FETCH_TIMEOUT_MS): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
-}
-
 type CursorState = Record<string, { lastRunAt: number }>;
 
 function readCursors(): CursorState {
@@ -73,7 +77,9 @@ function writeCursors(next: CursorState) {
     const tmpPath = CURSOR_FILE + '.tmp.' + process.pid + '.' + crypto.randomBytes(4).toString('hex');
     fs.writeFileSync(tmpPath, JSON.stringify(next, null, 2), 'utf8');
     fs.renameSync(tmpPath, CURSOR_FILE);
-  } catch {}
+  } catch (err) {
+    console.error('[dataLoader] writeCursors failed:', (err as Error).message);
+  }
 }
 
 function shouldRunSource(sourceId: string) {
@@ -119,10 +125,9 @@ export async function fetchAndIngestWikipediaCategory(category: string) {
 
   try {
     // This is a placeholder - in production use wikipedia-js or mwclient
-    const response = await timedFetch(
+    const response = await fetchWithTimeout(
       `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(category)}&format=json&origin=*`
     );
-    if (!response.ok) throw new Error(`Wikipedia API ${response.status}`);
 
     const data = await response.json();
 
@@ -135,10 +140,9 @@ export async function fetchAndIngestWikipediaCategory(category: string) {
 
     for (const article of articles) {
       // Fetch article content
-      const articleResponse = await timedFetch(
+      const articleResponse = await fetchWithTimeout(
         `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&titles=${encodeURIComponent(article.title)}&format=json&origin=*`
       );
-      if (!articleResponse.ok) continue;
 
       const articleData = await articleResponse.json();
       const pages = articleData.query.pages;
@@ -183,10 +187,9 @@ export async function fetchAndIngestArXivPapers(category: string = 'cs.AI', limi
   console.log(`📚 Fetching ArXiv papers from ${category}...`);
 
   try {
-    const response = await timedFetch(
-      `http://export.arxiv.org/api/query?search_query=cat:${category}&start=0&max_results=${limit}`
+    const response = await fetchWithTimeout(
+      `https://export.arxiv.org/api/query?search_query=cat:${category}&start=0&max_results=${limit}`
     );
-    if (!response.ok) throw new Error(`ArXiv API ${response.status}`);
 
     const text = await response.text();
 
@@ -245,16 +248,11 @@ export async function fetchAndIngestGitHubTrending() {
   console.log('🐙 Fetching GitHub trending repositories...');
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const response = await fetch('https://api.github.com/search/repositories?q=stars:>10000&sort=stars&order=desc&per_page=5', {
+    const response = await fetchWithTimeout('https://api.github.com/search/repositories?q=stars:>10000&sort=stars&order=desc&per_page=5', {
       headers: {
         'Accept': 'application/vnd.github.v3+json',
       },
-      signal: controller.signal,
     });
-    clearTimeout(timer);
-    if (!response.ok) throw new Error(`GitHub API ${response.status}`);
 
     const data = await response.json();
 

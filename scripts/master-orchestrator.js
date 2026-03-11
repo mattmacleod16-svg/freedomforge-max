@@ -84,14 +84,10 @@ function loadState() {
   } catch { return defaultState; }
 }
 
-// FIX H-3: Use lockedUpdate to prevent race conditions on shared state
 function saveState(state) {
   state.updatedAt = Date.now();
   if (state.errors?.length > 50) state.errors = state.errors.slice(-50);
-  if (rio) {
-    rio.lockedUpdate(STATE_FILE, () => state);
-    return;
-  }
+  if (rio) { rio.writeJsonAtomic(STATE_FILE, state); return; }
   fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
   const tmp = STATE_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
@@ -230,13 +226,7 @@ function phaseBrainEvolution() {
     return { evolved: false, reason: 'module_unavailable' };
   }
 
-  // FIX H-2: Acquire lock to prevent concurrent brain evolution with horizontal-scaler
-  let release = null;
   try {
-    if (rio) {
-      const brainStateFile = path.resolve(process.cwd(), 'data/brain-state.json');
-      release = rio.acquireLock(brainStateFile);
-    }
     const result = brain.runEvolutionCycle();
     if (result.evolved) {
       log('info', `Brain evolved to gen ${result.generation?.id} (calibration: ${result.calibration?.score})`);
@@ -249,8 +239,6 @@ function phaseBrainEvolution() {
   } catch (err) {
     log('error', `Brain evolution failed: ${err.message}`);
     return { evolved: false, reason: err.message };
-  } finally {
-    if (release) release();
   }
 }
 

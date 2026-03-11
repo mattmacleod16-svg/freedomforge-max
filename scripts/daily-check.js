@@ -32,6 +32,25 @@ async function getJson(url) {
   }
 }
 
+async function postJson(url, body = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+    return { status: response.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function statusLine(ok, label, details = '') {
   const marker = ok ? '✅' : '❌';
   return `${marker} ${label}${details ? ` — ${details}` : ''}`;
@@ -40,7 +59,7 @@ function statusLine(ok, label, details = '') {
 async function main() {
   const results = await Promise.allSettled([
     getJson(`${baseUrl}/api/alchemy/health`),
-    getJson(`${baseUrl}/api/alchemy/wallet/distribute?shard=0&shards=1&botId=${encodeURIComponent(botId)}`),
+    postJson(`${baseUrl}/api/alchemy/wallet/distribute`, { shard: 0, shards: 1, botId }),
     getJson(`${baseUrl}/api/alchemy/wallet`),
     getJson(`${baseUrl}/api/alchemy/wallet/alerts`),
     getJson(`${baseUrl}/api/status/metrics?format=json`),

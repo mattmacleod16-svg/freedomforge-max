@@ -61,8 +61,8 @@ jobs:
       - name: Invoke shard distribution endpoint
         if: steps.should_run.outputs.run == 'true'
         run: |
-          url="$APP_BASE_URL/api/alchemy/wallet/distribute?shard=$SHARD_INDEX&shards=$BOT_SHARDS&botId=gh-bot-$SHARD_INDEX"
-          response=$(curl -sS --connect-timeout 10 --max-time 90 --retry 2 --retry-delay 3 --retry-connrefused -w "\n%{http_code}" "$url")
+          url="$APP_BASE_URL/api/alchemy/wallet/distribute"
+          response=$(curl -sS --connect-timeout 10 --max-time 90 --retry 2 --retry-delay 3 --retry-connrefused -X POST -H "Content-Type: application/json" -d "{\"shard\":$SHARD_INDEX,\"shards\":$BOT_SHARDS,\"botId\":\"gh-bot-$SHARD_INDEX\"}" -w "\n%{http_code}" "$url")
           body=$(echo "$response" | sed '$d')
           status=$(echo "$response" | tail -n1)
 

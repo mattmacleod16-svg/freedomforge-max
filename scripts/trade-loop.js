@@ -92,6 +92,37 @@ async function getJson(url) {
   }
 }
 
+async function postJson(url, body = {}) {
+  const { controller, timeout } = withTimeout(requestTimeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'freedomforge-max/trade-loop',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const text = await response.text();
+    let payload = {};
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch {
+      payload = { raw: text };
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} ${JSON.stringify(payload).slice(0, 220)}`);
+    }
+
+    return payload;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function summarizeResult(payload) {
   const results = payload?.results;
   if (!results) return 'skip(no-transfer)';
@@ -118,11 +149,16 @@ async function doHealthCheck() {
 
 async function doDistribution() {
   const botId = `${botIdPrefix}-${Date.now()}`;
-  let url = `${distributionBaseUrl}?shard=${encodeURIComponent(String(shard))}&shards=${encodeURIComponent(String(shards))}&botId=${encodeURIComponent(botId)}`;
+  let url = distributionBaseUrl;
   if (tradeLoopNetwork) {
-    url += `&network=${encodeURIComponent(tradeLoopNetwork)}`;
+    url += `${url.includes('?') ? '&' : '?'}network=${encodeURIComponent(tradeLoopNetwork)}`;
   }
-  const payload = await getJson(url);
+  // Use POST to prevent CSRF — distribute is a mutation endpoint
+  const payload = await postJson(url, {
+    shard: shard,
+    shards: shards,
+    botId: botId,
+  });
   return { botId, payload };
 }
 

@@ -337,11 +337,18 @@ export async function withdrawFromRevenue(to: string, amountEther: string, netwo
       to,
       value: parseEther(amountEther),
     });
-    await tx.wait();
+    const TX_TIMEOUT = 120_000;
+    await Promise.race([
+      tx.wait(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(`tx.wait() timed out after ${TX_TIMEOUT}ms`)), TX_TIMEOUT)),
+    ]);
     await logEvent('withdraw', { to, amountEther, txHash: tx.hash, wallet: w.address });
     return tx.hash;
   } catch (err) {
-    console.error("Withdrawal error", err);    sendAlert(`Revenue wallet withdrawal failed: ${err}`);    return null;
+    const safeErr = String(err).replace(/https?:\/\/[^\s"')]+/g, '[URL_REDACTED]');
+    console.error("Withdrawal error", safeErr);
+    sendAlert(`Revenue wallet withdrawal failed: ${safeErr}`);
+    return null;
   }
 }
 
@@ -651,28 +658,35 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
       recipients,
     });
 
+    const TOKEN_TX_TIMEOUT = parseInt(process.env.DISTRIBUTION_TX_TIMEOUT_MS || '120000', 10);
+
     for (const addr of recipients) {
       let success = false;
       let lastError: any = null;
       for (let attempt = 1; attempt <= maxRetries && !success; ++attempt) {
         try {
           const tx = await token.transfer(addr, tokenShare);
-          await tx.wait();
+          await Promise.race([
+            tx.wait(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error(`token tx.wait() timed out after ${TOKEN_TX_TIMEOUT}ms`)), TOKEN_TX_TIMEOUT)),
+          ]);
           tokenResults[addr] = tx.hash;
           success = true;
           await logEvent('transfer_token', { to: addr, token: payoutToken, amount: tokenShare.toString(), txHash: tx.hash, wallet: w.address, botId, shardIndex, totalShards });
         } catch (e) {
           lastError = e;
-          console.warn(`token transfer attempt ${attempt} failed for ${addr}`, e);
+          const safeErr = String(e).replace(/https?:\/\/[^\s"')]+/g, '[URL_REDACTED]');
+          console.warn(`token transfer attempt ${attempt} failed for ${addr}`, safeErr);
           await new Promise((r) => setTimeout(r, retryBaseMs * attempt));
         }
       }
 
       if (!success) {
-        console.error('token distribute error to', addr, lastError);
+        const safeErr = String(lastError).replace(/https?:\/\/[^\s"')]+/g, '[URL_REDACTED]');
+        console.error('token distribute error to', addr, safeErr);
         tokenResults[addr] = null;
-        sendAlert(`Failed token payout to ${addr} after multiple attempts: ${lastError}`);
-        await logEvent('transfer_token_failed', { to: addr, token: payoutToken, error: String(lastError), wallet: w.address, botId, shardIndex, totalShards });
+        sendAlert(`Failed token payout to ${addr} after multiple attempts: ${safeErr}`);
+        await logEvent('transfer_token_failed', { to: addr, token: payoutToken, error: safeErr, wallet: w.address, botId, shardIndex, totalShards });
       }
     }
 
@@ -804,28 +818,35 @@ export async function distributeRevenue(options: DistributionOptions = {}): Prom
     recipients,
   });
 
+  const TX_WAIT_TIMEOUT = parseInt(process.env.DISTRIBUTION_TX_TIMEOUT_MS || '120000', 10);
+
   for (const addr of recipients) {
     let success = false;
     let lastError: any = null;
     for (let attempt = 1; attempt <= maxRetries && !success; ++attempt) {
       try {
         const tx = await w.sendTransaction({ to: addr, value: share });
-        await tx.wait();
+        await Promise.race([
+          tx.wait(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error(`tx.wait() timed out after ${TX_WAIT_TIMEOUT}ms (tx: ${tx.hash})`)), TX_WAIT_TIMEOUT)),
+        ]);
         results[addr] = tx.hash;
         success = true;
         await logEvent('transfer', { to: addr, amount: share.toString(), txHash: tx.hash, wallet: w.address, botId, shardIndex, totalShards });
       } catch (e) {
         lastError = e;
-        console.warn(`attempt ${attempt} failed for ${addr}`, e);
+        const safeErr = String(e).replace(/https?:\/\/[^\s"')]+/g, '[URL_REDACTED]');
+        console.warn(`attempt ${attempt} failed for ${addr}`, safeErr);
         // small delay between attempts
         await new Promise((r) => setTimeout(r, retryBaseMs * attempt));
       }
     }
     if (!success) {
-      console.error('distribute error to', addr, lastError);
+      const safeErr = String(lastError).replace(/https?:\/\/[^\s"')]+/g, '[URL_REDACTED]');
+      console.error('distribute error to', addr, safeErr);
       results[addr] = null;
-      sendAlert(`Failed to send revenue share to ${addr} after multiple attempts: ${lastError}`);
-      await logEvent('transfer_failed', { to: addr, error: String(lastError), wallet: w.address, botId, shardIndex, totalShards });
+      sendAlert(`Failed to send revenue share to ${addr} after multiple attempts: ${safeErr}`);
+      await logEvent('transfer_failed', { to: addr, error: safeErr, wallet: w.address, botId, shardIndex, totalShards });
     }
   }
 

@@ -20,7 +20,8 @@ export async function POST(req: Request) {
 
     const token = createSessionToken(username);
     const response = NextResponse.json({ ok: true });
-    const forceInsecure = process.env.DASHBOARD_COOKIE_SECURE === 'false';
+    // H5 FIX: Only allow insecure cookies in development — never in production
+    const forceInsecure = process.env.NODE_ENV !== 'production' && process.env.DASHBOARD_COOKIE_SECURE === 'false';
     response.cookies.set({
       name: DASHBOARD_SESSION_COOKIE,
       value: token,

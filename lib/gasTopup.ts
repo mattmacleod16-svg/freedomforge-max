@@ -26,13 +26,13 @@ function getScopedEnv(baseKey: string, networkRaw?: string): string | undefined 
 export async function ensureRevenueWalletHasGas(revenueAddress: string, networkOverride?: string): Promise<boolean> {
   const client = initAlchemy(networkOverride);
   if (!client) {
-    sendAlert('GasTopup: Alchemy client not initialized');
+    await sendAlert('GasTopup: Alchemy client not initialized');
     return false;
   }
 
   const provider = getRpcProvider(networkOverride);
   if (!provider) {
-    sendAlert('GasTopup: RPC provider not available from Alchemy client config');
+    await sendAlert('GasTopup: RPC provider not available from Alchemy client config');
     return false;
   }
 
@@ -71,7 +71,7 @@ export async function ensureRevenueWalletHasGas(revenueAddress: string, networkO
     const funderBalWei = await provider.getBalance(funder.address);
     const fundingLowBalanceAlertWei = parseEther(fundingLowBalanceAlertEth);
     if (funderBalWei <= fundingLowBalanceAlertWei) {
-      sendAlert(`GasTopup warning: funding wallet low (${formatEther(funderBalWei)} ETH <= ${fundingLowBalanceAlertEth} ETH)`);
+      await sendAlert(`GasTopup warning: funding wallet low (${formatEther(funderBalWei)} ETH <= ${fundingLowBalanceAlertEth} ETH)`);
       await logEvent('gas_topup_funding_low', {
         funder: funder.address,
         balanceWei: funderBalWei.toString(),
@@ -82,7 +82,7 @@ export async function ensureRevenueWalletHasGas(revenueAddress: string, networkO
     const funderGasReserveWei = parseEther(fundingGasReserveEth);
     if (funderBalWei < topupWei + funderGasReserveWei) {
       const message = `GasTopup blocked: funding wallet too low. Need >= ${formatEther(topupWei + funderGasReserveWei)} ETH, have ${formatEther(funderBalWei)} ETH`;
-      sendAlert(message);
+      await sendAlert(message);
       await logEvent('gas_topup_blocked_funding', {
         funder: funder.address,
         balanceWei: funderBalWei.toString(),
@@ -97,15 +97,23 @@ export async function ensureRevenueWalletHasGas(revenueAddress: string, networkO
       to: revenueAddress,
       value: topupWei,
     });
-    await tx.wait();
+    // Timeout guard: don't wait forever for tx confirmation
+    const TX_TIMEOUT_MS = parseInt(process.env.GAS_TOPUP_TX_TIMEOUT_MS || '120000', 10);
+    const waitPromise = tx.wait();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`tx.wait() timed out after ${TX_TIMEOUT_MS}ms (tx: ${tx.hash})`)), TX_TIMEOUT_MS)
+    );
+    await Promise.race([waitPromise, timeoutPromise]);
     const topupEth = formatEther(topupWei);
-    sendAlert(`GasTopup: sent ${topupEth} ETH to ${revenueAddress} (tx ${tx.hash})`);
+    await sendAlert(`GasTopup: sent ${topupEth} ETH to ${revenueAddress} (tx ${tx.hash})`);
     await logEvent('gas_topup', { to: revenueAddress, amount: topupEth, txHash: tx.hash, funder: funder.address, adaptive: adaptiveTopupEnabled });
     return true;
   } catch (err) {
-    console.error('GasTopup error', err);
-    sendAlert(`GasTopup error: ${err}`);
-    await logEvent('gas_topup_error', { wallet: revenueAddress, error: String(err) });
+    // Sanitize error — strip potential API key URLs from RPC error messages
+    const safeErr = String(err).replace(/https?:\/\/[^\s"')]+/g, '[URL_REDACTED]');
+    console.error('GasTopup error', safeErr);
+    await sendAlert(`GasTopup error: ${safeErr}`);
+    await logEvent('gas_topup_error', { wallet: revenueAddress, error: safeErr });
     return false;
   }
 }

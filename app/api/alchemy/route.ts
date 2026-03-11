@@ -6,7 +6,8 @@
  */
 
 import { getLatestBlock, getBalance, getNFTs, initAlchemy, initRevenueWallet, getRevenueWalletBalance, createRandomWallet, withdrawFromRevenue, distributeRevenue, getGeneratedWalletAddress, getTokenBalances } from '@/lib/alchemy/connector';
-import { getAuthorizedRecipients } from '@/lib/alchemy/recipients';
+import { getAuthorizedRecipients, isAuthorizedRecipient } from '@/lib/alchemy/recipients';
+import { isAddress } from 'ethers';
 import { sendAlert, getLastAlert } from '@/lib/alerts';
 import { readLast } from '@/lib/logger';
 import { requireAuth } from '@/lib/auth/apiGuard';
@@ -95,32 +96,8 @@ export async function GET(req: Request) {
     }
 
     if (path === '/wallet/distribute') {
-      const denied = await requireAuth(req);
-      if (denied) return denied;
-      const shardParam = url.searchParams.get('shard');
-      const shardsParam = url.searchParams.get('shards');
-      const botId = url.searchParams.get('botId') || undefined;
-      const parsedShardIndex = shardParam !== null ? parseInt(shardParam, 10) : NaN;
-      const parsedTotalShards = shardsParam !== null ? parseInt(shardsParam, 10) : NaN;
-      const shardIndex = Number.isFinite(parsedShardIndex) ? parsedShardIndex : undefined;
-      const totalShards = Number.isFinite(parsedTotalShards) ? parsedTotalShards : undefined;
-
-      const results = await distributeRevenue({
-        shardIndex,
-        totalShards,
-        botId,
-        networkOverride,
-      });
-      if (!results) {
-        sendAlert('Revenue distribution returned null (possibly no wallet or no recipients)');
-      }
-      return Response.json({
-        results,
-        shardIndex: shardIndex ?? null,
-        totalShards: totalShards ?? null,
-        botId: botId || null,
-        network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet',
-      });
+      // SECURITY FIX: Distribution must use POST to prevent CSRF via GET (img tags, prefetch, crawlers)
+      return Response.json({ error: 'use POST for distribute' }, { status: 405 });
     }
 
     return Response.json({ error: 'unknown alchemy path' }, { status: 404 });
@@ -147,8 +124,57 @@ export async function POST(req: Request) {
       const to = body.to;
       const amount = body.amount;
       if (!to || !amount) return Response.json({ error: 'to and amount required in POST body' }, { status: 400 });
+
+      // C1 FIX: Validate recipient is authorized — prevent wallet drain to arbitrary addresses
+      if (!isAddress(to)) return Response.json({ error: 'invalid Ethereum address' }, { status: 400 });
+      if (!isAuthorizedRecipient(to)) {
+        console.error(`[SECURITY] Withdraw attempt to unauthorized address: ${to}`);
+        return Response.json({ error: 'recipient not authorized' }, { status: 403 });
+      }
+
+      // C2 FIX: Validate amount — must be a valid positive decimal, capped
+      const MAX_WITHDRAW_ETH = parseFloat(process.env.MAX_WITHDRAW_ETH || '10');
+      const parsedAmount = parseFloat(amount);
+      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        return Response.json({ error: 'amount must be a positive number' }, { status: 400 });
+      }
+      if (parsedAmount > MAX_WITHDRAW_ETH) {
+        return Response.json({ error: `amount exceeds maximum (${MAX_WITHDRAW_ETH} ETH)` }, { status: 400 });
+      }
+
       const tx = await withdrawFromRevenue(to, amount, networkOverride);
       return Response.json({ txHash: tx, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
+    }
+
+    // C3 FIX: Distribution moved from GET to POST to prevent CSRF
+    if (path === '/wallet/distribute') {
+      const denied = await requireAuth(req);
+      if (denied) return denied;
+      const body = await req.json().catch(() => ({}));
+      const shardParam = body.shard ?? body.shardIndex;
+      const shardsParam = body.shards ?? body.totalShards;
+      const botId = body.botId || undefined;
+      const parsedShardIndex = shardParam !== null && shardParam !== undefined ? parseInt(String(shardParam), 10) : NaN;
+      const parsedTotalShards = shardsParam !== null && shardsParam !== undefined ? parseInt(String(shardsParam), 10) : NaN;
+      const shardIndex = Number.isFinite(parsedShardIndex) ? parsedShardIndex : undefined;
+      const totalShards = Number.isFinite(parsedTotalShards) ? parsedTotalShards : undefined;
+
+      const results = await distributeRevenue({
+        shardIndex,
+        totalShards,
+        botId,
+        networkOverride,
+      });
+      if (!results) {
+        sendAlert('Revenue distribution returned null (possibly no wallet or no recipients)');
+      }
+      return Response.json({
+        results,
+        shardIndex: shardIndex ?? null,
+        totalShards: totalShards ?? null,
+        botId: botId || null,
+        network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet',
+      });
     }
 
     return Response.json({ error: 'unknown alchemy POST path' }, { status: 404 });

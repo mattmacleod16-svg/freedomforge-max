@@ -150,8 +150,10 @@ async function main() {
   }
 
   if (ENABLE_DISTRIBUTION) {
-    const distribution = await call(`/api/alchemy/wallet/distribute?shard=0&shards=1&botId=${encodeURIComponent(`continuous-${Date.now()}`)}`, {
-      method: 'GET',
+    const distribution = await call(`/api/alchemy/wallet/distribute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shard: 0, shards: 1, botId: `continuous-${Date.now()}` }),
       retries: 1,
     });
 

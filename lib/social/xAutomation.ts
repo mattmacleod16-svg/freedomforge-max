@@ -72,12 +72,12 @@ function readState(): XState {
 function writeState(state: XState) {
   try {
     ensureDataDir();
-    // Atomic write: write to tmp then rename (crash-safe)
+    // Atomic write: tmp + rename to prevent corruption on crash
     const tmpPath = STATE_FILE + '.tmp.' + process.pid + '.' + crypto.randomBytes(4).toString('hex');
     fs.writeFileSync(tmpPath, JSON.stringify(state, null, 2), 'utf8');
     fs.renameSync(tmpPath, STATE_FILE);
-  } catch {
-    // best effort
+  } catch (err) {
+    console.error('[xAutomation] writeState failed:', (err as Error).message);
   }
 }
 
@@ -333,7 +333,9 @@ async function getOAuthUserAccessToken() {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(`X OAuth token refresh failed ${response.status}: ${JSON.stringify(payload)}`);
+      // Sanitize: do not log full payload which may contain token fragments
+      const safeDetail = payload?.error || payload?.detail || `status ${response.status}`;
+      throw new Error(`X OAuth token refresh failed ${response.status}: ${safeDetail}`);
     }
 
     const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : '';
@@ -449,7 +451,9 @@ async function postTweet(text: string) {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(`X API error ${response.status}: ${JSON.stringify(payload)}`);
+      // Sanitize: do not log full payload which may echo auth details
+      const safeDetail = payload?.detail || payload?.title || payload?.error || `status ${response.status}`;
+      throw new Error(`X API error ${response.status}: ${safeDetail}`);
     }
 
     return payload;

@@ -22,6 +22,9 @@ export async function GET(req: Request) {
     const includeBacktest = url.searchParams.get('backtest') === 'true';
 
     if (create) {
+      // H2 FIX: Forecast creation triggers expensive LLM calls — require auth to prevent cost abuse
+      const denied = await requireAuth(req);
+      if (denied) return denied;
       await ensureForecastEnsemble();
       await ensureMarketForecast(horizonHours);
       await resolveDueForecasts();

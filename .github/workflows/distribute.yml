@@ -45,7 +45,7 @@ jobs:
           fi
       - name: Invoke distribution endpoint and check status
         run: |
-          response=$(curl -sS --connect-timeout 10 --max-time 90 --retry 2 --retry-delay 3 --retry-connrefused -w "\n%{http_code}" "$DISTRIBUTION_URL")
+          response=$(curl -sS --connect-timeout 10 --max-time 90 --retry 2 --retry-delay 3 --retry-connrefused -X POST -H "Content-Type: application/json" -d '{}' -w "\n%{http_code}" "$DISTRIBUTION_URL")
           body=$(echo "$response" | sed '$d')
           status=$(echo "$response" | tail -n1)
 

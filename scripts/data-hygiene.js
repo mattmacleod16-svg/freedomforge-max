@@ -221,28 +221,25 @@ function compactLargeFiles() {
   const files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.json'));
   for (const f of files) {
     const fp = path.join(DATA_DIR, f);
-    let release = null;
     try {
-      // Acquire lock to prevent corrupting files another process is writing
-      if (rio) release = rio.acquireLock(fp);
       const stat = fs.statSync(fp);
       if (stat.size > COMPACT_THRESHOLD) {
         const data = JSON.parse(fs.readFileSync(fp, 'utf8'));
         // Use minimal indentation for large files
         const compact = JSON.stringify(data);
         if (compact.length < stat.size * 0.8) {
-          // Write compact JSON directly (not via rio.writeJsonAtomic which pretty-prints)
-          const _tmp = fp + '.tmp';
-          fs.writeFileSync(_tmp, compact, 'utf8');
-          fs.renameSync(_tmp, fp);
+          if (rio) { rio.writeJsonAtomic(fp, data); }
+          else {
+            const _tmp = fp + '.tmp';
+            fs.writeFileSync(_tmp, compact, 'utf8');
+            fs.renameSync(_tmp, fp);
+          }
           const newSize = fs.statSync(fp).size;
           saved += stat.size - newSize;
           console.log(`  compacted ${f}: ${(stat.size / 1024).toFixed(0)}KB → ${(newSize / 1024).toFixed(0)}KB`);
         }
       }
-    } catch { /* skip corrupt files */ } finally {
-      if (release) { try { release(); } catch {} }
-    }
+    } catch { /* skip corrupt files */ }
   }
   return saved;
 }
