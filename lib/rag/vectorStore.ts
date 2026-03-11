@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 interface VectorDoc {
   id: string;
@@ -39,6 +39,7 @@ class VectorStore {
   private readonly vectorDimensions = 96;
   private readonly docTtlMs = Math.max(1, Number(process.env.KB_DOC_TTL_DAYS || 365)) * 24 * 60 * 60 * 1000;
   private readonly recencyHalfLifeDays = Math.max(1, Number(process.env.KB_RECENCY_HALF_LIFE_DAYS || 30));
+  private readonly maxDocs = Math.max(500, Number(process.env.KB_MAX_DOCS || 5000));
 
   async initialize() {
     try {
@@ -93,6 +94,10 @@ class VectorStore {
         this.docs.push(normalized);
       }
     }
+    // H3 FIX: Cap document count to prevent unbounded memory growth
+    if (this.docs.length > this.maxDocs) {
+      this.docs = this.docs.slice(-this.maxDocs);
+    }
     await this.persist();
   }
 
@@ -102,7 +107,10 @@ class VectorStore {
       if (!fs.existsSync(docsDir)) {
         fs.mkdirSync(docsDir, { recursive: true });
       }
-      fs.writeFileSync(this.storePath, JSON.stringify(this.docs, null, 2));
+      // C3 FIX: Atomic write via tmp + rename to prevent corruption on crash
+      const tmp = this.storePath + '.tmp.' + randomBytes(4).toString('hex');
+      fs.writeFileSync(tmp, JSON.stringify(this.docs, null, 2));
+      fs.renameSync(tmp, this.storePath);
     } catch (error) {
       console.error('Error persisting knowledge base:', error);
     }

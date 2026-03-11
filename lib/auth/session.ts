@@ -20,7 +20,10 @@ function getSessionSecret() {
 }
 
 function sign(rawPayload: string) {
-  return createHmac('sha256', getSessionSecret()).update(rawPayload).digest('base64url');
+  const secret = getSessionSecret();
+  // H4 FIX: Refuse to sign with empty secret — prevents token forgery
+  if (!secret) return '';
+  return createHmac('sha256', secret).update(rawPayload).digest('base64url');
 }
 
 function safeEqual(a: string, b: string) {
@@ -67,7 +70,8 @@ export function parseSessionToken(token?: string | null): SessionPayload | null 
   if (!encodedPayload || !signature) return null;
 
   const expected = sign(encodedPayload);
-  if (!safeEqual(signature, expected)) return null;
+  // H4 FIX: Empty expected signature means secret is missing — reject all tokens
+  if (!expected || !safeEqual(signature, expected)) return null;
 
   try {
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as SessionPayload;

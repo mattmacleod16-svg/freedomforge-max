@@ -271,6 +271,7 @@ async function queryGrok(prompt: string, config: ModelConfig): Promise<string> {
       signal: controller.signal,
     });
 
+    if (!response.ok) return 'No response';
     const data = await response.json();
     return data.choices?.[0]?.message?.content || 'No response';
   } finally {
@@ -298,8 +299,9 @@ async function queryOpenAICompatible(prompt: string, config: ModelConfig): Promi
       signal: controller.signal,
     });
 
+    if (!response.ok) return 'No response';
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || data.error?.message || 'No response';
+    return data.choices?.[0]?.message?.content || 'No response';
   } finally {
     clearTimeout(timer);
   }
@@ -324,6 +326,7 @@ async function queryOpenAI(prompt: string, config: ModelConfig): Promise<string>
       signal: controller.signal,
     });
 
+    if (!response.ok) return 'No response';
     const data = await response.json();
     return data.choices?.[0]?.message?.content || 'No response';
   } finally {
@@ -334,7 +337,8 @@ async function queryOpenAI(prompt: string, config: ModelConfig): Promise<string>
 async function queryGemini(prompt: string, config: ModelConfig): Promise<string> {
   const model = config.model || 'gemini-2.0-flash';
   const endpointBase = config.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models';
-  const endpoint = `${endpointBase}/${model}:generateContent?key=${config.apiKey}`;
+  // C1 FIX: Use header auth instead of query string to prevent key leaking in logs
+  const endpoint = `${endpointBase}/${model}:generateContent`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
@@ -343,6 +347,7 @@ async function queryGemini(prompt: string, config: ModelConfig): Promise<string>
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': config.apiKey || '',
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
@@ -354,10 +359,12 @@ async function queryGemini(prompt: string, config: ModelConfig): Promise<string>
       signal: controller.signal,
     });
 
+    // H5 FIX: Check response status before parsing
+    if (!response.ok) return 'No response';
     const data = await response.json();
     const parts = data.candidates?.[0]?.content?.parts || [];
     const text = parts.map((item: { text?: string }) => item?.text || '').join('\n').trim();
-    return text || data.error?.message || 'No response';
+    return text || 'No response';
   } finally {
     clearTimeout(timer);
   }
@@ -378,6 +385,7 @@ async function queryOllamaWithConfig(prompt: string, config: ModelConfig): Promi
       signal: controller.signal,
     });
 
+    if (!response.ok) return 'No response';
     const data = await response.json();
     return data.response || 'No response';
   } finally {
@@ -409,11 +417,12 @@ async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<st
       signal: controller.signal,
     });
 
+    if (!response.ok) return 'No response';
     const data = await response.json();
     if (Array.isArray(data) && typeof data[0]?.generated_text === 'string') {
       return data[0].generated_text;
     }
-    return data?.error || 'No response';
+    return 'No response';
   } finally {
     clearTimeout(timer);
   }
@@ -437,8 +446,9 @@ async function queryClawd(prompt: string, config: ModelConfig): Promise<string> 
       signal: controller.signal,
     });
 
+    if (!response.ok) return 'No response';
     const data = await response.json();
-    return data.response || data.error || 'No response';
+    return data.response || 'No response';
   } finally {
     clearTimeout(timer);
   }
@@ -463,6 +473,7 @@ async function queryAnthropic(prompt: string, config: ModelConfig): Promise<stri
       signal: controller.signal,
     });
 
+    if (!response.ok) return 'No response';
     const data = await response.json();
     return data.content?.[0]?.text || 'No response';
   } finally {

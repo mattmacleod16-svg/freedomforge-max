@@ -26,7 +26,11 @@ export async function initializeSystem(): Promise<void> {
     return initializationPromise;
   }
 
-  initializationPromise = performInitialization();
+  // C2 FIX: Reset promise on failure so transient errors don't permanently disable the system
+  initializationPromise = performInitialization().catch((err) => {
+    initializationPromise = null;
+    throw err;
+  });
   return initializationPromise;
 }
 
