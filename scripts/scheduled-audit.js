@@ -28,7 +28,7 @@
  * Log output: logs/audit-YYYY-MM-DD-HH.log + data/audit-history.json
  */
 
-const { execSync, spawnSync } = require('child_process');
+const { execSync, execFileSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 let rio; try { rio = require('../lib/resilient-io'); } catch { rio = null; }
@@ -495,7 +495,11 @@ function checkPayoutState() {
 // 19. Portfolio breakdown in API
 function checkPortfolioBreakdown() {
   try {
-    const raw = run(`curl -s --max-time 10 -H "x-api-secret: ${process.env.ALERT_SECRET || ''}" http://localhost:3000/api/status/empire`, { fallback: '{}' });
+    // S7-M4: Use execFileSync to avoid shell injection via ALERT_SECRET
+    const args = ['-s', '--max-time', '10'];
+    if (process.env.ALERT_SECRET) args.push('-H', `x-api-secret: ${process.env.ALERT_SECRET}`);
+    args.push('http://localhost:3000/api/status/empire');
+    const raw = execFileSync('/usr/bin/curl', args, { encoding: 'utf8', timeout: 15000 }).trim() || '{}';
     const d = JSON.parse(raw);
     const p = d.portfolio || {};
     const hasDeployed = p.totalDeployed !== undefined;

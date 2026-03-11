@@ -158,7 +158,11 @@ export default function Home() {
               <button
                 onClick={async () => {
                   if (!withAddress || !withAmount) return;
-                  const res = await fetch(`/api/alchemy/wallet/withdraw?to=${withAddress}&amount=${withAmount}`);
+                  const res = await fetch('/api/alchemy/wallet/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ to: withAddress, amount: withAmount }),
+                  });
                   const data = await res.json();
                   setAlchemyInfo(`Withdraw tx: ${data.txHash}`);
                 }}

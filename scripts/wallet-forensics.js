@@ -30,7 +30,9 @@ function inferNetwork(row) {
 }
 
 async function fetchJson(pathname) {
-  const response = await fetch(`${APP_BASE_URL}${pathname}`);
+  const headers = {};
+  if (process.env.ALERT_SECRET) headers['x-api-secret'] = process.env.ALERT_SECRET;
+  const response = await fetch(`${APP_BASE_URL}${pathname}`, { headers });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} for ${pathname}`);
   }

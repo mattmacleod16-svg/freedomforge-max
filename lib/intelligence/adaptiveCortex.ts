@@ -95,9 +95,8 @@ function saveState() {
     } else {
       fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
     }
-  } catch {}
+  } catch (err) { console.error('[adaptiveCortex] saveState failed:', err); }
 }
-
 export function initializeAdaptiveIntelligence() {
   if (loaded) return;
   loaded = true;

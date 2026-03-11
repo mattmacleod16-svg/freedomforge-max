@@ -88,7 +88,8 @@ export async function GET(req: Request) {
 
     if (path === '/wallet/create') {
       const wallet = createRandomWallet();
-      return Response.json({ wallet });
+      // S7-C1: Never return private key over HTTP — only return address
+      return Response.json({ wallet: { address: wallet.address } });
     }
 
     if (path === '/wallet/withdraw') {

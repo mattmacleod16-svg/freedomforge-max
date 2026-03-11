@@ -66,12 +66,16 @@ function withTimeout(signalMs) {
 async function getJson(url) {
   const { controller, timeout } = withTimeout(requestTimeoutMs);
   try {
+    const headers = {
+      'User-Agent': 'freedomforge-max/trade-loop',
+    };
+    if (process.env.ALERT_SECRET && isTrustedUrl(url)) {
+      headers['x-api-secret'] = process.env.ALERT_SECRET;
+    }
     const response = await fetch(url, {
       method: 'GET',
       signal: controller.signal,
-      headers: {
-        'User-Agent': 'freedomforge-max/trade-loop',
-      },
+      headers,
     });
 
     const text = await response.text();

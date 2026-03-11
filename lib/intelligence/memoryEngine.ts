@@ -49,7 +49,7 @@ function saveState() {
     } else {
       fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
     }
-  } catch {}
+  } catch (err) { console.error('[memoryEngine] saveState failed:', err); }
 }
 
 function clamp(value: number, min = 0, max = 1) {

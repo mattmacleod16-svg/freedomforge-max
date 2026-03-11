@@ -65,7 +65,7 @@ function saveState() {
     } else {
       fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
     }
-  } catch {}
+  } catch (err) { console.error('[marketFeatureStore] saveState failed:', err); }
 }
 
 function clamp(value: number, min = 0, max = 1) {
@@ -223,7 +223,7 @@ function parseOutcomeProbability(market: any): number | null {
         const parsed = parseProbability(arr[0]);
         if (parsed !== null) return parsed;
       }
-    } catch {}
+    } catch { /* invalid JSON in outcomePrices — skip */ }
   }
 
   return null;
@@ -429,14 +429,14 @@ export async function updateMarketFeatureStore() {
     const btc = btcRaw as { bitcoin?: { usd?: number; usd_24h_change?: number } };
     btcUsd = safeNumber(btc?.bitcoin?.usd, 0);
     btcChange24h = safeNumber(btc?.bitcoin?.usd_24h_change, 0);
-  } catch {}
+  } catch (err) { console.error('[marketFeatureStore] CoinGecko fetch failed:', err); }
 
   try {
     const fngRaw = await fetchJsonWithTimeout('https://api.alternative.me/fng/?limit=1&format=json');
     const fng = fngRaw as { data?: Array<{ value?: string }> };
     const parsed = Number(fng?.data?.[0]?.value || '');
     fearGreed = Number.isFinite(parsed) ? parsed : null;
-  } catch {}
+  } catch (err) { console.error('[marketFeatureStore] FNG fetch failed:', err); }
 
   if (btcUsd <= 0) {
     const latest = getLatestMarketSnapshot();
@@ -539,7 +539,7 @@ export async function maybeRefreshMarketFeatureStore() {
   if (state.history.length === 0 || isStale) {
     try {
       await updateMarketFeatureStore();
-    } catch {}
+    } catch (err) { console.error('[marketFeatureStore] refresh failed:', err); }
   }
 
   return getLatestMarketSnapshot();
