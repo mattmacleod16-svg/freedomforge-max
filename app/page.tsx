@@ -4,58 +4,9 @@ import React from 'react';
 import Link from 'next/link';
 
 export default function Home() {
-  const [isListening, setIsListening] = React.useState(false);
   const [transcript, setTranscript] = React.useState('');
   const [response, setResponse] = React.useState('');
   const [textInput, setTextInput] = React.useState('');
-  const [isPlayingVoice, setIsPlayingVoice] = React.useState(false);
-  const [lastEmotion, setLastEmotion] = React.useState('neutral');
-  const recognitionRef = React.useRef<any>(null);
-  const audioRef = React.useRef<HTMLAudioElement | null>(null);
-
-  const stopAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current = null;
-    }
-    setIsPlayingVoice(false);
-  };
-
-  const playElevenLabsAudio = async (text: string) => {
-    setIsPlayingVoice(true);
-    try {
-      const res = await fetch('/api/chat/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) {
-        setIsPlayingVoice(false);
-        return;
-      }
-
-      const emotion = res.headers.get('x-tts-emotion') || 'neutral';
-      setLastEmotion(emotion);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-
-      stopAudio();
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => {
-        URL.revokeObjectURL(url);
-        setIsPlayingVoice(false);
-      };
-      audio.onerror = () => {
-        URL.revokeObjectURL(url);
-        setIsPlayingVoice(false);
-      };
-      await audio.play();
-    } catch {
-      setIsPlayingVoice(false);
-    }
-  };
 
   // Shared function that processes any input (voice or text)
   const processInput = async (text: string) => {
@@ -71,7 +22,6 @@ export default function Home() {
       const data = await res.json();
       const reply = data.reply || 'No answer';
       setResponse(reply);
-      setLastEmotion(data?.metadata?.protocols?.inferredEmotion || 'neutral');
     } catch (err) {
       setResponse('Error contacting Max');
     }
@@ -90,39 +40,6 @@ export default function Home() {
     const res = await fetch(`/api/alchemy/balance?address=${alchemyAddress}`);
     const data = await res.json();
     setAlchemyInfo(`Balance of ${alchemyAddress}: ${data.balance}`);
-  };
-
-  // Voice mode (keeps listening until you click Stop)
-  const toggleVoice = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const SpeechRecognitionAPI = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognitionAPI) {
-      alert("Voice mode works best in Safari!");
-      return;
-    }
-
-    const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event: any) => {
-      const text = event.results[event.results.length - 1][0].transcript;
-      processInput(text);
-    };
-
-    recognition.onend = () => {
-      if (isListening) recognition.start();
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
   };
 
   // Text mode - send on Enter or button click
@@ -146,8 +63,7 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs text-zinc-300">
-              <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text First</span>
-              <span className="rounded-full border border-zinc-700 px-3 py-1">Emotion: {lastEmotion}</span>
+              <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
           </div>
         </header>
@@ -155,7 +71,7 @@ export default function Home() {
         <div className="grid gap-6 lg:grid-cols-3">
           <section className="lg:col-span-2 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
             <h2 className="text-xl font-bold text-white">Agent Command</h2>
-            <p className="mt-1 text-sm text-zinc-400">Send prompts, review live reasoning output, and optionally trigger voice playback.</p>
+            <p className="mt-1 text-sm text-zinc-400">Send prompts and review live reasoning output.</p>
 
             <form onSubmit={handleTextSubmit} className="mt-5 flex flex-col gap-3 md:flex-row">
               <input
@@ -172,32 +88,6 @@ export default function Home() {
                 SEND
               </button>
             </form>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                onClick={toggleVoice}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                  isListening
-                    ? 'bg-red-600 text-white animate-pulse'
-                    : 'bg-zinc-800 text-zinc-100 hover:bg-zinc-700'
-                }`}
-              >
-                {isListening ? 'Stop Voice Input' : 'Optional Voice Input'}
-              </button>
-              <button
-                onClick={() => response && playElevenLabsAudio(response)}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
-                disabled={!response || isPlayingVoice}
-              >
-                {isPlayingVoice ? 'Playing...' : 'Play Voice Reply'}
-              </button>
-              <button
-                onClick={stopAudio}
-                className="rounded-xl bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
-              >
-                Stop Audio
-              </button>
-            </div>
 
             <div className="mt-6 space-y-4 rounded-2xl border border-zinc-800 bg-black/30 p-4">
               <div>

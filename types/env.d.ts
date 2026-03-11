@@ -16,9 +16,6 @@ declare namespace NodeJS {
     A2A_HEALTH_URL?: string;
     AUI_ENABLED?: string;
     AUI_HEALTH_URL?: string;
-    ELEVENLABS_API_KEY?: string;
-    ELEVENLABS_VOICE_ID?: string;
-    ELEVENLABS_MODEL_ID?: string;
     GROK_API_KEY?: string;
     GROK_ENDPOINT?: string;
     GROK_MODEL?: string;
@@ -72,8 +69,6 @@ declare namespace NodeJS {
     CLAWD_HTTP_ENDPOINT?: string;
     CLAWD_HTTP_TOKEN?: string;
     CLAWD_TIMEOUT_MS?: string;
-    CLAWD_PROMPT_COMMAND_TEMPLATE?: string;
-    PICOCLAW_CLIENT_SOURCE?: string;
     X_HANDLE?: string;
     X_BEARER_TOKEN?: string;
     X_ACCESS_TOKEN?: string;

@@ -84,14 +84,8 @@ Max intelligence + autonomy profile:
 		- `PREDICTION_MIN_RELIABILITY_FOR_ACTION` (recommended `0.64`)
 		- `PREDICTION_CALIBRATION_GUARD_BRIER` (recommended `0.21`)
 	- If these quality gates fail, autonomy downgrades to monitor mode and suspends new entries until quality recovers.
-- Emotion-aware ElevenLabs TTS API: `POST /api/chat/tts`
-	- Required: `ELEVENLABS_API_KEY`
-	- Optional: `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`
-	- Supports `emotion` values: `neutral`, `positive`, `concerned`, `urgent`
-
 Text-first interaction policy:
 - The app prioritizes typed exchanges for reliability/auditability.
-- Voice playback is optional and manual via ElevenLabs endpoint.
 
 Vendor capability stack (benefit capture + optional health checks):
 - Uses strategy primitives inspired by Acorns, SignalStack, Tickeron, TrendSpider, BlackBox Stocks, Forex Fury, Capitalise.ai, EquBot, Kensho, Acuity, 3Commas, OptionsAI, and Kavout.
@@ -127,15 +121,10 @@ Profile automation setup notes:
 - Health check endpoint `/api/alchemy/health` returns `{status:'ok'}` for uptime monitors
 - Extensible via APIs under `/api/*` (including `/api/alchemy/wallet` for managing funds and `/api/alchemy/wallet/distribute` to trigger payout)
 
-Optional Clawd bot bridge (extra ensemble firepower):
-- Route: `POST /api/clawd` (local Python bridge to `PicoclawClient`)
+Optional Clawd ensemble provider:
 - Enable in ensemble: `CLAWD_ENABLED=true`
-- Provider endpoint (optional override): `CLAWD_ENDPOINT` (defaults to `${APP_BASE_URL}/api/clawd`)
-- Optional auth: `CLAWD_API_SECRET` (used by orchestrator as `x-clawd-secret`)
-- Production mode (recommended on Vercel): set `CLAWD_HTTP_ENDPOINT` to your hosted Clawd service and optional `CLAWD_HTTP_TOKEN`
-- Set `PICOCLAW_CLIENT_SOURCE` to your real `picoclaw_client.py` path if it is outside this repo
-- Optional command template for paid bot invocation: `CLAWD_PROMPT_COMMAND_TEMPLATE`, using `{prompt}` placeholder
-	- Example: `CLAWD_PROMPT_COMMAND_TEMPLATE=clawd --prompt "{prompt}"`
+- Production mode: set `CLAWD_HTTP_ENDPOINT` to your hosted Clawd service and optional `CLAWD_HTTP_TOKEN`
+- Optional auth: `CLAWD_API_SECRET`
 
 ## Learn More
 
@@ -211,18 +200,7 @@ Daily health snapshot:
 	- `/api/alchemy/health` result
 	- latest run outcomes for `ping-discord`, `self-heal`, `weekly-summary`, `monthly-strategy`, and `ops-patch-pr`
 
-SMS morning summary (Twilio):
-- Script: `node scripts/send-sms-summary.js`
-- Workflow: `.github/workflows/sms-morning-summary.yml` (runs daily at 13:15 UTC + manual trigger)
-- Sends wallet balance, last payout transfer, recipient, and X posting guard status to your phone
-- Verifies final Twilio delivery status after send and fails on `failed` / `undelivered` / timeout
-- Required GitHub secrets:
-	- `TWILIO_ACCOUNT_SID`
-	- `TWILIO_AUTH_TOKEN`
-	- `TWILIO_FROM_NUMBER`
-	- `TWILIO_TO_NUMBER`
-- Optional GitHub variables:
-	- `SMS_MAX_LEN` (default `1200`)
+
 	- `SMS_DELIVERY_TIMEOUT_MS` (default `120000`)
 	- `SMS_DELIVERY_POLL_MS` (default `5000`)
 Monthly strategy recommendations:

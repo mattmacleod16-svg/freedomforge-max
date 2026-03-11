@@ -253,7 +253,7 @@ function buildPostText(input: {
   const theme = input.trend || inferGrowthTheme();
   const hashtags = ['#BuildInPublic', '#AI', '#Automation', '#TradingTech'];
   const selected = hashtags.sort(() => 0.5 - Math.random()).slice(0, 2).join(' ');
-  const text = `Shipping another FreedomForge Max upgrade: ${theme}.\n\nText-first UX, optional emotion-aware voice, and autonomous ops controls are live.\n\n${input.appUrl}\n${selected}`;
+  const text = `Shipping another FreedomForge Max upgrade: ${theme}.\n\nAutonomous trading, self-evolving intelligence, and real-time ops controls are live.\n\n${input.appUrl}\n${selected}`;
   if (text.length <= 280) return text;
   return text.slice(0, 276) + '...';
 }

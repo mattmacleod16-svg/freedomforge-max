@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
@@ -11,67 +11,6 @@ function isAuthorized(req: Request) {
   const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
 
   return headerSecret === secret || bearer === secret;
-}
-
-function runClawdQuery(prompt: string) {
-  const timeoutMs = Math.max(1000, Math.min(120000, Number(process.env.CLAWD_TIMEOUT_MS || '25000')));
-
-  return new Promise<string>((resolve, reject) => {
-    const child = spawn('python3', ['scripts/clawd_query.py'], {
-      cwd: process.cwd(),
-      env: process.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      reject(new Error(`clawd query timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString('utf8');
-    });
-
-    child.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString('utf8');
-    });
-
-    child.on('error', (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      if (code !== 0) {
-        reject(new Error(stderr.trim() || `clawd python exit ${code}`));
-        return;
-      }
-
-      const text = stdout.trim();
-      if (!text) {
-        reject(new Error('empty clawd response'));
-        return;
-      }
-
-      try {
-        const payload = JSON.parse(text) as { response?: string; error?: string };
-        if (payload.error) {
-          reject(new Error(payload.error));
-          return;
-        }
-        resolve((payload.response || '').trim());
-      } catch {
-        resolve(text);
-      }
-    });
-
-    child.stdin.write(JSON.stringify({ prompt }));
-    child.stdin.end();
-  });
 }
 
 async function runClawdHttpQuery(prompt: string) {
@@ -133,9 +72,7 @@ export async function POST(req: Request) {
       return Response.json({ status: 'error', error: 'prompt is required' }, { status: 400 });
     }
 
-    const response = process.env.CLAWD_HTTP_ENDPOINT
-      ? await runClawdHttpQuery(prompt)
-      : await runClawdQuery(prompt);
+    const response = await runClawdHttpQuery(prompt);
     return Response.json(
       {
         status: 'ok',
