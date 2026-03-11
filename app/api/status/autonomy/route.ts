@@ -1,3 +1,4 @@
+import { requireAuth } from '@/lib/auth/apiGuard';
 import {
   getAutonomySnapshot,
   updateApprovalPolicy,
@@ -44,6 +45,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
   try {
     const body = await req.json();
     if (body?.action === 'forecast') {

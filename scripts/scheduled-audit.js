@@ -31,8 +31,9 @@
 const { execSync, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+let rio; try { rio = require('../lib/resilient-io'); } catch { rio = null; }
 
-const BASE = '/home/opc/freedomforge-max';
+const BASE = process.env.REPO_DIR || '/home/opc/freedomforge-max';
 const DATA = path.join(BASE, 'data');
 const LOGS = path.join(BASE, 'logs');
 const ENV_FILE = path.join(BASE, '.env.local');
@@ -473,7 +474,15 @@ function checkPayoutState() {
     // AUTO-PATCH: enforce 15% floor
     ps.payoutPct = 15;
     ps.updatedAt = now();
-    try { fs.writeFileSync(path.join(DATA, 'payout-state.json'), JSON.stringify(ps, null, 2)); } catch {}
+    try {
+      const _fp = path.join(DATA, 'payout-state.json');
+      if (rio) { rio.writeJsonAtomic(_fp, ps); }
+      else {
+        const _tmp = _fp + '.tmp';
+        fs.writeFileSync(_tmp, JSON.stringify(ps, null, 2));
+        fs.renameSync(_tmp, _fp);
+      }
+    } catch {}
     patched('Restored payout % to 15% floor (Ironclad Protocol)');
     warn('payout-state', `Payout was ${pct}% — reset to 15% floor`);
   } else if (!wallet.startsWith('0x')) {
@@ -588,7 +597,12 @@ async function main() {
     });
     // Keep last 30 entries
     if (history.audits.length > 30) history.audits = history.audits.slice(-30);
-    fs.writeFileSync(AUDIT_HISTORY, JSON.stringify(history, null, 2));
+    if (rio) { rio.writeJsonAtomic(AUDIT_HISTORY, history); }
+    else {
+      const _tmp = AUDIT_HISTORY + '.tmp';
+      fs.writeFileSync(_tmp, JSON.stringify(history, null, 2));
+      fs.renameSync(_tmp, AUDIT_HISTORY);
+    }
   } catch (e) {
     log('WARN', `Could not write audit history: ${e.message}`);
   }

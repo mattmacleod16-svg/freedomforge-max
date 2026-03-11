@@ -1,3 +1,4 @@
+import { requireAuth } from '@/lib/auth/apiGuard';
 import { getEnsembleDiagnostics } from '@/lib/intelligence/ensembleDiagnostics';
 import { runEnsembleAutoPolicy } from '@/lib/intelligence/ensembleAutoPolicy';
 import { getChampionPolicySnapshot } from '@/lib/intelligence/championPolicy';
@@ -30,6 +31,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
   try {
     const body = await req.json().catch(() => ({}));
     const limit = Math.max(100, Math.min(5000, Number(body?.limit || '800')));

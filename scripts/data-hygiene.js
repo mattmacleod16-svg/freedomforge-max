@@ -228,7 +228,12 @@ function compactLargeFiles() {
         // Use minimal indentation for large files
         const compact = JSON.stringify(data);
         if (compact.length < stat.size * 0.8) {
-          fs.writeFileSync(fp, compact, 'utf8');
+          if (rio) { rio.writeJsonAtomic(fp, data); }
+          else {
+            const _tmp = fp + '.tmp';
+            fs.writeFileSync(_tmp, compact, 'utf8');
+            fs.renameSync(_tmp, fp);
+          }
           const newSize = fs.statSync(fp).size;
           saved += stat.size - newSize;
           console.log(`  compacted ${f}: ${(stat.size / 1024).toFixed(0)}KB → ${(newSize / 1024).toFixed(0)}KB`);

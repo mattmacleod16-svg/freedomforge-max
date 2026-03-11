@@ -80,7 +80,9 @@ function loadState() {
 function saveState(abs, data) {
   if (rio) { rio.writeJsonAtomic(abs, data); return; }
   fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, JSON.stringify(data, null, 2));
+  const tmp = abs + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+  fs.renameSync(tmp, abs);
 }
 
 async function getMomentumSignal() {

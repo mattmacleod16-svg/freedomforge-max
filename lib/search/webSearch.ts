@@ -29,26 +29,33 @@ export async function webSearch(query: string, maxResults: number = 5): Promise<
   }
 
   try {
-    const response = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: apiKey,
-        query: query,
-        max_results: maxResults,
-        include_answer: true,
-        include_raw_content: true,
-      }),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: apiKey,
+          query: query,
+          max_results: maxResults,
+          include_answer: true,
+          include_raw_content: true,
+        }),
+        signal: controller.signal,
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    return (data.results || []).map((result: any) => ({
-      title: result.title,
-      url: result.url,
-      snippet: result.content || result.description,
-      source: new URL(result.url).hostname,
-    }));
+      return (data.results || []).map((result: any) => ({
+        title: result.title,
+        url: result.url,
+        snippet: result.content || result.description,
+        source: new URL(result.url).hostname,
+      }));
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (error) {
     console.error('Web search error:', error);
     return [];
@@ -60,19 +67,26 @@ export async function webSearch(query: string, maxResults: number = 5): Promise<
  */
 export async function webSearchFallback(query: string): Promise<SearchResult[]> {
   try {
-    const response = await fetch(
-      `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`
-    );
-    const data = await response.json();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(
+        `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`,
+        { signal: controller.signal }
+      );
+      const data = await response.json();
 
-    return (data.Results || [])
-      .slice(0, 5)
-      .map((result: any) => ({
-        title: result.Text,
-        url: result.FirstURL,
-        snippet: result.Text,
-        source: 'duckduckgo',
-      }));
+      return (data.Results || [])
+        .slice(0, 5)
+        .map((result: any) => ({
+          title: result.Text,
+          url: result.FirstURL,
+          snippet: result.Text,
+          source: 'duckduckgo',
+        }));
+    } finally {
+      clearTimeout(timer);
+    }
   } catch (error) {
     console.error('Fallback search error:', error);
     return [];

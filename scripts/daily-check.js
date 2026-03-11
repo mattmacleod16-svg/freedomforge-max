@@ -38,13 +38,14 @@ function statusLine(ok, label, details = '') {
 }
 
 async function main() {
-  const [health, distribution, wallet, alert, metrics] = await Promise.all([
+  const results = await Promise.allSettled([
     getJson(`${baseUrl}/api/alchemy/health`),
     getJson(`${baseUrl}/api/alchemy/wallet/distribute?shard=0&shards=1&botId=${encodeURIComponent(botId)}`),
     getJson(`${baseUrl}/api/alchemy/wallet`),
     getJson(`${baseUrl}/api/alchemy/wallet/alerts`),
     getJson(`${baseUrl}/api/status/metrics?format=json`),
   ]);
+  const [health, distribution, wallet, alert, metrics] = results.map(r => r.status === 'fulfilled' ? r.value : { status: 0, data: null });
 
   const transferSuccessRate = Number(metrics.data?.transferSuccessRate ?? 1);
   const topupErrors = Number(metrics.data?.topupErrorCount ?? 0);

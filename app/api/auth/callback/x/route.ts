@@ -29,6 +29,8 @@ export async function GET(request: Request) {
     );
   }
 
+  const safeUrl = url.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
   return new NextResponse(
     `<!doctype html>
 <html>
@@ -45,7 +47,7 @@ export async function GET(request: Request) {
   <body>
     <h1>X authorization received</h1>
     <p>Copy the full URL from your browser and send it back here to complete token exchange.</p>
-    <div class="box">${url.toString()}</div>
+    <div class="box">${safeUrl}</div>
   </body>
 </html>`,
     {

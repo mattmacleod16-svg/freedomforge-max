@@ -253,61 +253,82 @@ function scoreResponseConfidence(text: string) {
 }
 
 async function queryGrok(prompt: string, config: ModelConfig): Promise<string> {
-  const response = await fetch(config.endpoint || 'https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model || 'grok-beta',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 1000,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(config.endpoint || 'https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model || 'grok-beta',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 1000,
+      }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || 'No response';
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function queryOpenAICompatible(prompt: string, config: ModelConfig): Promise<string> {
-  const response = await fetch(config.endpoint || '', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-      ...(config.extraHeaders || {}),
-    },
-    body: JSON.stringify({
-      model: config.model || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.6,
-      max_tokens: 1000,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(config.endpoint || '', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+        ...(config.extraHeaders || {}),
+      },
+      body: JSON.stringify({
+        model: config.model || 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.6,
+        max_tokens: 1000,
+      }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || data.error?.message || 'No response';
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || data.error?.message || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function queryOpenAI(prompt: string, config: ModelConfig): Promise<string> {
-  const response = await fetch(config.endpoint || 'https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 1000,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(config.endpoint || 'https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model || 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        max_tokens: 1000,
+      }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || 'No response';
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function queryGemini(prompt: string, config: ModelConfig): Promise<string> {
@@ -315,39 +336,53 @@ async function queryGemini(prompt: string, config: ModelConfig): Promise<string>
   const endpointBase = config.endpoint || 'https://generativelanguage.googleapis.com/v1beta/models';
   const endpoint = `${endpointBase}/${model}:generateContent?key=${config.apiKey}`;
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.6,
-        maxOutputTokens: 1000,
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    }),
-  });
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 1000,
+        },
+      }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  const text = parts.map((item: { text?: string }) => item?.text || '').join('\n').trim();
-  return text || data.error?.message || 'No response';
+    const data = await response.json();
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const text = parts.map((item: { text?: string }) => item?.text || '').join('\n').trim();
+    return text || data.error?.message || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function queryOllamaWithConfig(prompt: string, config: ModelConfig): Promise<string> {
-  const response = await fetch(config.endpoint || 'http://localhost:11434/api/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.model || 'mistral',
-      prompt,
-      stream: false,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(config.endpoint || 'http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: config.model || 'mistral',
+        prompt,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  return data.response || 'No response';
+    const data = await response.json();
+    return data.response || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<string> {
@@ -355,26 +390,33 @@ async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<st
   const endpointBase = config.endpoint || 'https://api-inference.huggingface.co/models/';
   const endpoint = endpointBase.endsWith('/') ? `${endpointBase}${model}` : endpointBase;
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      inputs: prompt,
-      parameters: {
-        max_new_tokens: 700,
-        temperature: 0.6,
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
       },
-    }),
-  });
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 700,
+          temperature: 0.6,
+        },
+      }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  if (Array.isArray(data) && typeof data[0]?.generated_text === 'string') {
-    return data[0].generated_text;
+    const data = await response.json();
+    if (Array.isArray(data) && typeof data[0]?.generated_text === 'string') {
+      return data[0].generated_text;
+    }
+    return data?.error || 'No response';
+  } finally {
+    clearTimeout(timer);
   }
-  return data?.error || 'No response';
 }
 
 async function queryClawd(prompt: string, config: ModelConfig): Promise<string> {
@@ -382,36 +424,50 @@ async function queryClawd(prompt: string, config: ModelConfig): Promise<string> 
     return 'No response';
   }
 
-  const response = await fetch(config.endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(config.apiKey ? { 'x-clawd-secret': config.apiKey } : {}),
-    },
-    body: JSON.stringify({ prompt }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.apiKey ? { 'x-clawd-secret': config.apiKey } : {}),
+      },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  return data.response || data.error || 'No response';
+    const data = await response.json();
+    return data.response || data.error || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function queryAnthropic(prompt: string, config: ModelConfig): Promise<string> {
-  const response = await fetch(config.endpoint || 'https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: config.model || 'claude-3-5-sonnet-latest',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(config.endpoint || 'https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: config.model || 'claude-3-5-sonnet-latest',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: controller.signal,
+    });
 
-  const data = await response.json();
-  return data.content?.[0]?.text || 'No response';
+    const data = await response.json();
+    return data.content?.[0]?.text || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function getMultiModelResponse(

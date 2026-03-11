@@ -124,16 +124,23 @@ async function getEthUsdSpotPrice(): Promise<number | null> {
   }
 
   try {
-    const response = await fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot', {
-      headers: { 'content-type': 'application/json' },
-      cache: 'no-store',
-    });
-    if (!response.ok) return null;
-    const payload: any = await response.json();
-    const amount = Number(payload?.data?.amount || 0);
-    if (!Number.isFinite(amount) || amount <= 0) return null;
-    cachedEthUsdPrice = { value: amount, expiresAt: now + ETH_USD_CACHE_TTL_MS };
-    return amount;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const response = await fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot', {
+        headers: { 'content-type': 'application/json' },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) return null;
+      const payload: any = await response.json();
+      const amount = Number(payload?.data?.amount || 0);
+      if (!Number.isFinite(amount) || amount <= 0) return null;
+      cachedEthUsdPrice = { value: amount, expiresAt: now + ETH_USD_CACHE_TTL_MS };
+      return amount;
+    } finally {
+      clearTimeout(timer);
+    }
   } catch {
     return null;
   }

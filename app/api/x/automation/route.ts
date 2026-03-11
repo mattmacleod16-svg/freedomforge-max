@@ -4,14 +4,12 @@ export const runtime = 'nodejs';
 
 function isAuthorized(req: Request) {
   const expected = process.env.X_AUTOMATION_SECRET;
-  if (!expected) return true;
+  if (!expected) return false; // deny when secret is not configured
 
-  const url = new URL(req.url);
-  const querySecret = url.searchParams.get('secret');
   const headerSecret = req.headers.get('x-x-automation-secret');
   const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
 
-  return [querySecret, headerSecret, bearer].some((item) => item && item === expected);
+  return [headerSecret, bearer].some((item) => item && item === expected);
 }
 
 export async function POST(req: Request) {

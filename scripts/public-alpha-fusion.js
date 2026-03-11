@@ -18,6 +18,9 @@ const WORMHOLE_SCAN_URL = (
   'https://api.wormholescan.io/api/v1/last-txs?numRows=50'
 ).trim();
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 function clamp(value, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
 }
@@ -40,7 +43,12 @@ function loadState(absPath) {
 
 function saveState(absPath, state) {
   fs.mkdirSync(path.dirname(absPath), { recursive: true });
-  fs.writeFileSync(absPath, JSON.stringify(state, null, 2));
+  if (rio) { rio.writeJsonAtomic(absPath, state); }
+  else {
+    const tmp = absPath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
+    fs.renameSync(tmp, absPath);
+  }
 }
 
 async function fetchJson(url, timeoutMs = REQUEST_TIMEOUT_MS, headers = {}) {
@@ -294,11 +302,16 @@ function scoreAndDecide(features) {
 
 async function notifyWebhook(message) {
   if (!ALERT_WEBHOOK_URL) return;
-  await fetch(ALERT_WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: message, text: message }),
-  }).catch(() => {});
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    await fetch(ALERT_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message, text: message }),
+      signal: controller.signal,
+    });
+  } catch {} finally { clearTimeout(timer); }
 }
 
 async function main() {

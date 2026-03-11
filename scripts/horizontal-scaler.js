@@ -21,6 +21,9 @@ const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
@@ -78,7 +81,12 @@ function load(filePath) {
 
 function save(filePath, data) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  if (rio) { rio.writeJsonAtomic(filePath, data); }
+  else {
+    const tmp = filePath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, filePath);
+  }
 }
 
 function loadScalerState() {

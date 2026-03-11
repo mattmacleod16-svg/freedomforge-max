@@ -9,11 +9,12 @@ type SessionPayload = {
 };
 
 function getSessionSecret() {
-  return (
-    process.env.DASHBOARD_SESSION_SECRET ||
-    process.env.DASHBOARD_PASS ||
-    'freedomforge-dashboard-secret'
-  ).trim();
+  const secret = (process.env.DASHBOARD_SESSION_SECRET || process.env.DASHBOARD_PASS || '').trim();
+  if (!secret) {
+    console.error('[session] DASHBOARD_SESSION_SECRET not set — sessions will fail');
+    return 'UNCONFIGURED-DO-NOT-USE';
+  }
+  return secret;
 }
 
 function sign(rawPayload: string) {
@@ -28,15 +29,20 @@ function safeEqual(a: string, b: string) {
 }
 
 export function getDashboardCredentials() {
-  return {
-    user: (process.env.DASHBOARD_USER || 'admin').trim(),
-    pass: (process.env.DASHBOARD_PASS || 'FreedomForge2026').trim(),
-  };
+  const user = (process.env.DASHBOARD_USER || '').trim();
+  const pass = (process.env.DASHBOARD_PASS || '').trim();
+  if (!user || !pass) {
+    console.error('[session] DASHBOARD_USER or DASHBOARD_PASS not set — login disabled');
+  }
+  return { user, pass };
 }
 
 export function verifyDashboardCredentials(user: string, pass: string) {
   const credentials = getDashboardCredentials();
-  return user === credentials.user && pass === credentials.pass;
+  if (!credentials.user || !credentials.pass) return false;
+  const userMatch = safeEqual(user, credentials.user);
+  const passMatch = safeEqual(pass, credentials.pass);
+  return userMatch && passMatch;
 }
 
 export function createSessionToken(user: string) {

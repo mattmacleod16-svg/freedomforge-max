@@ -9,6 +9,7 @@ import { getLatestBlock, getBalance, getNFTs, initAlchemy, initRevenueWallet, ge
 import { getAuthorizedRecipients } from '@/lib/alchemy/recipients';
 import { sendAlert, getLastAlert } from '@/lib/alerts';
 import { readLast } from '@/lib/logger';
+import { requireAuth } from '@/lib/auth/apiGuard';
 
 export const runtime = 'nodejs';
 
@@ -81,11 +82,15 @@ export async function GET(req: Request) {
     }
 
     if (path === '/wallet/create') {
+      const denied = await requireAuth(req);
+      if (denied) return denied;
       const wallet = createRandomWallet();
       return Response.json({ wallet });
     }
 
     if (path === '/wallet/withdraw') {
+      const denied = await requireAuth(req);
+      if (denied) return denied;
       const to = url.searchParams.get('to');
       const amount = url.searchParams.get('amount');
       if (!to || !amount) return Response.json({ error: 'to and amount required' }, { status: 400 });
@@ -94,6 +99,8 @@ export async function GET(req: Request) {
     }
 
     if (path === '/wallet/distribute') {
+      const denied = await requireAuth(req);
+      if (denied) return denied;
       const shardParam = url.searchParams.get('shard');
       const shardsParam = url.searchParams.get('shards');
       const botId = url.searchParams.get('botId') || undefined;

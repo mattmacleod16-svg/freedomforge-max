@@ -153,19 +153,25 @@ async function upsertEnvVar(key, value) {
   let lastError = null;
   for (const projectRef of candidateProjectRefs()) {
     const url = vercelApiUrl(`/v10/projects/${encodeURIComponent(projectRef)}/env?upsert=true`);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        key,
-        value,
-        type: 'encrypted',
-        target: ['production'],
-      }),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${VERCEL_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          key,
+          value,
+          type: 'encrypted',
+          target: ['production'],
+        }),
+        signal: controller.signal,
+      });
+    } finally { clearTimeout(timer); }
 
     if (response.ok) return;
     const body = await response.text().catch(() => '');
@@ -187,12 +193,18 @@ async function tryRedeployLatestProduction() {
   let deployment = null;
   for (const projectRef of candidateProjectRefs()) {
     const listUrl = vercelApiUrl(`/v6/deployments?projectId=${encodeURIComponent(projectRef)}&target=production&limit=1`);
-    const listResponse = await fetch(listUrl, {
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const listController = new AbortController();
+    const listTimer = setTimeout(() => listController.abort(), 15000);
+    let listResponse;
+    try {
+      listResponse = await fetch(listUrl, {
+        headers: {
+          Authorization: `Bearer ${VERCEL_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        signal: listController.signal,
+      });
+    } finally { clearTimeout(listTimer); }
     if (!listResponse.ok) continue;
     const listPayload = await listResponse.json();
     deployment = (listPayload.deployments || [])[0] || null;
@@ -202,14 +214,20 @@ async function tryRedeployLatestProduction() {
   if (!deployment?.uid) throw new Error('No production deployment found to redeploy');
 
   const redeployUrl = vercelApiUrl(`/v13/deployments/${deployment.uid}/redeploy`);
-  const redeployResponse = await fetch(redeployUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ target: 'production' }),
-  });
+  const redeployController = new AbortController();
+  const redeployTimer = setTimeout(() => redeployController.abort(), 15000);
+  let redeployResponse;
+  try {
+    redeployResponse = await fetch(redeployUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${VERCEL_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ target: 'production' }),
+      signal: redeployController.signal,
+    });
+  } finally { clearTimeout(redeployTimer); }
 
   if (!redeployResponse.ok) {
     const body = await redeployResponse.text().catch(() => '');

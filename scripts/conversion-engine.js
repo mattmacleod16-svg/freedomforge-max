@@ -72,6 +72,9 @@ function getScopedEnv(baseKey, suffix) {
   return process.env[`${baseKey}_${suffix}`] ?? process.env[baseKey];
 }
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 function withTimeout(ms) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ms);
@@ -100,7 +103,13 @@ function loadState() {
 
 function saveState(statePath, byNetwork) {
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
-  fs.writeFileSync(statePath, JSON.stringify({ byNetwork, updatedAt: new Date().toISOString() }, null, 2));
+  const data = { byNetwork, updatedAt: new Date().toISOString() };
+  if (rio) { rio.writeJsonAtomic(statePath, data); }
+  else {
+    const tmp = statePath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, statePath);
+  }
 }
 
 async function fetchJson(url, headers = {}) {

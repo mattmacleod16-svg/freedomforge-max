@@ -27,6 +27,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+let rio; try { rio = require('../lib/resilient-io'); } catch { rio = null; }
 
 // ─── CONFIGURATION ────────────────────────────────────────────────────────────
 
@@ -181,7 +182,12 @@ function auditCodeIntegrity() {
   if (!baseline) {
     log('INFO', domain, 'No baseline found — creating initial baseline');
     baseline = { createdAt: now(), hashes: currentHashes };
-    fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+    if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+    else {
+      const _tmp = BASELINE_FILE + '.tmp';
+      fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+      fs.renameSync(_tmp, BASELINE_FILE);
+    }
     pass(domain, 'Baseline created with ' + Object.keys(currentHashes).length + ' file hashes');
   } else {
     let driftCount = 0;
@@ -209,7 +215,12 @@ function auditCodeIntegrity() {
       }
     }
     if (driftCount > 0) {
-      fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+      if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+      else {
+        const _tmp = BASELINE_FILE + '.tmp';
+        fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+        fs.renameSync(_tmp, BASELINE_FILE);
+      }
       pass(domain, `Baseline updated: ${driftCount} committed changes absorbed`);
     } else {
       pass(domain, 'All file hashes match baseline');
@@ -230,12 +241,22 @@ function auditCodeIntegrity() {
   if (lockHash) {
     if (!baseline.packageLockHash) {
       baseline.packageLockHash = lockHash;
-      fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+      if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+      else {
+        const _tmp = BASELINE_FILE + '.tmp';
+        fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+        fs.renameSync(_tmp, BASELINE_FILE);
+      }
     } else if (baseline.packageLockHash !== lockHash) {
       log('WARN', domain, 'package-lock.json changed since baseline — dependency drift possible');
       baseline.packageLockHash = lockHash;
       baseline.lastUpdated = now();
-      fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+      if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+      else {
+        const _tmp = BASELINE_FILE + '.tmp';
+        fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+        fs.renameSync(_tmp, BASELINE_FILE);
+      }
     } else {
       pass(domain, 'package-lock.json matches baseline');
     }
@@ -296,7 +317,12 @@ function auditConfigDrift() {
   if (!baseline.envHash) {
     baseline.envHash = envHash;
     baseline.envKeyCount = envKeys.size;
-    fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+    if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+    else {
+      const _tmp = BASELINE_FILE + '.tmp';
+      fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+      fs.renameSync(_tmp, BASELINE_FILE);
+    }
     pass(domain, `Env baseline set: ${envKeys.size} keys`);
   } else if (baseline.envHash !== envHash) {
     const keyDelta = envKeys.size - (baseline.envKeyCount || 0);
@@ -304,7 +330,12 @@ function auditConfigDrift() {
     baseline.envHash = envHash;
     baseline.envKeyCount = envKeys.size;
     baseline.envLastChanged = now();
-    fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+    if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+    else {
+      const _tmp = BASELINE_FILE + '.tmp';
+      fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+      fs.renameSync(_tmp, BASELINE_FILE);
+    }
   } else {
     pass(domain, `.env.local unchanged (${envKeys.size} keys)`);
   }
@@ -331,7 +362,12 @@ function auditConfigDrift() {
     }
     if (!baseline.systemdUnitHashes) {
       baseline.systemdUnitHashes = unitHashMap;
-      fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+      if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+      else {
+        const _tmp = BASELINE_FILE + '.tmp';
+        fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+        fs.renameSync(_tmp, BASELINE_FILE);
+      }
       pass(domain, `Systemd unit baseline set: ${units.length} files`);
     } else {
       let changed = 0;
@@ -343,7 +379,12 @@ function auditConfigDrift() {
       }
       if (changed === 0) pass(domain, `All ${units.length} systemd unit files unchanged`);
       baseline.systemdUnitHashes = unitHashMap;
-      fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
+      if (rio) { rio.writeJsonAtomic(BASELINE_FILE, baseline); }
+      else {
+        const _tmp = BASELINE_FILE + '.tmp';
+        fs.writeFileSync(_tmp, JSON.stringify(baseline, null, 2));
+        fs.renameSync(_tmp, BASELINE_FILE);
+      }
     }
   }
 
@@ -512,7 +553,13 @@ function auditDataIntegrity() {
   const auditHistory = readJson('data/audit-history.json');
   if (auditHistory && Array.isArray(auditHistory) && auditHistory.length > 100) {
     const trimmed = auditHistory.slice(-50);
-    fs.writeFileSync(path.join(DATA, 'audit-history.json'), JSON.stringify(trimmed, null, 2));
+    const _ahPath = path.join(DATA, 'audit-history.json');
+    if (rio) { rio.writeJsonAtomic(_ahPath, trimmed); }
+    else {
+      const _tmp = _ahPath + '.tmp';
+      fs.writeFileSync(_tmp, JSON.stringify(trimmed, null, 2));
+      fs.renameSync(_tmp, _ahPath);
+    }
     log('INFO', domain, `Trimmed audit-history.json from ${auditHistory.length} to 50 entries`, true);
   }
 }
@@ -728,7 +775,12 @@ function generateReport() {
   };
 
   // Save state
-  fs.writeFileSync(STATE_FILE, JSON.stringify(report, null, 2));
+  if (rio) { rio.writeJsonAtomic(STATE_FILE, report); }
+  else {
+    const _tmp = STATE_FILE + '.tmp';
+    fs.writeFileSync(_tmp, JSON.stringify(report, null, 2));
+    fs.renameSync(_tmp, STATE_FILE);
+  }
 
   // Save log file
   fs.mkdirSync(LOGS, { recursive: true });
@@ -742,7 +794,12 @@ function generateReport() {
   try { history = JSON.parse(fs.readFileSync(histFile, 'utf8')); } catch {}
   history.push({ ts: now(), grade, critical: criticalCount, warnings: warningCount, healed: healedCount, passed: passCount });
   if (history.length > 120) history = history.slice(-100); // keep 100 most recent (~25 days at 6h)
-  fs.writeFileSync(histFile, JSON.stringify(history, null, 2));
+  if (rio) { rio.writeJsonAtomic(histFile, history); }
+  else {
+    const _tmp = histFile + '.tmp';
+    fs.writeFileSync(_tmp, JSON.stringify(history, null, 2));
+    fs.renameSync(_tmp, histFile);
+  }
 
   // Print summary
   console.log(`\n${'═'.repeat(70)}`);
@@ -763,7 +820,7 @@ function generateReport() {
           `Critical: ${criticalCount} | Warnings: ${warningCount} | Healed: ${healedCount}\n` +
           findings.filter(f => f.level === 'CRITICAL').map(f => `• ${f.msg}`).join('\n'),
       };
-      execSync(`curl -s -X POST -H "Content-Type: application/json" -d '${JSON.stringify(msg)}' "${DISCORD_WEBHOOK}"`, { timeout: 10000 });
+      execSync(`curl -s -X POST -H "Content-Type: application/json" -d '${JSON.stringify(msg)}' "${DISCORD_WEBHOOK}"`, { encoding: 'utf8', timeout: 10000 });
     } catch {}
   }
 

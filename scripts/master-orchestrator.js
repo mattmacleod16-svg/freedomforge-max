@@ -89,7 +89,9 @@ function saveState(state) {
   if (state.errors?.length > 50) state.errors = state.errors.slice(-50);
   if (rio) { rio.writeJsonAtomic(STATE_FILE, state); return; }
   fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  const tmp = STATE_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
+  fs.renameSync(tmp, STATE_FILE);
 }
 
 // ─── Alerting (hardened with retry + timeout) ────────────────────────────────
@@ -662,7 +664,12 @@ function phaseDataMaintenance() {
             cleaned++;
           }
         }
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        if (rio) { rio.writeJsonAtomic(filePath, data); }
+        else {
+          const tmp = filePath + '.tmp';
+          fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+          fs.renameSync(tmp, filePath);
+        }
         log('info', `  Trimmed ${file} (was ${(stats.size / 1024).toFixed(0)}KB)`);
       }
     } catch {}
@@ -682,7 +689,12 @@ function phaseDataMaintenance() {
       const pruned = signals.length - fresh.length;
       if (pruned > 0) {
         const output = Array.isArray(busData) ? fresh : { ...busData, signals: fresh };
-        fs.writeFileSync(busFile, JSON.stringify(output, null, 2));
+        if (rio) { rio.writeJsonAtomic(busFile, output); }
+        else {
+          const tmp = busFile + '.tmp';
+          fs.writeFileSync(tmp, JSON.stringify(output, null, 2));
+          fs.renameSync(tmp, busFile);
+        }
         log('info', `  Pruned ${pruned} stale signals (kept ${fresh.length})`);
         cleaned += pruned;
       }

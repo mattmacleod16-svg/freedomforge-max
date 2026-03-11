@@ -58,6 +58,9 @@ try { signalBus = require('../lib/agent-signal-bus'); } catch { signalBus = null
 try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
 try { capitalMandate = require('../lib/capital-mandate'); } catch { capitalMandate = null; }
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 function withTimeout(ms) {
@@ -88,7 +91,12 @@ function loadState() {
 function saveState(filepath, data) {
   const dir = path.dirname(filepath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+  if (rio) { rio.writeJsonAtomic(filepath, data); }
+  else {
+    const tmp = filepath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, filepath);
+  }
 }
 
 function roundDown(value, decimals) {

@@ -4,6 +4,7 @@
  * POST /api/init - Triggers system initialization
  */
 
+import { requireAuth } from '@/lib/auth/apiGuard';
 import { initializeSystem, isSystemInitialized } from '@/lib/init/systemInit';
 import { getAvailableModels } from '@/lib/models/modelOrchestrator';
 import { getKnowledgeBaseStats } from '@/lib/rag/vectorStore';
@@ -79,7 +80,9 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
   try {
     console.log('🔄 Manual initialization triggered');
     await initializeSystem();

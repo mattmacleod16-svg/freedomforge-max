@@ -4,7 +4,7 @@ export const runtime = 'nodejs';
 
 function isAuthorized(req: Request) {
   const secret = process.env.CLAWD_API_SECRET;
-  if (!secret) return true;
+  if (!secret) return false; // deny when secret is not configured
 
   const headerSecret = req.headers.get('x-clawd-secret') || '';
   const auth = req.headers.get('authorization') || '';

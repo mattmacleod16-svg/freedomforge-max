@@ -5,6 +5,9 @@ const fs = require('fs');
 const { spawnSync } = require('child_process');
 const dotenv = require('dotenv');
 
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
@@ -78,7 +81,12 @@ function loadPerformanceState() {
 
 function savePerformanceState(abs, data) {
   fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, JSON.stringify(data, null, 2));
+  if (rio) { rio.writeJsonAtomic(abs, data); }
+  else {
+    const tmp = abs + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, abs);
+  }
 }
 
 function getVenuePerf(state, name) {
@@ -211,6 +219,7 @@ function runVenue(name) {
   const result = spawnSync(command, args, {
     env: process.env,
     encoding: 'utf8',
+    timeout: 120000,
   });
 
   const stdout = String(result.stdout || '');

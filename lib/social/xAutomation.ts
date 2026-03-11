@@ -317,30 +317,37 @@ async function getOAuthUserAccessToken() {
     headers.Authorization = `Basic ${basic}`;
   }
 
-  const response = await fetch(getOAuthTokenUrl(), {
-    method: 'POST',
-    headers,
-    body: body.toString(),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(getOAuthTokenUrl(), {
+      method: 'POST',
+      headers,
+      body: body.toString(),
+      signal: controller.signal,
+    });
 
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`X OAuth token refresh failed ${response.status}: ${JSON.stringify(payload)}`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(`X OAuth token refresh failed ${response.status}: ${JSON.stringify(payload)}`);
+    }
+
+    const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : '';
+    const expiresInSeconds = Number(payload?.expires_in || 3600);
+
+    if (!accessToken) {
+      throw new Error('X OAuth token refresh failed: missing access_token');
+    }
+
+    oauthTokenCache = {
+      accessToken,
+      expiresAt: nowTs + Math.max(300, expiresInSeconds) * 1000,
+    };
+
+    return accessToken;
+  } finally {
+    clearTimeout(timer);
   }
-
-  const accessToken = typeof payload?.access_token === 'string' ? payload.access_token : '';
-  const expiresInSeconds = Number(payload?.expires_in || 3600);
-
-  if (!accessToken) {
-    throw new Error('X OAuth token refresh failed: missing access_token');
-  }
-
-  oauthTokenCache = {
-    accessToken,
-    expiresAt: nowTs + Math.max(300, expiresInSeconds) * 1000,
-  };
-
-  return accessToken;
 }
 
 async function getAuthToken() {
@@ -423,21 +430,28 @@ async function postTweet(text: string) {
     throw new Error('X token not configured');
   }
 
-  const response = await fetch('https://api.x.com/2/tweets', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ text }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch('https://api.x.com/2/tweets', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text }),
+      signal: controller.signal,
+    });
 
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`X API error ${response.status}: ${JSON.stringify(payload)}`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(`X API error ${response.status}: ${JSON.stringify(payload)}`);
+    }
+
+    return payload;
+  } finally {
+    clearTimeout(timer);
   }
-
-  return payload;
 }
 
 function evaluateProfitGate(metrics: ProofMetrics | null): ProfitGate {
