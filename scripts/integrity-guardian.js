@@ -35,7 +35,7 @@ const DATA = path.join(BASE, 'data');
 const LOGS = path.join(BASE, 'logs');
 const STATE_FILE = path.join(DATA, 'integrity-guardian-state.json');
 const BASELINE_FILE = path.join(DATA, '.integrity-baseline.json');
-const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK_URL || '';
+const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK_URL || process.env.ALERT_WEBHOOK_URL || '';
 
 // ─── CRITICAL FILES TO HASH-VERIFY ───────────────────────────────────────────
 // If any of these change without a git commit, something is seriously wrong.
