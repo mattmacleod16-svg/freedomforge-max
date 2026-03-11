@@ -146,7 +146,9 @@ function trimDataFiles() {
         if (rio) {
           rio.writeJsonAtomic(filePath, data);
         } else {
-          fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+          const _tmp = filePath + '.tmp';
+          fs.writeFileSync(_tmp, JSON.stringify(data, null, 2), 'utf8');
+          fs.renameSync(_tmp, filePath);
         }
         const afterSize = fs.statSync(filePath).size;
         const saved = beforeSize - afterSize;

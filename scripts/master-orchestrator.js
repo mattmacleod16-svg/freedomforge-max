@@ -291,7 +291,7 @@ function phaseAssetList() {
         log('info', `Using filtered asset list: ${filtered.join(', ')} (${filtered.length}/${assets.length} assets)`);
         return filtered;
       }
-    } catch {}
+    } catch (err) { log('warn', 'asset filter error: ' + (err?.message || err)); }
   }
 
   log('info', `Using default asset list: ${assets.join(', ')} (${assets.length} assets)`);
@@ -536,7 +536,7 @@ async function phaseTradeExecution(signals) {
                 signalComponents: signal.components || {},
                 dryRun: DRY_RUN,
               });
-            } catch {}
+            } catch (err) { log('warn', 'journal record failed: ' + (err?.message || err)); }
           }
 
           break;
@@ -549,7 +549,7 @@ async function phaseTradeExecution(signals) {
           try {
             const parsed = JSON.parse(result.stdout || '{}');
             if (parsed.reason) log('info', `  ${venue} skipped ${signal.asset}: ${parsed.reason}`);
-          } catch {}
+          } catch (err) { log('info', `  ${venue} skip-reason parse failed: ${err?.message}`); }
         }
       }
 
@@ -689,7 +689,7 @@ function phaseDataMaintenance() {
         }
         log('info', `  Trimmed ${file} (was ${(stats.size / 1024).toFixed(0)}KB)`);
       }
-    } catch {}
+    } catch (err) { log('warn', `data file trim error for ${file}: ${err?.message}`); }
   }
 
   if (cleaned > 0) log('info', `  Cleaned ${cleaned} arrays`);

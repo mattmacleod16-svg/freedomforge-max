@@ -232,7 +232,7 @@ async function main() {
         console.log(JSON.stringify({ status: 'skipped', reason: `brain-time-filter: ${timeCheck.reason}` }, null, 2));
         return;
       }
-    } catch {}
+    } catch (err) { console.error('[kraken] brain time-check error:', err?.message || err); }
   }
 
   if (USE_COMPOSITE_SIGNAL && edgeDetector) {
@@ -375,7 +375,7 @@ async function main() {
           orderId: action.result?.txid || null,
         });
       }
-    } catch {}
+    } catch (err) { console.error('[kraken] journal record error:', err?.message || err); }
   }
 
   console.log(JSON.stringify({

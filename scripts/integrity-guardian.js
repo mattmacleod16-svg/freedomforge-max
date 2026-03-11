@@ -529,7 +529,7 @@ function auditDataIntegrity() {
       if (stat.size > 10 * 1024 * 1024) {
         log('WARN', domain, `${file} is ${(stat.size / 1024 / 1024).toFixed(1)}MB — needs pruning`);
       }
-    } catch {}
+    } catch (err) { log('WARN', domain, `stat check failed for ${file}: ${err?.message}`); }
   }
 
   // 4b. Trade journal integrity
@@ -786,7 +786,9 @@ function generateReport() {
   fs.mkdirSync(LOGS, { recursive: true });
   const logFile = path.join(LOGS, `integrity-guardian-${tsLabel()}.log`);
   const logContent = findings.map(f => `[${f.ts}] [${f.level}] [${f.domain}] ${f.msg}${f.healed ? ' → HEALED' : ''}`).join('\n');
-  fs.writeFileSync(logFile, logContent);
+  const logTmp = logFile + '.tmp';
+  fs.writeFileSync(logTmp, logContent);
+  fs.renameSync(logTmp, logFile);
 
   // Update audit history
   const histFile = path.join(DATA, 'integrity-audit-history.json');
@@ -824,7 +826,7 @@ function generateReport() {
       const { execFileSync } = require('child_process');
       const payload = JSON.stringify(msg);
       execFileSync('curl', ['-s', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', payload, DISCORD_WEBHOOK], { encoding: 'utf8', timeout: 10000 });
-    } catch {}
+    } catch (err) { console.error('[integrity-guardian] discord alert failed:', err?.message || err); }
   }
 
   return report;

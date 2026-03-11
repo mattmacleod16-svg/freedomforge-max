@@ -56,7 +56,9 @@ async function trimFileByLines(filePath, keepLines) {
   const content = await fs.readFile(filePath, 'utf8');
   const lines = content.split('\n');
   const trimmed = lines.slice(-keepLines).join('\n');
-  await fs.writeFile(filePath, trimmed, 'utf8');
+  const tmpPath = filePath + '.tmp';
+  await fs.writeFile(tmpPath, trimmed, 'utf8');
+  await fs.rename(tmpPath, filePath);
 }
 
 async function maybeTrimLargeFile(filePath, maxBytes, keepLines) {

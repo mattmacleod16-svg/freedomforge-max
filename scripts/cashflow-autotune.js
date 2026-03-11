@@ -87,7 +87,9 @@ function writePatchFile(updates) {
   }
 
   fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, `${lines.join('\n')}\n`, 'utf8');
+  const tmp = abs + '.tmp';
+  fs.writeFileSync(tmp, `${lines.join('\n')}\n`, 'utf8');
+  fs.renameSync(tmp, abs);
   return abs;
 }
 

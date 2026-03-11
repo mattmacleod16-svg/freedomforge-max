@@ -378,7 +378,7 @@ async function main() {
         console.log(JSON.stringify({ status: 'skipped', reason: `brain-time-filter: ${timeCheck.reason}` }, null, 2));
         return;
       }
-    } catch {}
+    } catch (err) { console.error('[coinbase] brain time-check error:', err?.message || err); }
   }
 
   if (USE_COMPOSITE_SIGNAL && edgeDetector) {
@@ -477,7 +477,7 @@ async function main() {
           orderId: action.result?.order_id || action.result?.success_response?.order_id || null,
         });
       }
-    } catch {}
+    } catch (err) { console.error('[coinbase] journal record error:', err?.message || err); }
   }
 
   console.log(JSON.stringify({

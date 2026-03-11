@@ -482,7 +482,7 @@ function checkPayoutState() {
         fs.writeFileSync(_tmp, JSON.stringify(ps, null, 2));
         fs.renameSync(_tmp, _fp);
       }
-    } catch {}
+    } catch (err) { console.error('[audit] payout state write failed:', err?.message || err); }
     patched('Restored payout % to 15% floor (Ironclad Protocol)');
     warn('payout-state', `Payout was ${pct}% — reset to 15% floor`);
   } else if (!wallet.startsWith('0x')) {

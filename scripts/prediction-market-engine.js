@@ -305,9 +305,9 @@ async function scanCoinbaseFutures() {
                 components: composite.components,
               });
             }
-          } catch {}
+          } catch (err) { console.error('[pred-market] futures opportunity push error:', err?.message || err); }
         }
-      } catch {}
+      } catch (err) { console.error('[pred-market] futures perp filter error:', err?.message || err); }
     }
   } catch (err) {
     console.error('[coinbase-futures] scan error:', err.message);
@@ -490,7 +490,7 @@ async function scanCoinbaseEventTokens(polymarketIntel) {
             if (l > 0 && l < low24h) low24h = l;
           }
         }
-      } catch {}
+      } catch (err) { console.error('[pred-market] candle fetch error:', err?.message || err); }
 
       const range24h = high24h > 0 && low24h > 0 ? (high24h - low24h) / price : 0;
 
@@ -499,7 +499,7 @@ async function scanCoinbaseEventTokens(polymarketIntel) {
       if (edgeDetector) {
         try {
           signal = await edgeDetector.getCompositeSignal({ asset: token.name });
-        } catch {}
+        } catch (err) { console.error('[pred-market] edge signal error:', err?.message || err); }
       }
 
       // Cross-reference with Polymarket intelligence for political tokens
@@ -880,7 +880,7 @@ async function main() {
               signal: { side: opp.side, confidence: opp.confidence, edge: opp.edge },
               dryRun: DRY_RUN,
             });
-          } catch {}
+          } catch (err) { console.error('[pred-market] journal record error:', err?.message || err); }
         }
       }
     }

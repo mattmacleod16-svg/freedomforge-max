@@ -229,8 +229,12 @@ async function main() {
   const patch = inferPatch(summary, walletPayload || {});
 
   fs.mkdirSync(OPS_DIR, { recursive: true });
-  fs.writeFileSync(ENV_PATCH_FILE, buildEnvPatch(patch.env), 'utf8');
-  fs.writeFileSync(REPORT_FILE, buildReport(summary, patch), 'utf8');
+  const envTmp = ENV_PATCH_FILE + '.tmp';
+  fs.writeFileSync(envTmp, buildEnvPatch(patch.env), 'utf8');
+  fs.renameSync(envTmp, ENV_PATCH_FILE);
+  const reportTmp = REPORT_FILE + '.tmp';
+  fs.writeFileSync(reportTmp, buildReport(summary, patch), 'utf8');
+  fs.renameSync(reportTmp, REPORT_FILE);
 
   console.log('generate-ops-patch: wrote');
   console.log(ENV_PATCH_FILE);

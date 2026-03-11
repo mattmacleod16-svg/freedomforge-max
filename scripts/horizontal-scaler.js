@@ -105,6 +105,16 @@ function loadScalerState() {
 
 function saveScalerState(state) {
   state.updatedAt = Date.now();
+  // Trim promotions/demotions to prevent unbounded growth over months of 24/7 operation
+  if (state.promotions.length > 500) state.promotions = state.promotions.slice(-500);
+  if (state.demotions.length > 500) state.demotions = state.demotions.slice(-500);
+  // Prune stale candidates not seen in 30 days
+  const staleCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  for (const [asset, cand] of Object.entries(state.candidates)) {
+    if ((cand.lastSeen || cand.firstSeen || 0) < staleCutoff) {
+      delete state.candidates[asset];
+    }
+  }
   save(SCALER_STATE_FILE, state);
 }
 
@@ -232,7 +242,7 @@ function computeCapitalAllocation(activeAssets) {
           allocation[ta.asset].reason = `brain_reduced (PnL:$${ta.pnl})`;
         }
       }
-    } catch {}
+    } catch (err) { console.error('[scaler] brain capital allocation error:', err?.message || err); }
   }
 
   // Normalize to sum to 1
@@ -333,7 +343,7 @@ function evaluateDemotions(state) {
 
         console.log(reasoning.join('\n'));
       }
-    } catch {}
+    } catch (err) { console.error('[scaler] brain demotion eval error:', err?.message || err); }
   }
 
   return demotions;

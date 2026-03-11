@@ -105,7 +105,9 @@ async function main() {
     next = upsertEnv(next, 'POLY_CLOB_API_SECRET', credentials.secret);
     next = upsertEnv(next, 'POLY_CLOB_API_PASSPHRASE', credentials.passphrase);
     next = upsertEnv(next, 'POLY_CLOB_REST_URL', HOST);
-    fs.writeFileSync(ENV_FILE, next, 'utf8');
+    const tmpEnv = ENV_FILE + '.tmp';
+    fs.writeFileSync(tmpEnv, next, 'utf8');
+    fs.renameSync(tmpEnv, ENV_FILE);
   }
 
   console.log(JSON.stringify(output, null, 2));
