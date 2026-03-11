@@ -644,7 +644,7 @@ async function executeCoinbaseEventOrder(opp) {
   const volume = opp.orderUsd / opp.price;
   // Get product details for size increments
   let productDetail;
-  try { productDetail = await cbPrivate('GET', `/api/v3/brokerage/products/${encodeURIComponent(opp.productId)}`); } catch {}
+  try { productDetail = await cbPrivate('GET', `/api/v3/brokerage/products/${encodeURIComponent(opp.productId)}`); } catch (err) { console.warn('[pred-market] product detail fetch failed:', err?.message); }
   const baseIncrement = Number(productDetail?.base_increment || 0.01);
   const precision = Math.max(0, -Math.floor(Math.log10(baseIncrement)));
   const roundedVolume = roundDown(volume, precision);
