@@ -23,6 +23,9 @@ function sleep(ms) {
 
 async function call(path, { method = 'GET', body, retries = 2 } = {}) {
   const headers = { 'Content-Type': 'application/json' };
+  if (process.env.ALERT_SECRET) {
+    headers['x-api-secret'] = process.env.ALERT_SECRET;
+  }
   if (AUTONOMY_ADMIN_KEY) {
     headers['x-autonomy-key'] = AUTONOMY_ADMIN_KEY;
   }
@@ -152,8 +155,7 @@ async function main() {
   if (ENABLE_DISTRIBUTION) {
     const distribution = await call(`/api/alchemy/wallet/distribute`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shard: 0, shards: 1, botId: `continuous-${Date.now()}` }),
+      body: { shard: 0, shards: 1, botId: `continuous-${Date.now()}` },
       retries: 1,
     });
 

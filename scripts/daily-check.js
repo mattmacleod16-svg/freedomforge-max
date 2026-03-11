@@ -39,7 +39,7 @@ async function postJson(url, body = {}) {
     const response = await fetch(url, {
       method: 'POST',
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(process.env.ALERT_SECRET ? { 'x-api-secret': process.env.ALERT_SECRET } : {}) },
       body: JSON.stringify(body),
     });
     const text = await response.text();

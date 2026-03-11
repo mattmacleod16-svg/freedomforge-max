@@ -238,7 +238,7 @@ async function attemptWalletWarmup() {
 
 async function attemptDistributionKick() {
   try {
-    const response = await fetchWithTimeout(DISTRIBUTION_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const response = await fetchWithTimeout(DISTRIBUTION_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(process.env.ALERT_SECRET ? { 'x-api-secret': process.env.ALERT_SECRET } : {}) }, body: JSON.stringify({}) });
     if (!response.ok) {
       return { ok: false, reason: `distribution endpoint ${response.status}` };
     }

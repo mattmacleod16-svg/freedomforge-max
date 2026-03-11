@@ -101,6 +101,7 @@ async function postJson(url, body = {}) {
       headers: {
         'User-Agent': 'freedomforge-max/trade-loop',
         'Content-Type': 'application/json',
+        ...(process.env.ALERT_SECRET ? { 'x-api-secret': process.env.ALERT_SECRET } : {}),
       },
       body: JSON.stringify(body),
     });

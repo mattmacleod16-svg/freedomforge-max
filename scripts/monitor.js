@@ -62,7 +62,7 @@ async function checkOnce() {
     const timer = setTimeout(() => controller.abort(), 15000);
     let res;
     try {
-      res = await fetch(DIST_URL, { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      res = await fetch(DIST_URL, { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json', ...(process.env.ALERT_SECRET ? { 'x-api-secret': process.env.ALERT_SECRET } : {}) }, body: JSON.stringify({}) });
     } finally { clearTimeout(timer); }
     // Consume body to prevent connection/memory leaks in long-running process
     try { await res.text(); } catch {}
