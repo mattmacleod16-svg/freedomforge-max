@@ -209,6 +209,7 @@ async function main() {
 
   await sendAlert(message);
   console.log('daily-kpi-report: sent');
+  process.exit(0);
 }
 
 main().catch(async (error) => {

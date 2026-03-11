@@ -462,6 +462,7 @@ async function main() {
   };
 
   console.log(JSON.stringify(report, null, 2));
+  process.exit(0);
 }
 
 main().catch(err => {

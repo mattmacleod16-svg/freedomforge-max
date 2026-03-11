@@ -114,7 +114,9 @@ async function sendAlert(message, level = 'info') {
         clearTimeout(timer);
         if (res.ok || res.status < 500) return; // Success or client error (don't retry)
       } finally { clearTimeout(timer); }
-    } catch {}
+    } catch (alertErr) {
+      if (attempt === 2) console.error('[orch] Alert delivery failed after 3 attempts:', alertErr instanceof Error ? alertErr.message : String(alertErr));
+    }
     if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
   }
 }
@@ -395,7 +397,7 @@ function executeVenueTrade(venue, signal, orderUsd) {
   });
 
   const stdout = String(result.stdout || '');
-  const stderr = String(result.stderr || '');
+  const stderr = String(result.stderr || '').replace(/(key|secret|password|token|authorization)\s*[:=]\s*\S+/gi, '$1=***');
   const success = result.status === 0 && /"status"\s*:\s*"placed"/i.test(stdout);
   const skipped = /"status"\s*:\s*"skipped"/i.test(stdout);
 
@@ -730,11 +732,16 @@ async function main() {
   }
 
   // FIX H-1: Enforce cycle timeout — abort if any phase hangs
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Cycle timeout: exceeded ${CYCLE_TIMEOUT_MS}ms`)), CYCLE_TIMEOUT_MS)
-  );
+  let cycleTimer;
+  const timeoutPromise = new Promise((_, reject) => {
+    cycleTimer = setTimeout(() => reject(new Error(`Cycle timeout: exceeded ${CYCLE_TIMEOUT_MS}ms`)), CYCLE_TIMEOUT_MS);
+  });
 
-  await Promise.race([runCycle(startMs), timeoutPromise]);
+  try {
+    await Promise.race([runCycle(startMs), timeoutPromise]);
+  } finally {
+    clearTimeout(cycleTimer);
+  }
 }
 
 async function runCycle(startMs) {
@@ -895,7 +902,7 @@ async function runCycle(startMs) {
   }
 }
 
-main().catch(async (err) => {
+main().then(() => process.exit(0)).catch(async (err) => {
   console.error('[orchestrator] Fatal:', err.message);
   await sendAlert(`🔥 Orchestrator FATAL: ${err.message}`, 'critical');
   process.exit(1);

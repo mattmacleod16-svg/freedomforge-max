@@ -199,12 +199,17 @@ async function main() {
   await checkOnce();
   if (WATCH_ONCE) return;
 
+  let running = false;
   setInterval(async () => {
+    if (running) return;
+    running = true;
     try {
       console.clear();
       await checkOnce();
     } catch (error) {
       console.error('live-watch error:', error?.message || String(error));
+    } finally {
+      running = false;
     }
   }, WATCH_INTERVAL_MS);
 }

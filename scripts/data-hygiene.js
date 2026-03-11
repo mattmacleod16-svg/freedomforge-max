@@ -12,7 +12,7 @@
 
 const fs   = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
 let rio;
 try { rio = require('../lib/resilient-io'); } catch { rio = null; }
@@ -192,7 +192,7 @@ function rotateLogs() {
       // Compress non-gz files older than 3 days
       if (ageMs > 3 * DAY && !f.endsWith('.gz')) {
         try {
-          execSync(`gzip "${fp}"`, { timeout: 10000 });
+          execFileSync('gzip', [fp], { timeout: 10000 });
           compressed++;
           console.log(`  log compressed (>3d): ${f}`);
         } catch { /* gzip not available or failed, skip */ }
@@ -260,3 +260,4 @@ vacuumJournal();
 
 const totalSavedKB = ((totalBytesSaved + compactSaved) / 1024).toFixed(1);
 console.log(`\n[data-hygiene] DONE — trimmed ${totalTrimmed} entries, ${deleted} logs deleted, ${compressed} compressed, ${totalSavedKB}KB saved`);
+process.exit(0);

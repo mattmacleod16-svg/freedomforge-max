@@ -92,17 +92,28 @@ async function getJson(url) {
   }
 }
 
+// Only send auth secret to trusted origins (prevent leak to misconfigured URLs)
+function isTrustedUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  } catch { return false; }
+}
+
 async function postJson(url, body = {}) {
   const { controller, timeout } = withTimeout(requestTimeoutMs);
   try {
+    const headers = {
+      'User-Agent': 'freedomforge-max/trade-loop',
+      'Content-Type': 'application/json',
+    };
+    if (process.env.ALERT_SECRET && isTrustedUrl(url)) {
+      headers['x-api-secret'] = process.env.ALERT_SECRET;
+    }
     const response = await fetch(url, {
       method: 'POST',
       signal: controller.signal,
-      headers: {
-        'User-Agent': 'freedomforge-max/trade-loop',
-        'Content-Type': 'application/json',
-        ...(process.env.ALERT_SECRET ? { 'x-api-secret': process.env.ALERT_SECRET } : {}),
-      },
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -292,6 +303,10 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   running = false;
   console.log('[trade-loop] received SIGTERM, exiting...');
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[trade-loop] unhandled rejection:', reason instanceof Error ? reason.message : String(reason));
 });
 
 loop().catch((error) => {

@@ -223,7 +223,7 @@ function runVenue(name) {
   });
 
   const stdout = String(result.stdout || '');
-  const stderr = String(result.stderr || '');
+  const stderr = String(result.stderr || '').replace(/(key|secret|password|token|authorization)\s*[:=]\s*\S+/gi, '$1=***');
   if (stdout) process.stdout.write(stdout);
   if (stderr) process.stderr.write(stderr);
 
