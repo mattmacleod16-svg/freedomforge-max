@@ -223,6 +223,7 @@ export async function GET() {
         liquidationBuffer: guardian?.coinbase?.liquidationBuffer || 0,
         totalBalance: guardian?.coinbase?.totalBalance || 0,
         initialMargin: guardian?.coinbase?.initialMargin || 0,
+        availableMargin: guardian?.coinbase?.availableMargin || 0,
         unrealizedPnl: guardian?.coinbase?.unrealizedPnl || 0,
         positions: guardian?.coinbase?.positions || [],
         healthy: guardian?.coinbase?.healthy !== false,
@@ -323,25 +324,20 @@ export async function GET() {
     // Fall back to trade journal for additional context.
     const openTrades = trades.filter((t: any) => !t.outcome);
 
-    // Exchange-reported deployed capital (live, changes with market)
-    const cbMarginUsed = guardianSummary.coinbase.initialMargin;
-    const krMarginUsed = guardianSummary.kraken.marginUsed;
+    // Use exchange-reported available capital for accurate deployed calculation.
+    // Journal usdSize is entry-time notional — event contracts lose/gain value,
+    // creating phantom capital if we sum stale journal values.
+    // Available margin / free margin are real-time from the exchange.
+    const cbAvailable = guardianSummary.coinbase.availableMargin;
+    const krFree = guardianSummary.kraken.freeMargin;
 
-    // For prediction markets / spot (not margin), sum from journal
-    const cbSpotOpen = openTrades
-      .filter((t: any) => (t.venue === 'coinbase' || t.venue === 'coinbase_event') && !t.isMargin)
-      .reduce((s: number, t: any) => s + (t.usdSize || 0), 0);
-    const krSpotOpen = openTrades
-      .filter((t: any) => (t.venue === 'kraken' || t.venue === 'kraken_event') && !t.isMargin)
-      .reduce((s: number, t: any) => s + (t.usdSize || 0), 0);
+    // Deployed = balance minus what the exchange says is available
+    const cbDeployed = cbAvailable > 0 ? Math.max(0, cbBalance - cbAvailable) : guardianSummary.coinbase.initialMargin;
+    const krDeployed = krFree > 0 ? Math.max(0, krBalance - krFree) : guardianSummary.kraken.marginUsed;
 
-    // Deployed = exchange margin + spot positions (don't double-count)
-    const cbDeployed = cbMarginUsed + cbSpotOpen;
-    const krDeployed = krMarginUsed + krSpotOpen;
-
-    // Standby = exchange balance minus deployed capital (floor at 0)
-    const cbStandby = Math.max(0, cbBalance - cbDeployed);
-    const krStandby = Math.max(0, krBalance - krDeployed);
+    // Standby = what the exchange says is free to trade
+    const cbStandby = cbAvailable > 0 ? cbAvailable : Math.max(0, cbBalance - cbDeployed);
+    const krStandby = krFree > 0 ? krFree : Math.max(0, krBalance - krDeployed);
 
     // Merge guardian exchange positions + journal openness for dashboard detail
     const exchangePositions = [
