@@ -1,15 +1,25 @@
 import { runXGrowthAutomation } from '@/lib/social/xAutomation';
+import { timingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
+
+function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
 
 function isAuthorized(req: Request) {
   const expected = process.env.X_AUTOMATION_SECRET;
   if (!expected) return false; // deny when secret is not configured
 
-  const headerSecret = req.headers.get('x-x-automation-secret');
-  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  const headerSecret = req.headers.get('x-x-automation-secret') || '';
+  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || '';
 
-  return [headerSecret, bearer].some((item) => item && item === expected);
+  // FIX CRITICAL #3: Use timing-safe comparison
+  return safeEqual(headerSecret, expected) || safeEqual(bearer, expected);
 }
 
 export async function POST(req: Request) {

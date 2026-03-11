@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
+let rio: any;
+try { rio = require('@/lib/resilient-io'); } catch { /* fallback to raw fs */ }
+
 export type MarketRegime = 'risk_on' | 'risk_off' | 'neutral' | 'unknown';
 
 export interface PredictionMarketContract {
@@ -57,7 +60,11 @@ function ensureDataDir() {
 function saveState() {
   try {
     ensureDataDir();
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    if (rio) {
+      rio.writeJsonAtomic(STATE_FILE, state);
+    } else {
+      fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    }
   } catch {}
 }
 

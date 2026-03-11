@@ -820,7 +820,10 @@ function generateReport() {
           `Critical: ${criticalCount} | Warnings: ${warningCount} | Healed: ${healedCount}\n` +
           findings.filter(f => f.level === 'CRITICAL').map(f => `• ${f.msg}`).join('\n'),
       };
-      execSync(`curl -s -X POST -H "Content-Type: application/json" -d '${JSON.stringify(msg)}' "${DISCORD_WEBHOOK}"`, { encoding: 'utf8', timeout: 10000 });
+      // FIX M-2: Use stdin to avoid shell injection from single quotes in messages
+      const { execFileSync } = require('child_process');
+      const payload = JSON.stringify(msg);
+      execFileSync('curl', ['-s', '-X', 'POST', '-H', 'Content-Type: application/json', '-d', payload, DISCORD_WEBHOOK], { encoding: 'utf8', timeout: 10000 });
     } catch {}
   }
 

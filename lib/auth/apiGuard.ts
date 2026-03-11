@@ -40,11 +40,12 @@ export async function requireAuth(req: Request): Promise<Response | null> {
   const xApiSecret = req.headers.get('x-api-secret');
   if (xApiSecret && apiSecret && safeCompare(xApiSecret, apiSecret)) return null; // authorized
 
-  // 4. Check localhost origin (scripts running on the VM itself)
-  const forwarded = req.headers.get('x-forwarded-for') || '';
-  const isLocal = forwarded === '127.0.0.1' || forwarded === '::1' || forwarded === '';
-  const url = new URL(req.url);
-  if (isLocal && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')) return null;
+  // 4. Localhost bypass — ONLY in non-production environments
+  // FIX CRITICAL: X-Forwarded-For is spoofable on Vercel, so never trust it in production
+  if (process.env.NODE_ENV !== 'production') {
+    const url = new URL(req.url);
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return null;
+  }
 
   return Response.json({ error: 'unauthorized' }, { status: 401 });
 }

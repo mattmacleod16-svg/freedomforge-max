@@ -74,11 +74,12 @@ export async function GET(req: Request) {
     }
 
     if (path === '/debug/auth') {
-      // debug auth state
-      const dashboardUser = process.env.DASHBOARD_USER || 'admin';
+      // FIX HIGH #6: Gate debug endpoint behind auth — don't leak credentials in production
+      const denied = await requireAuth(req);
+      if (denied) return denied;
       const authHeader = req.headers.get('authorization');
       const scheme = authHeader?.split(' ')[0] || null;
-      return Response.json({ dashboardUser, authHeaderPresent: !!authHeader, scheme });
+      return Response.json({ authHeaderPresent: !!authHeader, scheme });
     }
 
     if (path === '/wallet/create') {
@@ -89,13 +90,8 @@ export async function GET(req: Request) {
     }
 
     if (path === '/wallet/withdraw') {
-      const denied = await requireAuth(req);
-      if (denied) return denied;
-      const to = url.searchParams.get('to');
-      const amount = url.searchParams.get('amount');
-      if (!to || !amount) return Response.json({ error: 'to and amount required' }, { status: 400 });
-      const tx = await withdrawFromRevenue(to, amount, networkOverride);
-      return Response.json({ txHash: tx, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
+      // FIX CRITICAL #2: Reject GET on mutation endpoints — must use POST
+      return Response.json({ error: 'use POST for withdraw' }, { status: 405 });
     }
 
     if (path === '/wallet/distribute') {
@@ -130,6 +126,34 @@ export async function GET(req: Request) {
     return Response.json({ error: 'unknown alchemy path' }, { status: 404 });
   } catch (error) {
     console.error('Alchemy API error', error);
+    return Response.json({ error: 'internal server error' }, { status: 500 });
+  }
+}
+
+// POST handler for mutation operations (withdraw)
+export async function POST(req: Request) {
+  const url = new URL(req.url);
+  const path = url.pathname.replace('/api/alchemy', '');
+  const networkOverride = url.searchParams.get('network') || undefined;
+
+  try {
+    initAlchemy(networkOverride);
+    initRevenueWallet();
+
+    if (path === '/wallet/withdraw') {
+      const denied = await requireAuth(req);
+      if (denied) return denied;
+      const body = await req.json().catch(() => ({}));
+      const to = body.to;
+      const amount = body.amount;
+      if (!to || !amount) return Response.json({ error: 'to and amount required in POST body' }, { status: 400 });
+      const tx = await withdrawFromRevenue(to, amount, networkOverride);
+      return Response.json({ txHash: tx, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
+    }
+
+    return Response.json({ error: 'unknown alchemy POST path' }, { status: 404 });
+  } catch (error) {
+    console.error('Alchemy API POST error', error);
     return Response.json({ error: 'internal server error' }, { status: 500 });
   }
 }

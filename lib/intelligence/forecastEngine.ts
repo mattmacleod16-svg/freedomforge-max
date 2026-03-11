@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { logEvent } from '@/lib/logger';
+
+let rio: any;
+try { rio = require('@/lib/resilient-io'); } catch { /* fallback to raw fs */ }
+
 import {
   type MarketFeaturePoint,
   type MarketRegime,
@@ -65,7 +69,11 @@ function ensureDataDir() {
 function saveState() {
   try {
     ensureDataDir();
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    if (rio) {
+      rio.writeJsonAtomic(STATE_FILE, state);
+    } else {
+      fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    }
   } catch {}
 }
 

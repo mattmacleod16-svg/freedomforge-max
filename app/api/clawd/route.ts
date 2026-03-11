@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
+
+function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
 
 function isAuthorized(req: Request) {
   const secret = process.env.CLAWD_API_SECRET;
@@ -10,7 +19,8 @@ function isAuthorized(req: Request) {
   const auth = req.headers.get('authorization') || '';
   const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
 
-  return headerSecret === secret || bearer === secret;
+  // FIX CRITICAL #3: Use timing-safe comparison
+  return safeEqual(headerSecret, secret) || safeEqual(bearer, secret);
 }
 
 async function runClawdHttpQuery(prompt: string) {

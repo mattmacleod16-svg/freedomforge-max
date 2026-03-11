@@ -318,6 +318,18 @@ async function main() {
     effectiveOrderUsd = riskManager.riskAdjustedSize({ baseUsd: effectiveOrderUsd, confidence: signal.confidence, edge: signal.edge || 0, asset: 'BTC', venue: 'kraken' });
   }
 
+  // ═══ FIX C-1: Recompute volume AFTER all size gates ═══
+  // effectiveOrderUsd may have been reduced by capital mandate or risk manager
+  const finalVolume = roundDown(effectiveOrderUsd / price, pair.lotDecimals);
+  if (!Number.isFinite(finalVolume) || finalVolume <= 0) {
+    console.log(JSON.stringify({ status: 'skipped', reason: 'post-adjustment volume is zero', effectiveOrderUsd, price }, null, 2));
+    return;
+  }
+  if (pair.ordmin > 0 && finalVolume < pair.ordmin) {
+    console.log(JSON.stringify({ status: 'skipped', reason: 'post-adjustment volume below ordmin', finalVolume, ordmin: pair.ordmin }, null, 2));
+    return;
+  }
+
   if (!DRY_RUN && (!API_KEY || !API_SECRET)) {
     console.log(JSON.stringify({ status: 'skipped', reason: 'missing KRAKEN_API_KEY/KRAKEN_API_SECRET' }, null, 2));
     return;
@@ -329,12 +341,12 @@ async function main() {
       pair: pair.altname,
       type: side,
       ordertype: 'market',
-      volume: String(volume),
+      volume: String(finalVolume),
       validate: DRY_RUN ? 'true' : undefined,
     };
 
     if (DRY_RUN) {
-      actions.push({ status: 'dry-run', order, usdNotional: Number((volume * price).toFixed(4)), signal });
+      actions.push({ status: 'dry-run', order, usdNotional: Number((finalVolume * price).toFixed(4)), signal });
       continue;
     }
 

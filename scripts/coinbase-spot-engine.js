@@ -274,11 +274,15 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
         return { status: 'dry-run', order: payload, usdNotional: quoteSize, estBaseSize: Number((quoteSize / price).toFixed(meta.decimals)) };
       }
       const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
-      const success = result?.success !== false && !result?.error_response?.error;
+      const success = result?.success === true && !result?.error_response?.error;
       return { status: success ? 'placed' : 'error', order: payload, result, ...(success ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
     }
 
     const rawSize = orderUsd / price;
+    // FIX H-6: Guard against price=0 or NaN causing Infinity order size
+    if (!Number.isFinite(rawSize) || rawSize <= 0) {
+      return { status: 'skipped', reason: 'invalid rawSize from bad price', rawSize, price };
+    }
     const size = roundDown(rawSize, meta.decimals);
     if (size <= 0) {
       return { status: 'skipped', reason: 'computed sell size is zero', rawSize, price };
@@ -303,7 +307,7 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
     }
 
     const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
-    const sellSuccess = result?.success !== false && !result?.error_response?.error;
+    const sellSuccess = result?.success === true && !result?.error_response?.error;
     return { status: sellSuccess ? 'placed' : 'error', order: payload, result, ...(sellSuccess ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
   }
 

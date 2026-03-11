@@ -1,18 +1,26 @@
 import { sendAlert } from '@/lib/alerts';
+import { timingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
+
+function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
+}
 
 function isAuthorized(req: Request) {
   const secret = process.env.ALERT_SECRET;
   if (!secret) return false;
 
-  const headerSecret = req.headers.get('x-alert-secret');
+  const headerSecret = req.headers.get('x-alert-secret') || '';
   const authHeader = req.headers.get('authorization');
-  const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const url = new URL(req.url);
-  const querySecret = url.searchParams.get('secret');
+  const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  // FIX CRITICAL #3 + HIGH #5: Use timing-safe comparison, remove query-string secret
 
-  return headerSecret === secret || bearer === secret || querySecret === secret;
+  return safeEqual(headerSecret, secret) || safeEqual(bearer || '', secret);
 }
 
 export async function GET(req: Request) {

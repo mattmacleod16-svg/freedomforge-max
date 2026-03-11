@@ -265,7 +265,9 @@ function phaseAssetList() {
   // Auto-exclude assets with < 25% win rate over 5+ trades
   if (tradeJournal) {
     try {
-      const j = JSON.parse(fs.readFileSync(tradeJournal.JOURNAL_FILE, 'utf8'));
+      // FIX M-3: Use rio.readJsonSafe for safe concurrent reads
+      const j = rio ? rio.readJsonSafe(tradeJournal.JOURNAL_FILE, { fallback: { trades: [] } })
+        : JSON.parse(fs.readFileSync(tradeJournal.JOURNAL_FILE, 'utf8'));
       const closed = (j.trades || []).filter(t => t.outcome);
       const byAsset = {};
       for (const t of closed) {
@@ -366,6 +368,16 @@ function executeVenueTrade(venue, signal, orderUsd) {
 
   log('info', `  Executing on ${venue}: ${signal.asset} ${signal.side} $${orderUsd.toFixed(2)}`);
 
+  // ═══ FIX C-5: Route asset to correct product ID / pair ═══
+  const asset = (signal.asset || 'BTC').toUpperCase();
+  const krakenPairMap = {
+    BTC: 'XXBTZUSD', ETH: 'XETHZUSD', SOL: 'SOLUSD', AVAX: 'AVAXUSD',
+    DOGE: 'XDGUSD', ADA: 'ADAUSD', DOT: 'DOTUSD', MATIC: 'MATICUSD',
+    LINK: 'LINKUSD', UNI: 'UNIUSD', ATOM: 'ATOMUSD', LTC: 'XLTCZUSD',
+  };
+  const coinbaseProductId = `${asset}-USD`;
+  const krakenPair = krakenPairMap[asset] || `${asset}USD`;
+
   const result = spawnSync('node', [script], {
     env: {
       ...process.env,
@@ -374,6 +386,9 @@ function executeVenueTrade(venue, signal, orderUsd) {
       KRAKEN_ORDER_USD: venue === 'kraken' ? String(orderUsd) : process.env.KRAKEN_ORDER_USD,
       COINBASE_ORDER_USD: venue === 'coinbase' ? String(orderUsd) : process.env.COINBASE_ORDER_USD,
       PRED_MARKET_ORDER_USD: venue === 'prediction' ? String(orderUsd) : process.env.PRED_MARKET_ORDER_USD,
+      // Route to correct asset product / pair
+      COINBASE_PRODUCT_ID: venue === 'coinbase' ? coinbaseProductId : (process.env.COINBASE_PRODUCT_ID || 'BTC-USD'),
+      KRAKEN_PAIR: venue === 'kraken' ? krakenPair : (process.env.KRAKEN_PAIR || 'XXBTZUSD'),
     },
     encoding: 'utf8',
     timeout: 60000,
@@ -713,6 +728,16 @@ async function main() {
     console.log(JSON.stringify({ status: 'disabled', reason: 'ORCHESTRATOR_ENABLED=false' }, null, 2));
     return;
   }
+
+  // FIX H-1: Enforce cycle timeout — abort if any phase hangs
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Cycle timeout: exceeded ${CYCLE_TIMEOUT_MS}ms`)), CYCLE_TIMEOUT_MS)
+  );
+
+  await Promise.race([runCycle(startMs), timeoutPromise]);
+}
+
+async function runCycle(startMs) {
 
   // Check min interval
   const state = loadState();

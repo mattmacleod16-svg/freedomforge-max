@@ -11,8 +11,10 @@ type SessionPayload = {
 function getSessionSecret() {
   const secret = (process.env.DASHBOARD_SESSION_SECRET || process.env.DASHBOARD_PASS || '').trim();
   if (!secret) {
-    console.error('[session] DASHBOARD_SESSION_SECRET not set — sessions will fail');
-    return 'UNCONFIGURED-DO-NOT-USE';
+    console.error('[session] FATAL: DASHBOARD_SESSION_SECRET not set — rejecting all sessions');
+    // FIX LOW #18: Return empty string which will cause all signature checks to fail
+    // rather than using a predictable fallback that an attacker could forge
+    return '';
   }
   return secret;
 }

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="$PWD"
-SERVICE_USER="${SUDO_USER:-$USER}"
+SERVICE_USER="${SUDO_USER:-${USER:-$(whoami)}}"
 SERVICE_PREFIX="freedomforge-trade-loop"
 INSTALL_DEPS="true"
 APP_BASE_URL="https://freedomforge-max.vercel.app"

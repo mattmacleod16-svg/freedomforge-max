@@ -10,6 +10,7 @@ import {
   buildAgentUserInteractionPacket,
   buildModelContextPacket,
 } from '@/lib/protocols/agentProtocols';
+import { requireAuth } from '@/lib/auth/apiGuard';
 
 export const runtime = 'nodejs';
 
@@ -108,6 +109,9 @@ interface ChatResponse {
 }
 
 export async function POST(req: Request): Promise<Response> {
+  // FIX HIGH #4: Auth guard on chat (LLM cost abuse / prompt injection vector)
+  const denied = await requireAuth(req);
+  if (denied) return denied;
   try {
     const body: ChatRequest = await req.json();
     const { message } = body;

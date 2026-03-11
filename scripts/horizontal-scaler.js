@@ -360,9 +360,13 @@ async function main() {
 
   console.log(`[scaler] Scanned ${toScan.length} candidates, ${withEdge.length} show edge`);
 
-  // 3. Evaluate promotions
+  // 3. Evaluate promotions — FIX H-8: enforce MAX_ACTIVE_ASSETS cap in main loop
   const promotions = evaluatePromotions(state, withEdge);
   for (const promo of promotions) {
+    if (state.activeAssets.length >= MAX_ACTIVE_ASSETS) {
+      console.log(`[scaler] MAX_ACTIVE_ASSETS (${MAX_ACTIVE_ASSETS}) reached — skipping remaining promotions`);
+      break;
+    }
     if (!state.activeAssets.includes(promo.asset)) {
       state.activeAssets.push(promo.asset);
       state.promotions.push({ ...promo, promotedAt: Date.now() });

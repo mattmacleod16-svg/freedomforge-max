@@ -7,6 +7,7 @@ import {
   runForecastBacktest,
 } from '@/lib/intelligence/forecastEngine';
 import { maybeRefreshMarketFeatureStore } from '@/lib/intelligence/marketFeatureStore';
+import { requireAuth } from '@/lib/auth/apiGuard';
 
 export const runtime = 'nodejs';
 
@@ -47,6 +48,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // FIX HIGH #4: Auth guard on forecast creation (cost abuse vector)
+  const denied = await requireAuth(req);
+  if (denied) return denied;
   try {
     await maybeRefreshMarketFeatureStore();
     const body = await req.json().catch(() => ({}));

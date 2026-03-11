@@ -3,6 +3,9 @@ import path from 'path';
 import { createHash } from 'crypto';
 import { logEvent } from '@/lib/logger';
 
+let rio: any;
+try { rio = require('@/lib/resilient-io'); } catch { /* fallback to raw fs */ }
+
 type AgentRole = 'planner' | 'researcher' | 'critic';
 
 interface ModelResponseLike {
@@ -87,7 +90,11 @@ function normalizeWeights(weights: Record<AgentRole, number>): Record<AgentRole,
 function saveState() {
   try {
     ensureDataDir();
-    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    if (rio) {
+      rio.writeJsonAtomic(STATE_FILE, state);
+    } else {
+      fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    }
   } catch {}
 }
 
