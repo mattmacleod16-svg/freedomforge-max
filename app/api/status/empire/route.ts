@@ -43,15 +43,27 @@ async function proxyToVM(): Promise<Response | null> {
 function hasLocalData(): boolean {
   const orchPath = path.resolve(process.cwd(), 'data/orchestrator-state.json');
   const guardianPath = path.resolve(process.cwd(), 'data/liquidation-guardian-state.json');
-  // If orchestrator state doesn't exist or is very old, we're on Vercel
+  const STALE_MS = 30 * 60 * 1000; // 30 minutes
   try {
-    if (!fs.existsSync(orchPath) && !fs.existsSync(guardianPath)) return false;
-    if (fs.existsSync(orchPath)) {
+    // Need at least one state file to exist
+    const orchExists = fs.existsSync(orchPath);
+    const guardianExists = fs.existsSync(guardianPath);
+    if (!orchExists && !guardianExists) return false;
+
+    // Check orchestrator staleness if it exists
+    if (orchExists) {
       const orch = JSON.parse(fs.readFileSync(orchPath, 'utf8'));
       const age = Date.now() - (orch.lastRunAt || 0);
-      // If orchestrator hasn't run in 30 minutes, data is stale
-      if (age > 30 * 60 * 1000) return false;
+      if (age > STALE_MS) return false;
     }
+
+    // Check guardian staleness if it exists (catches Vercel deploys with stale data/)
+    if (guardianExists && !orchExists) {
+      const guardian = JSON.parse(fs.readFileSync(guardianPath, 'utf8'));
+      const age = Date.now() - (guardian.lastCheck || 0);
+      if (age > STALE_MS) return false;
+    }
+
     return true;
   } catch {
     return false;
