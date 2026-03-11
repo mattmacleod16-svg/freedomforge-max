@@ -62,9 +62,9 @@ const CRITICAL_FILES = [
 // ─── EXPECTED SYSTEMD SERVICES ────────────────────────────────────────────────
 
 const EXPECTED_SERVICES = {
-  running: ['ff-dashboard', 'ff-tunnel', 'ff-tunnel-url'],
+  running: ['ff-dashboard', 'ff-tunnel', 'ff-tunnel-url', 'ff-watchdog'],
   timers: [
-    'ff-orchestrator.timer', 'ff-guardian.timer', 'ff-watchdog.timer',
+    'ff-orchestrator.timer', 'ff-guardian.timer',
     'ff-scaler.timer', 'ff-scheduled-audit.timer', 'ff-profit-scorecard.timer',
     'ff-continuous-learning.timer', 'ff-daily-kpi.timer',
     'ff-geopolitical-watch.timer', 'ff-monthly-strategy.timer',
