@@ -11,7 +11,10 @@ let lastRun: { time: number; result: any } | null = null;
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
+
   return Response.json({ lastRun });
 }
 

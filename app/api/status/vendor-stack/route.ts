@@ -1,8 +1,12 @@
 import { getVendorStackStatus } from '@/lib/intelligence/vendorStack';
+import { requireAuth } from '@/lib/auth/apiGuard';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
+
   try {
     const summary = await getVendorStackStatus();
     return Response.json(

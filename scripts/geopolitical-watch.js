@@ -36,8 +36,10 @@ async function fetchJson(path) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (process.env.ALERT_SECRET) headers['x-api-secret'] = process.env.ALERT_SECRET;
     const response = await fetch(`${APP_BASE_URL}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       signal: controller.signal,
     });
     if (!response.ok) {

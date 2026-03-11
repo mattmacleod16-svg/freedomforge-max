@@ -22,14 +22,24 @@ export async function GET(req: Request) {
   try {
     await initAlchemy(networkOverride);
 
+    if (path === '/health') {
+      // simple liveliness/health check for external monitors — no auth required
+      return Response.json({ status: 'ok' });
+    }
+
     if (path === '/block') {
       const block = await getLatestBlock(networkOverride);
       return Response.json({ block, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
 
+    // R6-H1: All wallet/balance/nft paths require auth
+    const denied = await requireAuth(req);
+    if (denied) return denied;
+
     if (path === '/balance') {
       const address = url.searchParams.get('address');
       if (!address) return Response.json({ error: 'address required' }, { status: 400 });
+      if (!isAddress(address)) return Response.json({ error: 'invalid address' }, { status: 400 });
       const bal = await getBalance(address, networkOverride);
       return Response.json({ balance: bal, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
@@ -37,6 +47,7 @@ export async function GET(req: Request) {
     if (path === '/nfts') {
       const address = url.searchParams.get('address');
       if (!address) return Response.json({ error: 'address required' }, { status: 400 });
+      if (!isAddress(address)) return Response.json({ error: 'invalid address' }, { status: 400 });
       const nfts = await getNFTs(address, networkOverride);
       return Response.json({ nfts, network: networkOverride || process.env.ALCHEMY_NETWORK || 'eth-mainnet' });
     }
@@ -69,23 +80,13 @@ export async function GET(req: Request) {
       return Response.json({ logs });
     }
 
-    if (path === '/health') {
-      // simple liveliness/health check for external monitors
-      return Response.json({ status: 'ok' });
-    }
-
     if (path === '/debug/auth') {
-      // FIX HIGH #6: Gate debug endpoint behind auth — don't leak credentials in production
-      const denied = await requireAuth(req);
-      if (denied) return denied;
       const authHeader = req.headers.get('authorization');
       const scheme = authHeader?.split(' ')[0] || null;
       return Response.json({ authHeaderPresent: !!authHeader, scheme });
     }
 
     if (path === '/wallet/create') {
-      const denied = await requireAuth(req);
-      if (denied) return denied;
       const wallet = createRandomWallet();
       return Response.json({ wallet });
     }

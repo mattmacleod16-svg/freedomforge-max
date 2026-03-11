@@ -18,7 +18,9 @@ async function getJson(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const headers = {};
+    if (process.env.ALERT_SECRET) headers['x-api-secret'] = process.env.ALERT_SECRET;
+    const response = await fetch(url, { headers, signal: controller.signal });
     const text = await response.text();
     let data = null;
     try {

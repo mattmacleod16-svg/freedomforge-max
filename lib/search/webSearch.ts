@@ -46,6 +46,7 @@ export async function webSearch(query: string, maxResults: number = 5): Promise<
       });
 
       const data = await response.json();
+      if (!response.ok) return [];
 
       return (data.results || []).map((result: any) => ({
         title: result.title,
@@ -74,6 +75,7 @@ export async function webSearchFallback(query: string): Promise<SearchResult[]> 
         `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json`,
         { signal: controller.signal }
       );
+      if (!response.ok) return [];
       const data = await response.json();
 
       return (data.Results || [])

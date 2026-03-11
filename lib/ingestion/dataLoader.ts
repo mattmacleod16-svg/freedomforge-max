@@ -128,6 +128,7 @@ export async function fetchAndIngestWikipediaCategory(category: string) {
     const response = await fetchWithTimeout(
       `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(category)}&format=json&origin=*`
     );
+    if (!response.ok) throw new Error(`Wikipedia category: ${response.status}`);
 
     const data = await response.json();
 
@@ -143,6 +144,7 @@ export async function fetchAndIngestWikipediaCategory(category: string) {
       const articleResponse = await fetchWithTimeout(
         `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&titles=${encodeURIComponent(article.title)}&format=json&origin=*`
       );
+      if (!articleResponse.ok) continue;
 
       const articleData = await articleResponse.json();
       const pages = articleData.query.pages;
@@ -188,8 +190,9 @@ export async function fetchAndIngestArXivPapers(category: string = 'cs.AI', limi
 
   try {
     const response = await fetchWithTimeout(
-      `https://export.arxiv.org/api/query?search_query=cat:${category}&start=0&max_results=${limit}`
+      `https://export.arxiv.org/api/query?search_query=cat:${encodeURIComponent(category)}&start=0&max_results=${limit}`
     );
+    if (!response.ok) throw new Error(`ArXiv: ${response.status}`);
 
     const text = await response.text();
 
@@ -253,6 +256,7 @@ export async function fetchAndIngestGitHubTrending() {
         'Accept': 'application/vnd.github.v3+json',
       },
     });
+    if (!response.ok) throw new Error(`GitHub: ${response.status}`);
 
     const data = await response.json();
 

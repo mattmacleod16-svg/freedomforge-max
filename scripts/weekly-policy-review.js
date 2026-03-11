@@ -57,8 +57,10 @@ function toEthNumber(weiLike) {
 }
 
 async function fetchJson(path) {
+  const headers = { 'content-type': 'application/json' };
+  if (process.env.ALERT_SECRET) headers['x-api-secret'] = process.env.ALERT_SECRET;
   const response = await fetch(`${APP_BASE_URL}${path}`, {
-    headers: { 'content-type': 'application/json' },
+    headers,
   });
   if (!response.ok) {
     throw new Error(`Failed ${path}: HTTP ${response.status}`);

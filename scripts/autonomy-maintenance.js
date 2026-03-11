@@ -6,6 +6,7 @@ const adminKey = process.env.AUTONOMY_ADMIN_KEY || '';
 async function call(path, method = 'POST', body) {
   const headers = { 'Content-Type': 'application/json' };
   if (adminKey) headers['x-autonomy-key'] = adminKey;
+  if (process.env.ALERT_SECRET) headers['x-api-secret'] = process.env.ALERT_SECRET;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);

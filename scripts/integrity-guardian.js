@@ -459,7 +459,7 @@ function auditServiceHealth() {
   }
 
   // 3d. Dashboard HTTP health
-  const httpCode = run('curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000/api/status/empire 2>/dev/null');
+  const httpCode = run('curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000/api/alchemy/health 2>/dev/null');
   if (httpCode !== '200') {
     log('CRITICAL', domain, `Dashboard API returned HTTP ${httpCode} — restarting`);
     run('sudo systemctl restart ff-dashboard');
@@ -471,7 +471,7 @@ function auditServiceHealth() {
   // 3e. Tunnel health
   const tunnelUrl = run('cat /home/opc/freedomforge-max/data/tunnel-url.txt 2>/dev/null');
   if (tunnelUrl) {
-    const tunnelHttp = run(`curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${tunnelUrl}/api/status/empire" 2>/dev/null`);
+    const tunnelHttp = run(`curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${tunnelUrl}/api/alchemy/health" 2>/dev/null`);
     if (tunnelHttp !== '200') {
       log('WARN', domain, `Tunnel returned HTTP ${tunnelHttp} — restarting tunnel`);
       run('sudo systemctl restart ff-tunnel');

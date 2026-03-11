@@ -20,7 +20,10 @@ import { getXAutomationStatus } from '@/lib/social/xAutomation';
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
+
   try {
     const detectedModels = getAvailableModels();
     const isReady = isSystemInitialized() || detectedModels.length > 0;

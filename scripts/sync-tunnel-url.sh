@@ -27,7 +27,7 @@ log "Tunnel URL changed: $LAST -> $URL"
 # ─── Health check: verify the tunnel URL actually works before pushing ────
 health_ok=false
 for i in $(seq 1 $MAX_RETRIES); do
-  if curl -sf --max-time 10 "$URL/api/status/empire" >/dev/null 2>&1; then
+  if curl -sf --max-time 10 "$URL/api/alchemy/health" >/dev/null 2>&1; then
     health_ok=true
     break
   fi
@@ -82,7 +82,7 @@ if [ "$deploy_ok" = "true" ]; then
   # ─── Post-deploy verification (non-blocking) ─────────────────────────
   sleep 30 # Wait for Vercel build
   for i in $(seq 1 3); do
-    resp=$(curl -sf --max-time 15 "https://freedomforge-max.vercel.app/api/status/empire" 2>/dev/null || echo "FAIL")
+    resp=$(curl -sf --max-time 15 -H "x-api-secret: ${ALERT_SECRET:-}" "https://freedomforge-max.vercel.app/api/status/empire" 2>/dev/null || echo "FAIL")
     if echo "$resp" | grep -q '"totalUsd"'; then
       log "Post-deploy verification PASSED"
       break

@@ -114,7 +114,7 @@ if [[ "$MEM_AVAIL" -lt 500 ]]; then
 fi
 
 # ─── 6. Check dashboard responding ────────────────────────────────────────────
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000/api/status/empire 2>/dev/null)
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:3000/api/alchemy/health 2>/dev/null)
 HTTP_CODE=${HTTP_CODE:-0}
 if [[ "$HTTP_CODE" != "200" ]]; then
   if can_restart "ff-dashboard"; then

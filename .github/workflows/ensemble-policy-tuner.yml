@@ -40,11 +40,15 @@ jobs:
           echo "TUNER_LIMIT=$TUNER_LIMIT" >> "$GITHUB_ENV"
 
       - name: Run ensemble policy tuner
+        env:
+          ALERT_SECRET: ${{ secrets.ALERT_SECRET }}
         run: |
           echo "Tuning regime=$TUNER_REGIME limit=$TUNER_LIMIT"
+          payload="$(python3 -c "import json; print(json.dumps({'regime': '$TUNER_REGIME', 'limit': int('$TUNER_LIMIT')}))")"
           response="$(curl -fsS -X POST "$APP_BASE_URL/api/status/ensemble/policy" \
             -H 'content-type: application/json' \
-            -d "{\"regime\":\"$TUNER_REGIME\",\"limit\":$TUNER_LIMIT}")"
+            -H "x-api-secret: $ALERT_SECRET" \
+            -d "$payload")"
 
           printf '%s\n' "$response" | python3 -m json.tool
 

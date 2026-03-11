@@ -1,8 +1,12 @@
 import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
+import { requireAuth } from '@/lib/auth/apiGuard';
 
 export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
+
   try {
     const url = new URL(req.url);
     const query = (url.searchParams.get('query') || '').trim();

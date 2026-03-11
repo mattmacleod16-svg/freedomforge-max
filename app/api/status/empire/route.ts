@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { requireAuth } from '@/lib/auth/apiGuard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,7 +44,10 @@ async function proxyToVM(): Promise<Response | null> {
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
       try {
         const res = await fetch(target, {
-          headers: { 'Accept': 'application/json' },
+          headers: {
+            'Accept': 'application/json',
+            ...(process.env.ALERT_SECRET ? { 'x-api-secret': process.env.ALERT_SECRET } : {}),
+          },
           signal: controller.signal,
           cache: 'no-store',
         });
@@ -215,7 +219,10 @@ function buildAgentRoster(
   return { total, active: activeCount, roles };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
+
   try {
     // ─── Proxy to VM if running on Vercel (no local data) ──────────────
     if (!hasLocalData()) {
@@ -583,12 +590,7 @@ export async function GET() {
         };
       })(),
       agents: agentRoster,
-      tunnelUrl: (() => {
-        try {
-          const u = fs.readFileSync(path.resolve(process.cwd(), 'data/tunnel-url.txt'), 'utf8').trim();
-          return u || null;
-        } catch { return null; }
-      })(),
+      // tunnelUrl removed — R6-H2: prevent internal VM URL leak
     });
   } catch (error) {
     return NextResponse.json(

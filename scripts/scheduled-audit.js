@@ -411,13 +411,13 @@ function checkSELinux() {
 
 // 14. Dashboard HTTP check
 function checkDashboardHTTP() {
-  const code = run('curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost:3000/dashboard', { fallback: '0' });
+  const code = run('curl -s -o /dev/null -w \"%{http_code}\" --max-time 10 http://localhost:3000/api/alchemy/health', { fallback: '0' });
   if (code === '200') {
     pass('dashboard-http', '200 OK');
   } else {
     // AUTO-PATCH: restart dashboard
     runSudo('systemctl restart ff-dashboard');
-    const retry = run('sleep 5 && curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost:3000/dashboard', { fallback: '0' });
+    const retry = run('sleep 5 && curl -s -o /dev/null -w \"%{http_code}\" --max-time 10 http://localhost:3000/api/alchemy/health', { fallback: '0' });
     if (retry === '200') {
       patched('Restarted ff-dashboard — now 200');
       warn('dashboard-http', `Was ${code}, restarted → 200`);
@@ -495,7 +495,7 @@ function checkPayoutState() {
 // 19. Portfolio breakdown in API
 function checkPortfolioBreakdown() {
   try {
-    const raw = run('curl -s --max-time 10 http://localhost:3000/api/status/empire', { fallback: '{}' });
+    const raw = run(`curl -s --max-time 10 -H "x-api-secret: ${process.env.ALERT_SECRET || ''}" http://localhost:3000/api/status/empire`, { fallback: '{}' });
     const d = JSON.parse(raw);
     const p = d.portfolio || {};
     const hasDeployed = p.totalDeployed !== undefined;

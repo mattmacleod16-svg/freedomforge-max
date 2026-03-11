@@ -11,6 +11,9 @@ import { getProtocolSummary } from '@/lib/protocols/adapters';
 export const runtime = 'nodejs';
 
 export async function GET(req: Request) {
+  const denied = await requireAuth(req);
+  if (denied) return denied;
+
   try {
     await maybeRefreshMarketFeatureStore();
     await resolveDueForecasts();
