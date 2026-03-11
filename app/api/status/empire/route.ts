@@ -13,29 +13,91 @@ import path from 'path';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/* ─── VM Proxy (Vercel → Oracle Cloud) ──────────────────────────────────── */
+/* ─── VM Proxy (Vercel → Oracle Cloud) — Hardened with retry + backoff ──── */
+
+/** Simple in-memory circuit breaker for the Vercel → VM path */
+let vmCircuit = { failures: 0, lastFailure: 0, status: 'CLOSED' as 'CLOSED' | 'OPEN' | 'HALF_OPEN' };
+const VM_CB_THRESHOLD = 3;
+const VM_CB_RESET_MS = 90_000; // 90s cooldown when circuit opens
+
 async function proxyToVM(): Promise<Response | null> {
   const vmUrl = process.env.ORACLE_API_URL;
   if (!vmUrl) return null;
 
-  try {
-    const target = `${vmUrl.replace(/\/$/, '')}/api/status/empire`;
-    const res = await fetch(target, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(12000),
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    // Validate the proxied data is real (not empty)
-    if (data && data.portfolio && (data.portfolio.totalUsd > 0 || data.trades?.total > 0)) {
-      return NextResponse.json(data, {
-        headers: { 'Cache-Control': 'no-store', 'X-Data-Source': 'oracle-vm' },
-      });
+  // ── Circuit breaker check ─────────────────────────────────────────
+  if (vmCircuit.status === 'OPEN') {
+    if (Date.now() - vmCircuit.lastFailure > VM_CB_RESET_MS) {
+      vmCircuit.status = 'HALF_OPEN'; // Allow one probe
+    } else {
+      return null; // Fast-fail — don't waste 12 s per request when VM is down
     }
-    return null;
-  } catch {
-    return null;
+  }
+
+  const target = `${vmUrl.replace(/\/$/, '')}/api/status/empire`;
+  const MAX_ATTEMPTS = 2; // 1 initial + 1 retry
+  const TIMEOUT_MS = 12_000;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(target, {
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        clearTimeout(timer);
+
+        if (!res.ok) {
+          // 5xx → retry; 4xx → don't
+          if (res.status >= 500 && attempt < MAX_ATTEMPTS - 1) {
+            await new Promise(r => setTimeout(r, 1000));
+            continue;
+          }
+          recordVmFailure();
+          return null;
+        }
+
+        const data = await res.json();
+        // Validate the proxied data is real (not empty)
+        if (data && data.portfolio && (data.portfolio.totalUsd > 0 || data.trades?.total > 0)) {
+          recordVmSuccess();
+          return NextResponse.json(data, {
+            headers: {
+              'Cache-Control': 'no-store',
+              'X-Data-Source': 'oracle-vm',
+              'X-VM-Circuit': vmCircuit.status,
+            },
+          });
+        }
+        recordVmFailure();
+        return null;
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch {
+      if (attempt < MAX_ATTEMPTS - 1) {
+        await new Promise(r => setTimeout(r, 1000)); // 1s before retry
+        continue;
+      }
+      recordVmFailure();
+      return null;
+    }
+  }
+  return null;
+}
+
+function recordVmSuccess() {
+  vmCircuit.failures = 0;
+  vmCircuit.status = 'CLOSED';
+}
+
+function recordVmFailure() {
+  vmCircuit.failures++;
+  vmCircuit.lastFailure = Date.now();
+  if (vmCircuit.failures >= VM_CB_THRESHOLD) {
+    vmCircuit.status = 'OPEN';
   }
 }
 

@@ -65,13 +65,25 @@ async function sendAlert(message) {
     console.log(message);
     return;
   }
-
   const finalMessage = withMention(message);
-  await fetch(ALERT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: finalMessage, text: finalMessage }),
-  });
+  const body = JSON.stringify({ content: finalMessage, text: finalMessage });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch(ALERT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok || res.status < 500) return;
+      } finally { clearTimeout(timer); }
+    } catch {}
+    if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+  }
 }
 
 async function fetchJson(url) {

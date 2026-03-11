@@ -59,8 +59,16 @@ async function fetchJson(url, options = {}) {
   }
 }
 
+// Resilient I/O for atomic state writes
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 function loadState() {
   const abs = path.resolve(process.cwd(), STATE_FILE);
+  if (rio) {
+    const data = rio.readJsonSafe(abs, { fallback: null });
+    return { path: abs, data: data || { lastRunAt: 0 } };
+  }
   if (!fs.existsSync(abs)) return { path: abs, data: { lastRunAt: 0 } };
   try {
     return { path: abs, data: JSON.parse(fs.readFileSync(abs, 'utf8')) };
@@ -70,6 +78,7 @@ function loadState() {
 }
 
 function saveState(abs, data) {
+  if (rio) { rio.writeJsonAtomic(abs, data); return; }
   fs.mkdirSync(path.dirname(abs), { recursive: true });
   fs.writeFileSync(abs, JSON.stringify(data, null, 2));
 }

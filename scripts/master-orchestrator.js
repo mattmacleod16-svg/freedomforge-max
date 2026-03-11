@@ -71,32 +71,50 @@ try { treasuryLedger = require('../lib/treasury-ledger'); } catch { treasuryLedg
 
 // ─── State Management ────────────────────────────────────────────────────────
 
+// Resilient I/O — atomic writes, backup recovery, file locking
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
 function loadState() {
+  const defaultState = { lastRunAt: 0, cycleCount: 0, totalTrades: 0, totalPnl: 0, errors: [] };
+  if (rio) return rio.readJsonSafe(STATE_FILE, { fallback: null }) || defaultState;
   try {
-    if (!fs.existsSync(STATE_FILE)) return { lastRunAt: 0, cycleCount: 0, totalTrades: 0, totalPnl: 0, errors: [] };
+    if (!fs.existsSync(STATE_FILE)) return defaultState;
     return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-  } catch { return { lastRunAt: 0, cycleCount: 0, totalTrades: 0, totalPnl: 0, errors: [] }; }
+  } catch { return defaultState; }
 }
 
 function saveState(state) {
   state.updatedAt = Date.now();
   if (state.errors?.length > 50) state.errors = state.errors.slice(-50);
+  if (rio) { rio.writeJsonAtomic(STATE_FILE, state); return; }
   fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-// ─── Alerting ────────────────────────────────────────────────────────────────
+// ─── Alerting (hardened with retry + timeout) ────────────────────────────────
 
 async function sendAlert(message, level = 'info') {
   if (!ALERT_WEBHOOK_URL) return;
   if (ALERT_MODE === 'critical-only' && level !== 'critical') return;
-  try {
-    await fetch(ALERT_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: message.slice(0, 1900) }),
-    });
-  } catch {}
+  const body = JSON.stringify({ content: message.slice(0, 1900) });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch(ALERT_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok || res.status < 500) return; // Success or client error (don't retry)
+      } finally { clearTimeout(timer); }
+    } catch {}
+    if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+  }
 }
 
 function log(level, msg) {

@@ -148,14 +148,25 @@ async function sendAlert(message, options = {}) {
   if (ALERT_MODE === 'off') return;
   if (ALERT_MODE !== 'all' && level !== 'critical') return;
   const finalMessage = withMention(message);
-  try {
-    await fetch(ALERT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: finalMessage, text: finalMessage }),
-    });
-  } catch (error) {
-    console.error('self-heal alert send failed:', error.message || error);
+  const body = JSON.stringify({ content: finalMessage, text: finalMessage });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch(ALERT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok || res.status < 500) return;
+      } finally { clearTimeout(timer); }
+    } catch (error) {
+      if (attempt === 2) console.error('self-heal alert send failed after 3 attempts:', error.message || error);
+    }
+    if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
   }
 }
 

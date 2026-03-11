@@ -34,14 +34,25 @@ async function sendAlert(msg, options = {}) {
   if (ALERT_MODE !== 'all' && level !== 'critical') return;
   const shouldMention = /discord(?:app)?\.com\/api\/webhooks\//i.test(ALERT_URL) && ALERT_MENTION;
   const finalMsg = shouldMention ? `${ALERT_MENTION} ${msg}` : msg;
-  try {
-    await fetch(ALERT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: finalMsg, text: finalMsg }),
-    });
-  } catch (e) {
-    console.error('failed to send alert', e);
+  const body = JSON.stringify({ content: finalMsg, text: finalMsg });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch(ALERT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok || res.status < 500) return;
+      } finally { clearTimeout(timer); }
+    } catch (e) {
+      if (attempt === 2) console.error('failed to send alert after 3 attempts', e);
+    }
+    if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
   }
 }
 
