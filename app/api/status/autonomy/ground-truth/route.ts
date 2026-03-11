@@ -25,5 +25,5 @@ export async function POST(req: Request) {
   // FIX HIGH #4: Auth guard on ground-truth ingestion (data poisoning vector)
   const denied = await requireAuth(req);
   if (denied) return denied;
-  return GET();
+  return GET(req);
 }
