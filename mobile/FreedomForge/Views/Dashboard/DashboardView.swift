@@ -177,6 +177,7 @@ struct DashboardView: View {
                         Text(FF.usd(lastCapital))
                             .font(.system(size: 32, weight: .bold, design: .monospaced))
                             .foregroundColor(FFDesign.textPrimary)
+                            .contentTransition(.numericText())
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
                     }
@@ -188,6 +189,7 @@ struct DashboardView: View {
                                 .font(.system(size: 10, weight: .bold))
                             Text(FF.pnl(pnl))
                                 .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .contentTransition(.numericText())
                         }
                         .foregroundColor(isPositive ? FFDesign.positive : FFDesign.negative)
                         .padding(.horizontal, 10)
@@ -392,6 +394,7 @@ struct DashboardView: View {
                 Text(FF.pct(pct))
                     .font(.system(size: 22, weight: .bold, design: .monospaced))
                     .foregroundColor(healthy ? FFDesign.positive : FFDesign.negative)
+                    .contentTransition(.numericText())
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                 Circle()

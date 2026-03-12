@@ -141,6 +141,7 @@ struct MetricCard: View {
             Text(value)
                 .font(.system(size: 22, weight: .bold, design: .monospaced))
                 .foregroundColor(color)
+                .contentTransition(.numericText())
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             if let subtitle = subtitle {
@@ -193,12 +194,14 @@ struct KPICard: View {
                     Text(trend)
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .foregroundColor(trend.hasPrefix("+") ? FFDesign.positive : trend.hasPrefix("-") ? FFDesign.negative : FFDesign.textSecondary)
+                        .contentTransition(.numericText())
                 }
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(value)
                     .font(.system(size: 26, weight: .bold, design: .monospaced))
                     .foregroundColor(FFDesign.textPrimary)
+                    .contentTransition(.numericText())
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                 Text(title.uppercased())
@@ -296,6 +299,7 @@ struct ProgressRing: View {
                 Text("\(Int(min(max(progress, 0), 1.0) * 100))%")
                     .font(.system(size: size * 0.22, weight: .bold, design: .monospaced))
                     .foregroundColor(color)
+                    .contentTransition(.numericText())
                 if let label = label {
                     Text(label)
                         .font(.system(size: size * 0.11, weight: .medium))

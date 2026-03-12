@@ -35,12 +35,13 @@ struct InfrastructureView: View {
                                     Spacer()
                                     VStack(alignment: .trailing, spacing: 4) {
                                         Text("UPTIME")
-                                            .font(.system(size: 9, weight: .bold))
+                                            .font(.system(size: 10, weight: .semibold))
                                             .foregroundColor(FFDesign.textTertiary)
-                                            .tracking(1)
+                                            .tracking(0.8)
                                         Text(FF.uptime(infra.system?.uptime))
                                             .font(.system(size: 18, weight: .bold, design: .monospaced))
                                             .foregroundColor(FFDesign.accent)
+                                            .contentTransition(.numericText())
                                     }
                                 }
                             }
@@ -139,6 +140,7 @@ struct InfrastructureView: View {
                                                 Text("\(circuit.failures ?? 0)")
                                                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                                                     .foregroundColor(FFDesign.negative)
+                                                    .contentTransition(.numericText())
                                             }
                                         }
                                     }
@@ -163,6 +165,7 @@ struct InfrastructureView: View {
                                                     Text("\(perf.successes ?? 0)/\(perf.attempts ?? 0)")
                                                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                                                         .foregroundColor(FFDesign.positive)
+                                                        .contentTransition(.numericText())
                                                 }
                                                 if (perf.errors ?? 0) > 0 {
                                                     HStack(spacing: 3) {
@@ -172,6 +175,7 @@ struct InfrastructureView: View {
                                                         Text("\(perf.errors ?? 0)")
                                                             .font(.system(size: 11, weight: .medium, design: .monospaced))
                                                             .foregroundColor(FFDesign.negative)
+                                                            .contentTransition(.numericText())
                                                     }
                                                 }
                                             }

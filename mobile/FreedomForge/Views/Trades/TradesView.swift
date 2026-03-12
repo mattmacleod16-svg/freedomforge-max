@@ -47,9 +47,10 @@ struct TradesView: View {
     var recentTradesView: some View {
         ScrollView {
             if let trades = appState.trades?.trades, !trades.isEmpty {
+                let maxAbsPnl = trades.compactMap { $0.pnl }.map { abs($0) }.max() ?? 1.0
                 LazyVStack(spacing: 8) {
                     ForEach(trades, id: \.displayId) { trade in
-                        TradeRow(trade: trade)
+                        TradeRow(trade: trade, maxAbsPnl: maxAbsPnl)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -118,6 +119,7 @@ struct TradesView: View {
 
 struct TradeRow: View {
     let trade: Trade
+    var maxAbsPnl: Double = 1.0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -136,6 +138,7 @@ struct TradeRow: View {
                     Text(FF.pnl(trade.pnl))
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                         .foregroundColor(FF.pnlColor(trade.pnl))
+                        .contentTransition(.numericText())
                 } else {
                     StatusBadge(text: "OPEN", color: FFDesign.accent)
                 }
@@ -157,10 +160,12 @@ struct TradeRow: View {
                 Text("Entry: \(String(format: "$%.2f", trade.entryPrice ?? 0))")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundColor(FFDesign.textSecondary)
+                    .contentTransition(.numericText())
 
                 if let conf = trade.signal?.confidence {
                     Text("\(String(format: "%.0f%%", conf * 100))")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .contentTransition(.numericText())
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(FFDesign.accent.opacity(0.12))
@@ -174,6 +179,7 @@ struct TradeRow: View {
                 Text("Size: \(FF.usd(trade.usdSize))")
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundColor(FFDesign.textTertiary)
+                    .contentTransition(.numericText())
 
                 if trade.dryRun == true {
                     StatusBadge(text: "DRY RUN", color: FFDesign.premium)
@@ -186,9 +192,9 @@ struct TradeRow: View {
                     .foregroundColor(FFDesign.textTertiary)
             }
 
-            // P&L magnitude bar indicator
-            if trade.closedAt != nil, let pnl = trade.pnl, let size = trade.usdSize, size > 0 {
-                let magnitude = min(abs(pnl) / size, 1.0)
+            // P&L magnitude sparkline — relative to largest P&L in list
+            if trade.closedAt != nil, let pnl = trade.pnl {
+                let magnitude = maxAbsPnl > 0 ? abs(pnl) / maxAbsPnl : 0
                 let barColor = pnl >= 0 ? FFDesign.positive : FFDesign.negative
                 HorizontalBar(
                     value: magnitude,

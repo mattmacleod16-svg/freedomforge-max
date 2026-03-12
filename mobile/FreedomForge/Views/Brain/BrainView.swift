@@ -114,6 +114,7 @@ struct BrainView: View {
                                     Text(FF.pct(winRate * 100))
                                         .font(.system(size: 16, weight: .bold, design: .monospaced))
                                         .foregroundColor(winRate >= 0.5 ? FFDesign.positive : FFDesign.negative)
+                                        .contentTransition(.numericText())
                                     HorizontalBar(value: winRate, maxValue: 1.0, color: winRate >= 0.5 ? FFDesign.positive : FFDesign.negative, height: 4)
                                         .frame(width: 60)
                                 }
@@ -164,6 +165,7 @@ struct BrainView: View {
                             Text(String(format: "%.3f", weight))
                                 .font(.system(size: 12, weight: .bold, design: .monospaced))
                                 .foregroundColor(FFDesign.accent)
+                                .contentTransition(.numericText())
                                 .frame(width: 55, alignment: .trailing)
                         }
                     }
@@ -214,6 +216,7 @@ struct BrainView: View {
                                 Text("\(count)")
                                     .font(.system(size: 12, weight: .bold, design: .monospaced))
                                     .foregroundColor(FFDesign.premium)
+                                    .contentTransition(.numericText())
                                     .frame(width: 35, alignment: .trailing)
                             }
                         }
@@ -277,6 +280,7 @@ struct BrainView: View {
                                 Text(FF.pct(wr))
                                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                                     .foregroundColor(wr >= 50 ? FFDesign.positive : FFDesign.negative)
+                                    .contentTransition(.numericText())
                             }
                         }
                         if let sharpe = perf.sharpe {
@@ -287,6 +291,7 @@ struct BrainView: View {
                                 Text(FF.ratio(sharpe))
                                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                                     .foregroundColor(sharpe >= 1 ? FFDesign.positive : FFDesign.warning)
+                                    .contentTransition(.numericText())
                             }
                         }
                         if let trades = perf.trades {

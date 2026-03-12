@@ -31,6 +31,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
+const { createLogger } = require('../lib/logger');
+const logger = createLogger('reconciler');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -84,7 +86,7 @@ function saveState(state) {
     const tmp = STATE_FILE + '.tmp.' + process.pid;
     fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
     fs.renameSync(tmp, STATE_FILE);
-  } catch (err) { console.error('[reconciler] state save failed:', err?.message || err); }
+  } catch (err) { logger.error('state save failed', { error: err?.message || err }); }
 }
 
 function defaultState() {
@@ -116,7 +118,7 @@ async function sendAlert(message) {
       '-d', JSON.stringify({ content: message.slice(0, 1900) }),
       ALERT_WEBHOOK_URL,
     ], { encoding: 'utf8', timeout: 10000 });
-  } catch (err) { console.error('[reconciler] alert failed:', err?.message || err); }
+  } catch (err) { logger.error('alert failed', { error: err?.message || err }); }
 }
 
 // ─── Exchange Balance Fetchers ──────────────────────────────────────────────
@@ -418,18 +420,16 @@ function comparePositions(exchangeData, localPositions, openTrades) {
 
 async function main() {
   if (!ENABLED) {
-    console.log(JSON.stringify({ status: 'disabled', reason: 'RECONCILER_ENABLED=false' }));
+    process.stdout.write(JSON.stringify({ status: 'disabled', reason: 'RECONCILER_ENABLED=false' }) + '\n');
     process.exit(0);
   }
 
   const startMs = Date.now();
-  console.log(`\n${'='.repeat(60)}`);
-  console.log('  POSITION RECONCILIATION AGENT');
-  console.log(`  Time: ${new Date().toISOString()}`);
-  console.log(`${'='.repeat(60)}\n`);
+  logger.info('POSITION RECONCILIATION AGENT');
+  logger.info(`Time: ${new Date().toISOString()}`);
 
   // Fetch exchange data in parallel
-  console.log('  Fetching exchange balances...');
+  logger.info('Fetching exchange balances');
   const [coinbase, kraken, alpaca] = await Promise.all([
     fetchCoinbaseBalances(),
     fetchKrakenBalances(),
@@ -446,14 +446,14 @@ async function main() {
   ];
   for (const v of venues) {
     const status = v.data.available ? 'CONNECTED' : `UNAVAILABLE (${v.data.reason || 'no credentials'})`;
-    console.log(`  [${v.data.available ? 'OK' : '--'}] ${v.name}: ${status}`);
+    logger.info(`[${v.data.available ? 'OK' : '--'}] ${v.name}: ${status}`);
   }
 
   // Get local state
   const local = getLocalPositions();
   const openTrades = getJournalOpenTrades();
-  console.log(`\n  Local positions: ${Object.keys(local.positions || {}).length}`);
-  console.log(`  Open journal trades: ${openTrades.length}`);
+  logger.info(`Local positions: ${Object.keys(local.positions || {}).length}`);
+  logger.info(`Open journal trades: ${openTrades.length}`);
 
   // Compare
   const discrepancies = comparePositions(exchangeData, local.positions, openTrades);
@@ -478,17 +478,15 @@ async function main() {
   };
 
   // Print results
-  console.log(`\n${'='.repeat(60)}`);
   if (discrepancies.length === 0) {
-    console.log('  RECONCILIATION: CLEAN — no discrepancies found');
+    logger.info('RECONCILIATION: CLEAN — no discrepancies found');
   } else {
-    console.log(`  RECONCILIATION: ${discrepancies.length} DISCREPANCY(IES) FOUND`);
+    logger.warn(`RECONCILIATION: ${discrepancies.length} DISCREPANCY(IES) FOUND`);
     for (const d of discrepancies) {
-      console.log(`    [${d.type}] ${d.venue}/${d.asset}: ${d.detail}`);
+      logger.warn(`[${d.type}] ${d.venue}/${d.asset}: ${d.detail}`);
     }
   }
-  console.log(`  Duration: ${duration}ms`);
-  console.log(`${'='.repeat(60)}\n`);
+  logger.info(`Duration: ${duration}ms`);
 
   // Save state
   const state = loadState();
@@ -517,7 +515,7 @@ async function main() {
         },
         ttlMs: 12 * 60 * 60 * 1000,
       });
-    } catch { /* ignore */ }
+    } catch (busErr) { logger.warn('signal bus publish failed', { error: busErr?.message || busErr }); }
   }
 
   // Alert on discrepancies
@@ -527,12 +525,12 @@ async function main() {
   }
 
   // Output full report
-  console.log(JSON.stringify(report, null, 2));
+  process.stdout.write(JSON.stringify(report, null, 2) + '\n');
 
   process.exit(discrepancies.length > 0 ? 1 : 0);
 }
 
 main().catch(err => {
-  console.error('[reconciler] fatal:', err?.message || err);
+  logger.fatal('fatal error', { error: err?.message || err });
   process.exit(1);
 });

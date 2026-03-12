@@ -20,6 +20,8 @@
 const fs = require('fs');
 const path = require('path');
 const dotenv = require('dotenv');
+const { createLogger } = require('../lib/logger');
+const logger = createLogger('horizontal-scaler');
 
 let rio;
 try { rio = require('../lib/resilient-io'); } catch { rio = null; }
@@ -126,12 +128,12 @@ function saveScalerState(state) {
  */
 async function discoverAssets() {
   const discovered = [];
-  console.log(`[scaler] Discovering new assets from candidate pool of ${CANDIDATE_POOL.length}...`);
+  logger.info(`Discovering new assets from candidate pool of ${CANDIDATE_POOL.length}`);
 
   // Fetch Binance 24h ticker for volume data
   const tickers = await fetchJson('https://api.binance.com/api/v3/ticker/24hr');
   if (!Array.isArray(tickers)) {
-    console.log('[scaler] Failed to fetch Binance tickers');
+    logger.warn('Failed to fetch Binance tickers');
     return [];
   }
 
@@ -181,7 +183,7 @@ async function discoverAssets() {
  */
 async function scanCandidates(candidates) {
   if (!edgeDetector) {
-    console.log('[scaler] Edge detector not available');
+    logger.warn('Edge detector not available');
     return [];
   }
 
@@ -198,7 +200,7 @@ async function scanCandidates(candidates) {
         volume24h: candidate.volume24h,
       });
     } catch (err) {
-      console.log(`[scaler] Scan failed for ${candidate.asset}: ${err.message}`);
+      logger.warn(`Scan failed for ${candidate.asset}: ${err.message}`);
     }
   }
 
@@ -242,7 +244,7 @@ function computeCapitalAllocation(activeAssets) {
           allocation[ta.asset].reason = `brain_reduced (PnL:$${ta.pnl})`;
         }
       }
-    } catch (err) { console.error('[scaler] brain capital allocation error:', err?.message || err); }
+    } catch (err) { logger.error('brain capital allocation error', { error: err?.message || err }); }
   }
 
   // Normalize to sum to 1
@@ -300,7 +302,7 @@ function evaluatePromotions(state, scanResults) {
       reasoning.push(`  DECISION: WAIT — need more data`);
     }
 
-    console.log(reasoning.join('\n'));
+    logger.info(reasoning.join('\n'));
   }
 
   return promotions;
@@ -341,9 +343,9 @@ function evaluateDemotions(state) {
           reasoning.push(`  DECISION: KEEP — acceptable performance`);
         }
 
-        console.log(reasoning.join('\n'));
+        logger.info(reasoning.join('\n'));
       }
-    } catch (err) { console.error('[scaler] brain demotion eval error:', err?.message || err); }
+    } catch (err) { logger.error('brain demotion eval error', { error: err?.message || err }); }
   }
 
   return demotions;
@@ -355,32 +357,32 @@ async function main() {
   const startMs = Date.now();
   const state = loadScalerState();
 
-  console.log(`[scaler] Current active assets (${state.activeAssets.length}): ${state.activeAssets.join(', ')}`);
+  logger.info(`Current active assets (${state.activeAssets.length}): ${state.activeAssets.join(', ')}`);
 
   // 1. Discover new tradeable assets
   const discovered = await discoverAssets();
   const newCandidates = discovered.filter(d => !state.activeAssets.includes(d.asset));
 
-  console.log(`[scaler] Discovered ${discovered.length} viable assets, ${newCandidates.length} new candidates`);
+  logger.info(`Discovered ${discovered.length} viable assets, ${newCandidates.length} new candidates`);
 
   // 2. Scan new candidates for edge (limit to top 10 by volume)
   const toScan = newCandidates.slice(0, 10);
   const scanResults = await scanCandidates(toScan);
   const withEdge = scanResults.filter(r => r.edge > 0.05 && r.side !== 'neutral');
 
-  console.log(`[scaler] Scanned ${toScan.length} candidates, ${withEdge.length} show edge`);
+  logger.info(`Scanned ${toScan.length} candidates, ${withEdge.length} show edge`);
 
   // 3. Evaluate promotions — FIX H-8: enforce MAX_ACTIVE_ASSETS cap in main loop
   const promotions = evaluatePromotions(state, withEdge);
   for (const promo of promotions) {
     if (state.activeAssets.length >= MAX_ACTIVE_ASSETS) {
-      console.log(`[scaler] MAX_ACTIVE_ASSETS (${MAX_ACTIVE_ASSETS}) reached — skipping remaining promotions`);
+      logger.info(`MAX_ACTIVE_ASSETS (${MAX_ACTIVE_ASSETS}) reached — skipping remaining promotions`);
       break;
     }
     if (!state.activeAssets.includes(promo.asset)) {
       state.activeAssets.push(promo.asset);
       state.promotions.push({ ...promo, promotedAt: Date.now() });
-      console.log(`[scaler] ★ PROMOTED ${promo.asset} to active trading (avg edge: ${(promo.avgEdge * 100).toFixed(1)}%)`);
+      logger.info(`PROMOTED ${promo.asset} to active trading (avg edge: ${(promo.avgEdge * 100).toFixed(1)}%)`);
     }
   }
 
@@ -391,7 +393,7 @@ async function main() {
     if (idx >= 0) {
       state.activeAssets.splice(idx, 1);
       state.demotions.push({ ...demo, demotedAt: Date.now() });
-      console.log(`[scaler] ✗ DEMOTED ${demo.asset} (WR: ${demo.winRate}%, PnL: $${demo.pnl})`);
+      logger.info(`DEMOTED ${demo.asset} (WR: ${demo.winRate}%, PnL: $${demo.pnl})`);
     }
   }
 
@@ -405,7 +407,7 @@ async function main() {
     try {
       brainEvolution = brain.runEvolutionCycle();
     } catch (err) {
-      console.log(`[scaler] Brain evolution error: ${err.message}`);
+      logger.warn(`Brain evolution error: ${err.message}`);
     }
   }
 
@@ -471,11 +473,12 @@ async function main() {
     durationMs: Date.now() - startMs,
   };
 
-  console.log(JSON.stringify(report, null, 2));
+  logger.info('scaler report', report);
+  process.stdout.write(JSON.stringify(report, null, 2) + '\n');
   process.exit(0);
 }
 
 main().catch(err => {
-  console.error('[scaler] Fatal:', err.message);
+  logger.fatal('Fatal error', { error: err.message });
   process.exit(1);
 });

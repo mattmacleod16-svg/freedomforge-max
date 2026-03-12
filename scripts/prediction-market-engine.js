@@ -18,6 +18,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
+const { createLogger } = require('../lib/logger');
+const logger = createLogger('pred-market');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -208,7 +210,7 @@ async function getPolymarketIntelligence() {
       }
     }
   } catch (err) {
-    console.error('[polymarket-intel] fetch error:', err.message);
+    logger.error('polymarket-intel fetch error', { error: err.message });
   }
   return markets;
 }
@@ -272,7 +274,8 @@ async function scanCoinbaseFutures() {
           confidence: Math.min(0.95, 0.5 + Math.abs(annualizedBasis) / 40),
         });
       } catch (err) {
-        // Skip individual failures
+        // Skip individual futures — log for traceability
+        logger.warn('futures basis scan skipped for individual contract', { error: err?.message || err });
       }
     }
 
@@ -305,12 +308,12 @@ async function scanCoinbaseFutures() {
                 components: composite.components,
               });
             }
-          } catch (err) { console.error('[pred-market] futures opportunity push error:', err?.message || err); }
+          } catch (err) { logger.error('futures opportunity push error', { error: err?.message || err }); }
         }
-      } catch (err) { console.error('[pred-market] futures perp filter error:', err?.message || err); }
+      } catch (err) { logger.error('futures perp filter error', { error: err?.message || err }); }
     }
   } catch (err) {
-    console.error('[coinbase-futures] scan error:', err.message);
+    logger.error('coinbase-futures scan error', { error: err.message });
   }
 
   return opportunities;
@@ -363,8 +366,9 @@ async function scanKrakenEventTokens(polymarketIntel) {
       if (edgeDetector) {
         try {
           signal = await edgeDetector.getCompositeSignal({ asset: token.name });
-        } catch {
+        } catch (edgeErr) {
           // Token may not have candle data — use momentum from price action
+          logger.warn(`edge detector unavailable for ${token.name}`, { error: edgeErr?.message || edgeErr });
         }
       }
 
@@ -446,7 +450,7 @@ async function scanKrakenEventTokens(polymarketIntel) {
         });
       }
     } catch (err) {
-      console.error(`[kraken-event] ${token.name} error:`, err.message);
+      logger.error(`kraken-event ${token.name} error`, { error: err.message });
     }
   }
 
@@ -490,7 +494,7 @@ async function scanCoinbaseEventTokens(polymarketIntel) {
             if (l > 0 && l < low24h) low24h = l;
           }
         }
-      } catch (err) { console.error('[pred-market] candle fetch error:', err?.message || err); }
+      } catch (err) { logger.error('candle fetch error', { error: err?.message || err }); }
 
       const range24h = high24h > 0 && low24h > 0 ? (high24h - low24h) / price : 0;
 
@@ -499,7 +503,7 @@ async function scanCoinbaseEventTokens(polymarketIntel) {
       if (edgeDetector) {
         try {
           signal = await edgeDetector.getCompositeSignal({ asset: token.name });
-        } catch (err) { console.error('[pred-market] edge signal error:', err?.message || err); }
+        } catch (err) { logger.error('edge signal error', { error: err?.message || err }); }
       }
 
       // Cross-reference with Polymarket intelligence for political tokens
@@ -574,7 +578,7 @@ async function scanCoinbaseEventTokens(polymarketIntel) {
         });
       }
     } catch (err) {
-      console.error(`[coinbase-event] ${token.name} error:`, err.message);
+      logger.error(`coinbase-event ${token.name} error`, { error: err.message });
     }
   }
 
@@ -644,7 +648,7 @@ async function executeCoinbaseEventOrder(opp) {
   const volume = opp.orderUsd / opp.price;
   // Get product details for size increments
   let productDetail;
-  try { productDetail = await cbPrivate('GET', `/api/v3/brokerage/products/${encodeURIComponent(opp.productId)}`); } catch (err) { console.warn('[pred-market] product detail fetch failed:', err?.message); }
+  try { productDetail = await cbPrivate('GET', `/api/v3/brokerage/products/${encodeURIComponent(opp.productId)}`); } catch (err) { logger.warn('product detail fetch failed', { error: err?.message }); }
   const baseIncrement = Number(productDetail?.base_increment || 0.01);
   const precision = Math.max(0, -Math.floor(Math.log10(baseIncrement)));
   const roundedVolume = roundDown(volume, precision);
@@ -748,7 +752,7 @@ async function executeKrakenEventOrder(opp) {
 
 async function main() {
   if (!ENABLED) {
-    console.log(JSON.stringify({ status: 'skipped', reason: 'PRED_MARKET_ENABLED is false' }, null, 2));
+    process.stdout.write(JSON.stringify({ status: 'skipped', reason: 'PRED_MARKET_ENABLED is false' }, null, 2) + '\n');
     return;
   }
 
@@ -756,18 +760,18 @@ async function main() {
   const nowMs = Date.now();
   const sinceLastRunSec = state.data?.lastRunAt ? Math.floor((nowMs - Number(state.data.lastRunAt)) / 1000) : null;
   if (sinceLastRunSec !== null && sinceLastRunSec < MIN_INTERVAL_SEC) {
-    console.log(JSON.stringify({
+    process.stdout.write(JSON.stringify({
       status: 'skipped',
       reason: `min-interval-not-met (${sinceLastRunSec}s/${MIN_INTERVAL_SEC}s)`,
-    }, null, 2));
+    }, null, 2) + '\n');
     return;
   }
 
-  console.error('[pred-market] Starting prediction market scan...');
+  logger.info('Starting prediction market scan');
 
   // ─── Phase 1: Gather intelligence ───
   const polyIntel = await getPolymarketIntelligence();
-  console.error(`[pred-market] Polymarket intelligence: ${polyIntel.length} markets`);
+  logger.info(`Polymarket intelligence: ${polyIntel.length} markets`);
 
   // ─── Phase 2: Scan all venues for opportunities ───
   const [cbFuturesOpps, krakenEventOpps, cbEventOpps] = await Promise.all([
@@ -781,7 +785,7 @@ async function main() {
   // Sort by confidence * edge (best opportunities first)
   allOpps.sort((a, b) => (b.confidence * (b.edge || 0.01)) - (a.confidence * (a.edge || 0.01)));
 
-  console.error(`[pred-market] Found ${allOpps.length} opportunities (${cbFuturesOpps.length} CB futures, ${krakenEventOpps.length} KR events, ${cbEventOpps.length} CB events)`);
+  logger.info(`Found ${allOpps.length} opportunities (${cbFuturesOpps.length} CB futures, ${krakenEventOpps.length} KR events, ${cbEventOpps.length} CB events)`);
 
   if (allOpps.length === 0) {
     // Publish to signal bus
@@ -800,7 +804,7 @@ async function main() {
       });
     }
 
-    console.log(JSON.stringify({
+    process.stdout.write(JSON.stringify({
       ts: new Date(nowMs).toISOString(),
       status: 'no_opportunities',
       polymarketIntel: polyIntel.slice(0, 5).map(m => ({
@@ -809,7 +813,7 @@ async function main() {
         volume24h: m.volume24h,
         category: m.category,
       })),
-    }, null, 2));
+    }, null, 2) + '\n');
     return;
   }
 
@@ -824,13 +828,13 @@ async function main() {
     if (capitalMandate) {
       const mandateSize = capitalMandate.mandateAdjustedSize({ baseUsd: opp.orderUsd || ORDER_USD, confidence: opp.confidence || 0.5, edge: opp.edge || 0 });
       if (mandateSize <= 0) {
-        console.error(`[pred-market] Mandate denied ${opp.venue}: capital mode prevents trade`);
+        logger.error(`Mandate denied ${opp.venue}: capital mode prevents trade`);
         actions.push({ status: 'mandate_denied', venue: opp.venue, reason: 'capital halt or survival mode' });
         continue;
       }
       const mandateCheck = capitalMandate.checkMandate({ usdSize: mandateSize, confidence: opp.confidence || 0.5, edge: opp.edge || 0, asset: opp.baseAsset || '', venue: opp.venue });
       if (!mandateCheck.allowed) {
-        console.error(`[pred-market] Mandate denied ${opp.venue}: ${mandateCheck.reasons.join(', ')}`);
+        logger.error(`Mandate denied ${opp.venue}: ${mandateCheck.reasons.join(', ')}`);
         actions.push({ status: 'mandate_denied', venue: opp.venue, reasons: mandateCheck.reasons });
         continue;
       }
@@ -844,7 +848,7 @@ async function main() {
       const tradeType = opp.venue === 'coinbase_futures' ? 'futures' : 'spot';
       const marginCheck = liquidationGuardian.shouldAllowNewTrade(guardianVenue, { tradeType });
       if (!marginCheck.allowed) {
-        console.error(`[pred-market] Guardian blocked ${opp.venue} trade: ${marginCheck.reason}`);
+        logger.error(`Guardian blocked ${opp.venue} trade: ${marginCheck.reason}`);
         actions.push({ status: 'guardian_blocked', venue: opp.venue, reason: marginCheck.reason, marginPct: marginCheck.marginPct });
         continue;
       }
@@ -880,7 +884,7 @@ async function main() {
               signal: { side: opp.side, confidence: opp.confidence, edge: opp.edge },
               dryRun: DRY_RUN,
             });
-          } catch (err) { console.error('[pred-market] journal record error:', err?.message || err); }
+          } catch (err) { logger.error('journal record error', { error: err?.message || err }); }
         }
       }
     }
@@ -930,7 +934,7 @@ async function main() {
     });
   }
 
-  console.log(JSON.stringify({
+  process.stdout.write(JSON.stringify({
     ts: new Date(nowMs).toISOString(),
     enabled: true,
     dryRun: DRY_RUN,
@@ -955,10 +959,10 @@ async function main() {
       eventTokens: allOpps.filter(o => o.type === 'event_token').length,
     },
     actions,
-  }, null, 2));
+  }, null, 2) + '\n');
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  logger.fatal('fatal error', { error: error instanceof Error ? error.message : String(error) });
   process.exit(1);
 });

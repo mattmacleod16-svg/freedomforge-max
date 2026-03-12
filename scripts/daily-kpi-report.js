@@ -2,6 +2,8 @@
 
 const path = require('path');
 const dotenv = require('dotenv');
+const { createLogger } = require('../lib/logger');
+const logger = createLogger('daily-kpi');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -62,7 +64,7 @@ async function sendAlert(message) {
         clearTimeout(timer);
         if (res.ok || res.status < 500) return;
       } finally { clearTimeout(timer); }
-    } catch {}
+    } catch (err) { logger.warn('alert retry failed', { attempt, error: err?.message || err }); }
     if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
   }
 }
@@ -219,6 +221,6 @@ main().catch(async (error) => {
   console.error(`daily-kpi-report failed: ${message}`);
   try {
     await sendAlert(`❌ Daily KPI report failed: ${message}`);
-  } catch {}
+  } catch (alertErr) { logger.warn('failed to send failure alert', { error: alertErr?.message || alertErr }); }
   process.exit(1);
 });

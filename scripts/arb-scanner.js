@@ -16,6 +16,8 @@
 
 const path = require('path');
 const dotenv = require('dotenv');
+const { createLogger } = require('../lib/logger');
+const logger = createLogger('arb-scanner');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -121,7 +123,7 @@ async function fetchCoinbase(pair) {
     if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0) return null;
     return { bid, ask };
   } catch (err) {
-    console.error(`[arb-scanner] Coinbase fetch failed for ${pair}: ${err.message || err}`);
+    logger.error(`Coinbase fetch failed for ${pair}`, { error: err.message || err });
     return null;
   }
 }
@@ -151,7 +153,7 @@ async function fetchKraken(pair) {
     if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0) return null;
     return { bid, ask };
   } catch (err) {
-    console.error(`[arb-scanner] Kraken fetch failed for ${pair}: ${err.message || err}`);
+    logger.error(`Kraken fetch failed for ${pair}`, { error: err.message || err });
     return null;
   }
 }
@@ -176,7 +178,7 @@ async function fetchBinance(pair) {
     if (!Number.isFinite(bid) || !Number.isFinite(ask) || bid <= 0 || ask <= 0) return null;
     return { bid, ask };
   } catch (err) {
-    console.error(`[arb-scanner] Binance fetch failed for ${pair}: ${err.message || err}`);
+    logger.error(`Binance fetch failed for ${pair}`, { error: err.message || err });
     return null;
   }
 }
@@ -304,12 +306,12 @@ async function main() {
 
   // ── Gate: enabled check ────────────────────────────────────────────────────
   if (!ENABLED) {
-    console.log(JSON.stringify({
+    process.stdout.write(JSON.stringify({
       ts: new Date().toISOString(),
       scanner: 'arb-scanner',
       status: 'disabled',
       message: 'Set ARB_SCANNER_ENABLED=true to activate.',
-    }, null, 2));
+    }, null, 2) + '\n');
     process.exit(0);
   }
 
@@ -317,16 +319,16 @@ async function main() {
   const state = loadState();
   const elapsed = (Date.now() - (state.lastRunTs || 0)) / 1000;
   if (elapsed < INTERVAL_SEC) {
-    console.log(JSON.stringify({
+    process.stdout.write(JSON.stringify({
       ts: new Date().toISOString(),
       scanner: 'arb-scanner',
       status: 'skipped',
       message: `Last run ${Math.round(elapsed)}s ago (interval: ${INTERVAL_SEC}s).`,
-    }, null, 2));
+    }, null, 2) + '\n');
     process.exit(0);
   }
 
-  console.log(`[arb-scanner] Scanning ${ARB_ASSETS.length} assets across ${VENUE_NAMES.length} venues...`);
+  logger.info(`Scanning ${ARB_ASSETS.length} assets across ${VENUE_NAMES.length} venues`);
 
   // ── Scan all assets ────────────────────────────────────────────────────────
   const allOpportunities = [];
@@ -345,7 +347,7 @@ async function main() {
 
       const activeVenues = VENUE_NAMES.filter((v) => quotes[v] !== null);
       if (activeVenues.length < 2) {
-        console.log(`[arb-scanner] ${asset}: Only ${activeVenues.length} venue(s) responded, need >= 2.`);
+        logger.info(`${asset}: Only ${activeVenues.length} venue(s) responded, need >= 2`);
         continue;
       }
 
@@ -366,7 +368,7 @@ async function main() {
         });
       }
     } catch (err) {
-      console.error(`[arb-scanner] Error scanning ${asset}: ${err.message || err}`);
+      logger.error(`Error scanning ${asset}`, { error: err.message || err });
       errors.push(`${asset}: ${err.message || String(err)}`);
     }
   }
@@ -394,7 +396,7 @@ async function main() {
         });
         published += 1;
       } catch (err) {
-        console.error(`[arb-scanner] Failed to publish signal: ${err.message || err}`);
+        logger.error('Failed to publish signal', { error: err.message || err });
       }
     }
 
@@ -417,7 +419,7 @@ async function main() {
         ttlMs: 30 * 60 * 1000,
       });
     } catch (err) {
-      console.error(`[arb-scanner] Failed to publish summary signal: ${err.message || err}`);
+      logger.error('Failed to publish summary signal', { error: err.message || err });
     }
   }
 
@@ -487,11 +489,11 @@ async function main() {
     stats: state.stats,
   };
 
-  console.log(JSON.stringify(result, null, 2));
+  process.stdout.write(JSON.stringify(result, null, 2) + '\n');
   process.exit(0);
 }
 
 main().catch((err) => {
-  console.error('[arb-scanner] Fatal:', err.message || err);
+  logger.fatal('Fatal error', { error: err.message || err });
   process.exit(1);
 });

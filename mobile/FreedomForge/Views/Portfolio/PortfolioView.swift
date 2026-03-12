@@ -46,6 +46,7 @@ struct PortfolioView: View {
                                             Text(FF.usd(exposure))
                                                 .font(.system(size: 15, weight: .bold, design: .monospaced))
                                                 .foregroundColor(exposure >= 0 ? FFDesign.positive : FFDesign.negative)
+                                                .contentTransition(.numericText())
                                         }
                                     }
                                 }
@@ -72,6 +73,7 @@ struct PortfolioView: View {
                                             Text(FF.usd(exposure))
                                                 .font(.system(size: 15, weight: .bold, design: .monospaced))
                                                 .foregroundColor(FFDesign.accent)
+                                                .contentTransition(.numericText())
                                         }
                                     }
                                 }
@@ -89,12 +91,13 @@ struct PortfolioView: View {
                                     )
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text("DIVERSIFICATION")
-                                            .font(.system(size: 10, weight: .bold))
+                                            .font(.system(size: 10, weight: .semibold))
                                             .foregroundColor(FFDesign.textTertiary)
-                                            .tracking(1)
+                                            .tracking(0.8)
                                         Text("\(Int(p.correlation?.diversificationScore ?? 0)) / 100")
                                             .font(.system(size: 24, weight: .bold, design: .monospaced))
                                             .foregroundColor(diversColor(p.correlation?.diversificationScore))
+                                            .contentTransition(.numericText())
                                         Text(diversLabel(p.correlation?.diversificationScore))
                                             .font(.system(size: 11, weight: .medium))
                                             .foregroundColor(FFDesign.textSecondary)

@@ -39,22 +39,24 @@ struct RiskView: View {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text("TOTAL EXPOSURE")
-                                                .font(.system(size: 10, weight: .bold))
+                                                .font(.system(size: 10, weight: .semibold))
                                                 .foregroundColor(FFDesign.textTertiary)
                                                 .tracking(0.8)
                                             Text(FF.usd(r.health?.totalExposure))
-                                                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                                                .font(.system(size: 22, weight: .bold, design: .monospaced))
                                                 .foregroundColor(FFDesign.textPrimary)
+                                                .contentTransition(.numericText())
                                         }
                                         Spacer()
                                         VStack(alignment: .trailing, spacing: 4) {
                                             Text("UTILIZATION")
-                                                .font(.system(size: 10, weight: .bold))
+                                                .font(.system(size: 10, weight: .semibold))
                                                 .foregroundColor(FFDesign.textTertiary)
                                                 .tracking(0.8)
                                             Text(FF.pct(r.health?.utilizationPct))
-                                                .font(.system(size: 20, weight: .bold, design: .monospaced))
+                                                .font(.system(size: 22, weight: .bold, design: .monospaced))
                                                 .foregroundColor(utilizationColor(r.health?.utilizationPct))
+                                                .contentTransition(.numericText())
                                         }
                                     }
                                     HorizontalBar(
@@ -220,6 +222,7 @@ struct RiskView: View {
                     Text(FF.pct(marginPct))
                         .font(.system(size: 18, weight: .bold, design: .monospaced))
                         .foregroundColor(marginColor(marginPct))
+                        .contentTransition(.numericText())
                 }
 
                 HorizontalBar(value: marginPct, maxValue: 100, color: marginColor(marginPct), height: 6)

@@ -24,6 +24,8 @@
  */
 
 const path = require('path');
+const { createLogger } = require('../lib/logger');
+const logger = createLogger('sentiment-agent');
 
 // ─── Dotenv (load .env.local first, then .env) ──────────────────────────────
 try {
@@ -80,7 +82,7 @@ function loadState() {
       return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     }
   } catch (err) {
-    console.error('[sentiment-agent] state read failed:', err.message);
+    logger.error('state read failed', { error: err.message });
   }
   return { ...DEFAULT_STATE };
 }
@@ -168,7 +170,7 @@ async function fetchNewsHeadlines(asset) {
       })
       .filter(Boolean);
   } catch (err) {
-    console.warn(`[sentiment-agent] news fetch failed for ${asset}:`, err.message || err);
+    logger.warn(`news fetch failed for ${asset}`, { error: err.message || err });
     return [];
   }
 }
@@ -197,7 +199,7 @@ async function fetchXSentiment(asset) {
       })
       .filter(Boolean);
   } catch (err) {
-    console.warn(`[sentiment-agent] X/Twitter fetch failed for ${asset}:`, err.message || err);
+    logger.warn(`X/Twitter fetch failed for ${asset}`, { error: err.message || err });
     return [];
   }
 }
@@ -229,7 +231,7 @@ async function fetchEarningsData(symbol) {
       })
       .filter(Boolean);
   } catch (err) {
-    console.warn(`[sentiment-agent] earnings fetch failed for ${symbol}:`, err.message || err);
+    logger.warn(`earnings fetch failed for ${symbol}`, { error: err.message || err });
     return [];
   }
 }
@@ -279,7 +281,7 @@ async function callLLM(prompt) {
       const text = data?.choices?.[0]?.message?.content;
       if (text && text.length > 10) return text;
     } catch (err) {
-      console.warn('[sentiment-agent] Grok LLM call failed:', err.message || err);
+      logger.warn('Grok LLM call failed', { error: err.message || err });
     }
   }
 
@@ -300,7 +302,7 @@ async function callLLM(prompt) {
       const text = data?.choices?.[0]?.message?.content;
       if (text && text.length > 10) return text;
     } catch (err) {
-      console.warn('[sentiment-agent] OpenAI LLM call failed:', err.message || err);
+      logger.warn('OpenAI LLM call failed', { error: err.message || err });
     }
   }
 
@@ -427,7 +429,7 @@ async function analyzeAsset(asset) {
   }
 
   if (collected.length === 0) {
-    console.warn(`[sentiment-agent] No data collected for ${asset} — skipping LLM analysis`);
+    logger.warn(`No data collected for ${asset} — skipping LLM analysis`);
     return null;
   }
 
@@ -449,21 +451,21 @@ async function main() {
 
   // Gate: enabled check
   if (!ENABLED) {
-    console.log(JSON.stringify({
+    process.stdout.write(JSON.stringify({
       status: 'disabled',
       message: 'Set SENTIMENT_AGENT_ENABLED=true to activate',
       ts: new Date().toISOString(),
-    }));
+    }) + '\n');
     return;
   }
 
   // Gate: API key check
   if (!TAVILY_API_KEY) {
-    console.error('[sentiment-agent] TAVILY_API_KEY is required');
+    logger.error('TAVILY_API_KEY is required');
     process.exit(1);
   }
   if (!GROK_API_KEY && !OPENAI_API_KEY) {
-    console.error('[sentiment-agent] At least one LLM key required (GROK_API_KEY or OPENAI_API_KEY)');
+    logger.error('At least one LLM key required (GROK_API_KEY or OPENAI_API_KEY)');
     process.exit(1);
   }
 
@@ -473,17 +475,17 @@ async function main() {
 
   if (elapsed < INTERVAL_SEC) {
     const waitSec = Math.ceil(INTERVAL_SEC - elapsed);
-    console.log(JSON.stringify({
+    process.stdout.write(JSON.stringify({
       status: 'skipped',
       reason: 'interval',
       nextRunInSec: waitSec,
       lastRunAt: new Date(state.lastRunAt).toISOString(),
       ts: new Date().toISOString(),
-    }));
+    }) + '\n');
     return;
   }
 
-  console.log(`[sentiment-agent] Analyzing ${ASSETS.length} assets: ${ASSETS.join(', ')} | sources: ${SOURCES.join(', ')}`);
+  logger.info(`Analyzing ${ASSETS.length} assets: ${ASSETS.join(', ')} | sources: ${SOURCES.join(', ')}`);
 
   const results = [];
   let totalSentiment = 0;
@@ -515,10 +517,10 @@ async function main() {
       totalConfidence += result.confidence;
       successCount++;
 
-      console.log(`[sentiment-agent] ${asset}: sentiment=${result.sentiment.toFixed(3)} confidence=${result.confidence.toFixed(2)} sources=${result.sourceCount} themes=${result.themes.join(', ')}`);
+      logger.info(`${asset}: sentiment=${result.sentiment.toFixed(3)} confidence=${result.confidence.toFixed(2)} sources=${result.sourceCount} themes=${result.themes.join(', ')}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.warn(`[sentiment-agent] ${asset} analysis failed: ${message}`);
+      logger.warn(`${asset} analysis failed: ${message}`);
       recordError(state, `analyze:${asset}`, message);
     }
   }
@@ -567,14 +569,14 @@ async function main() {
     ts: new Date().toISOString(),
   };
 
-  console.log(JSON.stringify(output, null, 2));
+  process.stdout.write(JSON.stringify(output, null, 2) + '\n');
 }
 
 // ─── Entry Point ─────────────────────────────────────────────────────────────
 
 main().catch((err) => {
   const message = err instanceof Error ? err.message : String(err);
-  console.error(`[sentiment-agent] fatal: ${message}`);
+  logger.fatal(`fatal: ${message}`);
 
   // Attempt to record the error in state
   try {
