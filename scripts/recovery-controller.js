@@ -13,8 +13,8 @@ const ENABLED = String(process.env.RECOVERY_CONTROLLER_ENABLED || 'true').toLowe
 const WINDOW_HOURS = Math.max(1, Number(process.env.RECOVERY_WINDOW_HOURS || 2));
 const LOG_LIMIT = Math.max(200, Number(process.env.RECOVERY_LOG_LIMIT || 3000));
 const POSITIVE_WINDOWS_REQUIRED = Math.max(1, Number(process.env.RECOVERY_POSITIVE_WINDOWS_REQUIRED || 3));
-const MIN_NET_ETH = Number(process.env.RECOVERY_MIN_NET_ETH || 0.002);
-const MIN_SUCCESS_RATE = Number(process.env.RECOVERY_MIN_SUCCESS_RATE || 0.85);
+const MIN_NET_ETH = Math.max(0.0001, Math.min(1.0, Number(process.env.RECOVERY_MIN_NET_ETH || 0.002)));
+const MIN_SUCCESS_RATE = Math.max(0.1, Math.min(1.0, Number(process.env.RECOVERY_MIN_SUCCESS_RATE || 0.85)));
 const MIN_ATTEMPTS = Math.max(1, Number(process.env.RECOVERY_MIN_ATTEMPTS || 3));
 const AUTO_REDEPLOY = String(process.env.RECOVERY_AUTO_REDEPLOY || 'true').toLowerCase() === 'true';
 const STATE_FILE = process.env.RECOVERY_STATE_FILE || 'data/recovery-controller-state.json';

@@ -37,6 +37,21 @@ try { brain = require('../lib/self-evolving-brain'); } catch { brain = null; }
 try { riskManager = require('../lib/risk-manager'); } catch { riskManager = null; }
 try { liquidationGuardian = require('../lib/liquidation-guardian'); } catch { liquidationGuardian = null; }
 try { capitalMandate = require('../lib/capital-mandate'); } catch { capitalMandate = null; }
+let fillVerifier;
+try { fillVerifier = require('../lib/fill-verifier'); } catch { fillVerifier = null; }
+let heartbeatRegistry;
+try { heartbeatRegistry = require('../lib/heartbeat-registry'); } catch { heartbeatRegistry = null; }
+
+// Resilient I/O for atomic state writes
+let rio;
+try { rio = require('../lib/resilient-io'); } catch { rio = null; }
+
+// Hardened exchange client — circuit breaker + retry + rate limiting
+let exchangeClient;
+try {
+  const { createCoinbaseClient } = require('../lib/exchange-client');
+  exchangeClient = createCoinbaseClient({ timeoutMs: REQUEST_TIMEOUT_MS });
+} catch { exchangeClient = null; }
 
 function withTimeout(ms) {
   const controller = new AbortController();
@@ -45,6 +60,11 @@ function withTimeout(ms) {
 }
 
 async function fetchJson(url, options = {}) {
+  // Use hardened exchange client when available (circuit breaker + retry + rate limit)
+  if (exchangeClient) {
+    return exchangeClient.fetchJson(url, options);
+  }
+  // Fallback: basic fetch with timeout
   const { controller, timeout } = withTimeout(REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
@@ -63,10 +83,6 @@ async function fetchJson(url, options = {}) {
     clearTimeout(timeout);
   }
 }
-
-// Resilient I/O for atomic state writes
-let rio;
-try { rio = require('../lib/resilient-io'); } catch { rio = null; }
 
 function loadState() {
   const abs = path.resolve(process.cwd(), STATE_FILE);
@@ -475,9 +491,60 @@ async function main() {
           signalComponents,
           dryRun: DRY_RUN,
           orderId: action.result?.order_id || action.result?.success_response?.order_id || null,
+          expectedPrice: price,
+          signalSources: Object.keys(signalComponents),
         });
       }
     } catch (err) { console.error('[coinbase] journal record error:', err?.message || err); }
+  }
+
+  // Post-order fill verification — confirm actual fill price/size
+  if (fillVerifier && !DRY_RUN) {
+    for (const action of actions) {
+      if (action.status !== 'placed') continue;
+      const orderId = action.result?.order_id || action.result?.success_response?.order_id || null;
+      if (!orderId) continue;
+      try {
+        const fill = await fillVerifier.verifyFill({
+          venue: 'coinbase',
+          orderId,
+          expectedPrice: price,
+          side,
+          requestedUsd: effectiveOrderUsd,
+        });
+        action.fill = {
+          verified: fill.verified,
+          status: fill.status,
+          fillPrice: fill.fillPrice,
+          fillSize: fill.fillSize,
+          fillUsd: fill.fillUsd,
+          slippagePct: fill.slippagePct,
+          attempts: fill.attempts,
+        };
+        // Update journal with real fill data
+        if (fill.verified && fill.status === 'filled' && tradeJournal) {
+          try {
+            tradeJournal.updateLastTradeField('fillPrice', fill.fillPrice);
+            tradeJournal.updateLastTradeField('slippagePct', fill.slippagePct);
+            tradeJournal.updateLastTradeField('slippageUsd', Math.round(fill.slippagePct * effectiveOrderUsd) / 100);
+          } catch { /* journal update is best-effort */ }
+        }
+      } catch (err) {
+        console.error('[coinbase] fill verification error:', err?.message || err);
+        action.fill = { verified: false, error: err?.message || String(err) };
+      }
+    }
+  }
+
+  // Publish heartbeat for orchestrator liveness monitoring
+  if (heartbeatRegistry) {
+    try {
+      heartbeatRegistry.publishHeartbeat('coinbase-spot-engine', {
+        side,
+        dryRun: DRY_RUN,
+        tradesPlaced: actions.filter(a => a.status === 'placed' || a.status === 'dry-run').length,
+      });
+    } catch { /* heartbeat is best-effort */ }
   }
 
   console.log(JSON.stringify({

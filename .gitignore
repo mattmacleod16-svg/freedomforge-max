@@ -50,5 +50,9 @@ ios/
 ios/App/App.xcodeproj/project.xcworkspace/contents.xcworkspacedata
 ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
 
+# Xcode user state
+*.xcuserstate
+xcuserdata/
+
 # monitoring stack (docker-compose, grafana, prometheus)
 monitoring/

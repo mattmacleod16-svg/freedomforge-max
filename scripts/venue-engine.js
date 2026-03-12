@@ -58,6 +58,8 @@ const map = {
   polymarket: ['node', ['scripts/polymarket-clob-engine.js']],
   kraken: ['node', ['scripts/kraken-spot-engine.js']],
   coinbase: ['node', ['scripts/coinbase-spot-engine.js']],
+  alpaca: ['node', ['scripts/alpaca-equities-engine.js']],
+  ibkr: ['node', ['scripts/ibkr-engine.js']],
   prediction: ['node', ['scripts/prediction-market-engine.js']],
   orchestrator: ['node', ['scripts/master-orchestrator.js']],
 };
@@ -205,6 +207,8 @@ function isEnabledForVenue(name) {
   if (name === 'polymarket') return String(process.env.POLY_CLOB_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'kraken') return String(process.env.KRAKEN_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'coinbase') return String(process.env.COINBASE_ENABLED || 'false').toLowerCase() === 'true';
+  if (name === 'alpaca') return String(process.env.ALPACA_ENABLED || 'false').toLowerCase() === 'true';
+  if (name === 'ibkr') return String(process.env.IBKR_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'prediction') return String(process.env.PRED_MARKET_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'orchestrator') return String(process.env.ORCHESTRATOR_ENABLED || 'false').toLowerCase() === 'true';
   return false;
@@ -281,6 +285,22 @@ function orderAutoCandidates(baseCandidates, performance) {
 }
 
 if (venue === 'auto') {
+  // ═══ BRAIN TIME-OF-DAY PRE-FLIGHT ═══
+  // Respect time-of-day patterns before dispatching to any venue
+  try {
+    const brain = require('../lib/self-evolving-brain');
+    if (typeof brain.shouldTradeNow === 'function') {
+      const timeCheck = brain.shouldTradeNow();
+      if (!timeCheck.trade) {
+        console.log(JSON.stringify({
+          status: 'skipped',
+          reason: `brain-time-filter: ${timeCheck.reason}`,
+        }, null, 2));
+        process.exit(0);
+      }
+    }
+  } catch { /* brain unavailable — continue without time filter */ }
+
   const freshness = getSignalBusFreshness();
   if (!freshness.fresh) {
     console.log(JSON.stringify({

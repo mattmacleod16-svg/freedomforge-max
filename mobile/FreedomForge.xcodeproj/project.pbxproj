@@ -1,0 +1,401 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FB7FDCB1C62CD37FBAF8826B /* FreedomForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16B0062B9D1A3D1DC609A75B /* FreedomForgeApp.swift */; };
+		F3EB1DD40F7AFFCF4C5B2777 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8C13525269D9F9FAC9D986 /* ContentView.swift */; };
+		6328C8C4118AC50ECF2AAF39 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62AC719041A33CB3A888519C /* AppState.swift */; };
+		C34E55CFD8FB562C4742974D /* DataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4CF2159B46D68A28C816B5F /* DataModels.swift */; };
+		C34D4ED92DE885A983018F52 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A84DBB7FBE7BBAAF6857CC00 /* APIClient.swift */; };
+		6B90EACB5EECD789D75A151C /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58255C55E02F47B4AA40F577 /* NotificationManager.swift */; };
+		63D7992434AF883D55502358 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD090DBA18506533A05CBD5A /* Components.swift */; };
+		ACD0765BF25228DCAC80C746 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 003E83886E57C5B1F91A8EFD /* DashboardView.swift */; };
+		F684F5DE1F49D5FBADE01C2A /* PortfolioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E5A1C7CEFC951472F0E00BA /* PortfolioView.swift */; };
+		55D1D7663F2CE6DF5DE02A57 /* TradesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD79015189017557020E927 /* TradesView.swift */; };
+		2E8ED0DAAD33FC172E7A4CC4 /* RiskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE02C765D3FCD0D753081E91 /* RiskView.swift */; };
+		168CA344439B3C9399CAD7B8 /* BrainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98C46A10131C05F7292C8D60 /* BrainView.swift */; };
+		552E8D50EE565605F3A8921C /* SignalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF68A52ADFD1AFC92A02A14 /* SignalsView.swift */; };
+		4B27DA943B712220B8F6AAAA /* InfrastructureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390A2BA9882C1B063C2446DE /* InfrastructureView.swift */; };
+		2AF4C1199109185F6D471547 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66FC1475E44B8CD0A8093222 /* SettingsView.swift */; };
+		592833D47527B48D4A3A9F00 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 54E323E032C6FBC1E18C0587 /* Charts.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		16B0062B9D1A3D1DC609A75B /* FreedomForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreedomForgeApp.swift; sourceTree = "<group>"; };
+		0A8C13525269D9F9FAC9D986 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		62AC719041A33CB3A888519C /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		B4CF2159B46D68A28C816B5F /* DataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModels.swift; sourceTree = "<group>"; };
+		A84DBB7FBE7BBAAF6857CC00 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		58255C55E02F47B4AA40F577 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		FD090DBA18506533A05CBD5A /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		003E83886E57C5B1F91A8EFD /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		8E5A1C7CEFC951472F0E00BA /* PortfolioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortfolioView.swift; sourceTree = "<group>"; };
+		DAD79015189017557020E927 /* TradesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradesView.swift; sourceTree = "<group>"; };
+		EE02C765D3FCD0D753081E91 /* RiskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RiskView.swift; sourceTree = "<group>"; };
+		98C46A10131C05F7292C8D60 /* BrainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrainView.swift; sourceTree = "<group>"; };
+		9CF68A52ADFD1AFC92A02A14 /* SignalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalsView.swift; sourceTree = "<group>"; };
+		390A2BA9882C1B063C2446DE /* InfrastructureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfrastructureView.swift; sourceTree = "<group>"; };
+		66FC1475E44B8CD0A8093222 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		0096DDB5D5C93DB7732319BF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		71CCD365E3A654DA84DBA191 /* FreedomForge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FreedomForge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		54E323E032C6FBC1E18C0587 /* Charts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Charts.framework; path = System/Library/Frameworks/Charts.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E07120471D7CAA46DCD94528 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				592833D47527B48D4A3A9F00 /* Charts.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		8D3FC6DB5D0827F168A73277 = {
+			isa = PBXGroup;
+			children = (
+				1F894C0CB8C1D00D979C20E2 /* FreedomForge */,
+				8FC3D1C4F959C81BEBDC9F2A /* Frameworks */,
+				71CCD365E3A654DA84DBA191 /* FreedomForge.app */,
+			);
+			sourceTree = "<group>";
+		};
+		1F894C0CB8C1D00D979C20E2 /* FreedomForge */ = {
+			isa = PBXGroup;
+			children = (
+				16B0062B9D1A3D1DC609A75B /* FreedomForgeApp.swift */,
+				0A8C13525269D9F9FAC9D986 /* ContentView.swift */,
+				0096DDB5D5C93DB7732319BF /* Info.plist */,
+				E7651EE138212D3A5C27ABA0 /* Models */,
+				B295F7D1F3A53E369290BC6A /* Services */,
+				26DB2F12AC14316753D03498 /* Extensions */,
+				9CECDDFA5EF2AE0232F90708 /* Views */,
+			);
+			path = FreedomForge;
+			sourceTree = "<group>";
+		};
+		E7651EE138212D3A5C27ABA0 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				62AC719041A33CB3A888519C /* AppState.swift */,
+				B4CF2159B46D68A28C816B5F /* DataModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		B295F7D1F3A53E369290BC6A /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A84DBB7FBE7BBAAF6857CC00 /* APIClient.swift */,
+				58255C55E02F47B4AA40F577 /* NotificationManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		26DB2F12AC14316753D03498 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				FD090DBA18506533A05CBD5A /* Components.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		9CECDDFA5EF2AE0232F90708 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				99807FED640630700B87C5C7 /* Dashboard */,
+				E9BEC1F004897B52F43E4568 /* Portfolio */,
+				EBDFCE0DDBE4A195A51062FF /* Trades */,
+				5F6D3CC208B961D3D12FDF51 /* Risk */,
+				ACE1BCFCDA2C1585293B91DE /* Brain */,
+				4A5F3504CB2924506472D6FC /* Signals */,
+				81AE8B5F38944C21B905C3B7 /* Infrastructure */,
+				EDE9ED559C85F2196FEE83BC /* Settings */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		99807FED640630700B87C5C7 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				003E83886E57C5B1F91A8EFD /* DashboardView.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		E9BEC1F004897B52F43E4568 /* Portfolio */ = {
+			isa = PBXGroup;
+			children = (
+				8E5A1C7CEFC951472F0E00BA /* PortfolioView.swift */,
+			);
+			path = Portfolio;
+			sourceTree = "<group>";
+		};
+		EBDFCE0DDBE4A195A51062FF /* Trades */ = {
+			isa = PBXGroup;
+			children = (
+				DAD79015189017557020E927 /* TradesView.swift */,
+			);
+			path = Trades;
+			sourceTree = "<group>";
+		};
+		5F6D3CC208B961D3D12FDF51 /* Risk */ = {
+			isa = PBXGroup;
+			children = (
+				EE02C765D3FCD0D753081E91 /* RiskView.swift */,
+			);
+			path = Risk;
+			sourceTree = "<group>";
+		};
+		ACE1BCFCDA2C1585293B91DE /* Brain */ = {
+			isa = PBXGroup;
+			children = (
+				98C46A10131C05F7292C8D60 /* BrainView.swift */,
+			);
+			path = Brain;
+			sourceTree = "<group>";
+		};
+		4A5F3504CB2924506472D6FC /* Signals */ = {
+			isa = PBXGroup;
+			children = (
+				9CF68A52ADFD1AFC92A02A14 /* SignalsView.swift */,
+			);
+			path = Signals;
+			sourceTree = "<group>";
+		};
+		81AE8B5F38944C21B905C3B7 /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				390A2BA9882C1B063C2446DE /* InfrastructureView.swift */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		EDE9ED559C85F2196FEE83BC /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				66FC1475E44B8CD0A8093222 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		8FC3D1C4F959C81BEBDC9F2A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				54E323E032C6FBC1E18C0587 /* Charts.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		42AEFBAE01D2DFD981F7DA7D /* FreedomForge */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EAF116FE40D68E4ABB26094B /* Build configuration list for PBXNativeTarget "FreedomForge" */;
+			buildPhases = (
+				0998B95F2E75B94331298940 /* Sources */,
+				E07120471D7CAA46DCD94528 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FreedomForge;
+			productName = FreedomForge;
+			productReference = 71CCD365E3A654DA84DBA191 /* FreedomForge.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		46F86FAA6BBF9AC94A7E4595 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1520;
+				LastUpgradeCheck = 1520;
+				TargetAttributes = {
+					42AEFBAE01D2DFD981F7DA7D = {
+						CreatedOnToolsVersion = 15.2;
+					};
+				};
+			};
+			buildConfigurationList = ADD3EDE971004D3249A2A24C /* Build configuration list for PBXProject "FreedomForge" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 8D3FC6DB5D0827F168A73277;
+			productRefGroup = 8D3FC6DB5D0827F168A73277;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				42AEFBAE01D2DFD981F7DA7D /* FreedomForge */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0998B95F2E75B94331298940 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB7FDCB1C62CD37FBAF8826B /* FreedomForgeApp.swift in Sources */,
+				F3EB1DD40F7AFFCF4C5B2777 /* ContentView.swift in Sources */,
+				6328C8C4118AC50ECF2AAF39 /* AppState.swift in Sources */,
+				C34E55CFD8FB562C4742974D /* DataModels.swift in Sources */,
+				C34D4ED92DE885A983018F52 /* APIClient.swift in Sources */,
+				6B90EACB5EECD789D75A151C /* NotificationManager.swift in Sources */,
+				63D7992434AF883D55502358 /* Components.swift in Sources */,
+				ACD0765BF25228DCAC80C746 /* DashboardView.swift in Sources */,
+				F684F5DE1F49D5FBADE01C2A /* PortfolioView.swift in Sources */,
+				55D1D7663F2CE6DF5DE02A57 /* TradesView.swift in Sources */,
+				2E8ED0DAAD33FC172E7A4CC4 /* RiskView.swift in Sources */,
+				168CA344439B3C9399CAD7B8 /* BrainView.swift in Sources */,
+				552E8D50EE565605F3A8921C /* SignalsView.swift in Sources */,
+				4B27DA943B712220B8F6AAAA /* InfrastructureView.swift in Sources */,
+				2AF4C1199109185F6D471547 /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		7BA3C016E0B5B57210B31A9D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos macosx";
+			};
+			name = Debug;
+		};
+		47D53771281D97E3FA007F14 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				SUPPORTED_PLATFORMS = "iphonesimulator iphoneos macosx";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		54C777A32723F76CB3420D9E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FreedomForge/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.freedomforge.monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1C4852E57A2EB7505670A025 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FreedomForge/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.freedomforge.monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		ADD3EDE971004D3249A2A24C /* Build configuration list for PBXProject "FreedomForge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7BA3C016E0B5B57210B31A9D /* Debug */,
+				47D53771281D97E3FA007F14 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EAF116FE40D68E4ABB26094B /* Build configuration list for PBXNativeTarget "FreedomForge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				54C777A32723F76CB3420D9E /* Debug */,
+				1C4852E57A2EB7505670A025 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+}

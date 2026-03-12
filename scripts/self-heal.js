@@ -37,8 +37,8 @@ const NOTIFY_OK = String(process.env.SELF_HEAL_NOTIFY_OK || 'false').toLowerCase
 const REMEDIATION_PAUSE_MS = parseInt(process.env.SELF_HEAL_REMEDIATION_PAUSE_MS || '5000', 10);
 const PROFIT_GUARD_ENABLED = String(process.env.SELF_HEAL_PROFIT_GUARD_ENABLED || 'true').toLowerCase() !== 'false';
 const PROFIT_GUARD_LOOKBACK_HOURS = Math.max(1, parseInt(process.env.SELF_HEAL_PROFIT_GUARD_LOOKBACK_HOURS || '2', 10));
-const PROFIT_GUARD_MIN_NET_ETH = Number(process.env.SELF_HEAL_PROFIT_GUARD_MIN_NET_ETH || '0.0005');
-const PROFIT_GUARD_MIN_SUCCESS_RATE = Number(process.env.SELF_HEAL_PROFIT_GUARD_MIN_SUCCESS_RATE || '0.75');
+const PROFIT_GUARD_MIN_NET_ETH = Math.max(0.0001, Math.min(1.0, Number(process.env.SELF_HEAL_PROFIT_GUARD_MIN_NET_ETH || '0.0005')));
+const PROFIT_GUARD_MIN_SUCCESS_RATE = Math.max(0.1, Math.min(1.0, Number(process.env.SELF_HEAL_PROFIT_GUARD_MIN_SUCCESS_RATE || '0.75')));
 const PROFIT_GUARD_MIN_ATTEMPTS = Math.max(1, parseInt(process.env.SELF_HEAL_PROFIT_GUARD_MIN_ATTEMPTS || '3', 10));
 const PROFIT_GUARD_LOG_LIMIT = Math.max(100, parseInt(process.env.SELF_HEAL_PROFIT_GUARD_LOG_LIMIT || '800', 10));
 const SELF_HEAL_DRY_RUN = String(process.env.SELF_HEAL_DRY_RUN || 'false').toLowerCase() === 'true';

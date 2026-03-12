@@ -50,9 +50,11 @@ const VENUE_PRIORITY = String(process.env.TRADE_VENUE_PRIORITY || 'kraken,coinba
 const KRAKEN_ENABLED = String(process.env.KRAKEN_ENABLED || 'false').toLowerCase() === 'true';
 const COINBASE_ENABLED = String(process.env.COINBASE_ENABLED || 'false').toLowerCase() === 'true';
 const PRED_ENABLED = String(process.env.PRED_MARKET_ENABLED || 'false').toLowerCase() === 'true';
+const ALPACA_ENABLED = String(process.env.ALPACA_ENABLED || 'false').toLowerCase() === 'true';
+const IBKR_ENABLED = String(process.env.IBKR_ENABLED || 'false').toLowerCase() === 'true';
 
 // Base order sizing
-const BASE_ORDER_USD = Math.max(5, Number(process.env.ORCH_BASE_ORDER_USD || process.env.KRAKEN_ORDER_USD || 15));
+const BASE_ORDER_USD = Math.min(10000, Math.max(5, Number(process.env.ORCH_BASE_ORDER_USD || process.env.KRAKEN_ORDER_USD || 15)));
 
 // ─── Module Loading ──────────────────────────────────────────────────────────
 
@@ -68,6 +70,22 @@ let tradeReconciler;
 try { tradeReconciler = require('../lib/trade-reconciler'); } catch { tradeReconciler = null; }
 let treasuryLedger;
 try { treasuryLedger = require('../lib/treasury-ledger'); } catch { treasuryLedger = null; }
+let distributedLock;
+try { distributedLock = require('../lib/distributed-lock'); } catch { distributedLock = null; }
+let fillVerifier;
+try { fillVerifier = require('../lib/fill-verifier'); } catch { fillVerifier = null; }
+let heartbeatRegistry;
+try { heartbeatRegistry = require('../lib/heartbeat-registry'); } catch { heartbeatRegistry = null; }
+let varEngine;
+try { varEngine = require('../lib/var-engine'); } catch { varEngine = null; }
+let correlationMonitor;
+try { correlationMonitor = require('../lib/correlation-monitor'); } catch { correlationMonitor = null; }
+let edgeCaseMitigations;
+try { edgeCaseMitigations = require('../lib/edge-case-mitigations'); } catch { edgeCaseMitigations = null; }
+let strategyPromoter;
+try { strategyPromoter = require('../lib/strategy-promoter'); } catch { strategyPromoter = null; }
+let mlPipeline;
+try { mlPipeline = require('../lib/ml-pipeline'); } catch { mlPipeline = null; }
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -215,6 +233,168 @@ async function phaseHealthCheck() {
     log('info', `Signal bus: ${summary.totalSignals} signals across ${health.signalTypes} types`);
   }
 
+  // Publish orchestrator heartbeat
+  if (heartbeatRegistry) {
+    try {
+      heartbeatRegistry.publishHeartbeat('master-orchestrator', {
+        cycleCount: loadState().cycleCount || 0,
+        signalBusSignals: health.signalBusSignals || 0,
+      });
+    } catch (err) {
+      log('warn', `Heartbeat publish failed: ${err?.message || err}`);
+    }
+
+    // Check required agent heartbeats (degrade, don't abort)
+    const requiredAgents = String(process.env.ORCH_REQUIRED_AGENTS || '').split(',').map(a => a.trim()).filter(Boolean);
+    if (requiredAgents.length > 0) {
+      const agentHealth = heartbeatRegistry.checkAgentHealth(requiredAgents);
+      health.agentHealth = agentHealth;
+      if (!agentHealth.healthy) {
+        const dead = Object.entries(agentHealth.agents)
+          .filter(([, info]) => !info.alive)
+          .map(([name]) => name);
+        log('warn', `Agent health check: ${dead.length} agent(s) not reporting: ${dead.join(', ')}`);
+        health.degradedAgents = dead;
+      } else {
+        log('info', `Agent health: all ${requiredAgents.length} required agent(s) alive`);
+      }
+    }
+  }
+
+  // Edge-case mitigations: comprehensive scan (all 10 detectors)
+  if (edgeCaseMitigations) {
+    try {
+      // Build context for comprehensive scan from available health data
+      const scanContext = {};
+
+      // Runaway loss: feed daily P&L for velocity tracking
+      if (health.dailyPnl !== undefined) {
+        scanContext.currentPnl = health.dailyPnl;
+      }
+
+      // Correlated drawdown: build per-venue P&L map from reconciliation data
+      if (tradeReconciler) {
+        try {
+          const venuePnl = {};
+          // Read journal for recent per-venue P&L
+          const jFile = tradeJournal?.JOURNAL_FILE;
+          if (jFile && fs.existsSync(jFile)) {
+            const j = rio ? rio.readJsonSafe(jFile, { fallback: { trades: [] } })
+              : JSON.parse(fs.readFileSync(jFile, 'utf8'));
+            const recentCutoff = Date.now() - 24 * 60 * 60 * 1000; // 24h
+            for (const t of (j.trades || [])) {
+              if (!t.outcome || !t.venue || (t.entryTs || 0) < recentCutoff) continue;
+              if (!venuePnl[t.venue]) venuePnl[t.venue] = 0;
+              venuePnl[t.venue] += t.pnl || 0;
+            }
+          }
+          if (Object.keys(venuePnl).length >= 2) {
+            scanContext.venuePnl = venuePnl;
+          }
+        } catch { /* best-effort */ }
+      }
+
+      // Stale price: feed latest prices from signal bus
+      if (signalBus) {
+        const priceFeeds = [];
+        const assetIntel = signalBus.query({ type: 'asset_intelligence', maxAgeMs: 60 * 60 * 1000 });
+        for (const sig of assetIntel) {
+          if (sig.payload?.lastPrice > 0) {
+            priceFeeds.push({ source: sig.payload.asset || 'unknown', price: sig.payload.lastPrice });
+          }
+        }
+        if (priceFeeds.length > 0) scanContext.priceFeeds = priceFeeds;
+      }
+
+      // Overfit: compare live vs backtest performance if strategy promoter has data
+      if (strategyPromoter && tradeJournal && typeof tradeJournal.getStats === 'function') {
+        try {
+          const liveStats = tradeJournal.getStats({ sinceDays: 30 });
+          if (liveStats && liveStats.closedTrades >= 20) {
+            scanContext.liveSharpe = liveStats.sharpeRatio || 0;
+            scanContext.liveWinRate = (liveStats.winRate || 0) / 100;
+            scanContext.liveTrades = liveStats.closedTrades;
+
+            // ═══ BACKTEST BASELINE FROM PROMOTED STRATEGY ═══
+            // Use actual backtest results from the highest-rank strategy instead of hardcoded defaults
+            let btSharpe = 1.0;
+            let btWinRate = 0.55;
+            try {
+              const active = strategyPromoter.getActiveStrategies();
+              if (active.length > 0) {
+                const top = active[0];
+                if (top.performance?.sharpe > 0) btSharpe = top.performance.sharpe;
+                if (top.performance?.winRate > 0) btWinRate = top.performance.winRate / 100;
+              }
+            } catch { /* use defaults */ }
+            scanContext.backtestSharpe = btSharpe;
+            scanContext.backtestWinRate = btWinRate;
+          }
+        } catch { /* best-effort */ }
+      }
+
+      // Exchange health: track consecutive errors from signal bus
+      const exchanges = [];
+      for (const venue of ['coinbase', 'kraken']) {
+        const venueErrors = signalBus
+          ? signalBus.query({ type: 'exchange_error', maxAgeMs: 30 * 60 * 1000 })
+            .filter(s => s.payload?.venue === venue).length
+          : 0;
+        exchanges.push({ venue, consecutiveErrors: venueErrors });
+      }
+      if (exchanges.length > 0) scanContext.exchanges = exchanges;
+
+      // Run comprehensive scan with all context
+      const scan = edgeCaseMitigations.runComprehensiveScan(scanContext);
+      health.edgeCaseGrade = scan.grade;
+      health.edgeCaseTriggered = scan.triggered;
+      health.edgeCaseTotal = scan.total;
+
+      // ═══ PERSIST BACKTEST DRIFT RATIO ═══
+      // Write live-vs-backtest drift so metrics-exporter can expose ff_backtest_drift_ratio
+      if (scanContext.liveSharpe !== undefined && scanContext.backtestSharpe > 0) {
+        try {
+          const driftRatio = Math.round((scanContext.liveSharpe / scanContext.backtestSharpe) * 1000) / 1000;
+          const driftFile = path.resolve(process.cwd(), 'data', 'backtest-drift.json');
+          const driftData = {
+            driftRatio,
+            liveSharpe: scanContext.liveSharpe,
+            backtestSharpe: scanContext.backtestSharpe,
+            liveWinRate: scanContext.liveWinRate,
+            backtestWinRate: scanContext.backtestWinRate,
+            liveTrades: scanContext.liveTrades,
+            updatedAt: new Date().toISOString(),
+          };
+          if (rio) { rio.writeJsonAtomic(driftFile, driftData); }
+          else {
+            fs.mkdirSync(path.dirname(driftFile), { recursive: true });
+            const tmp = driftFile + '.tmp';
+            fs.writeFileSync(tmp, JSON.stringify(driftData, null, 2));
+            fs.renameSync(tmp, driftFile);
+          }
+        } catch (err) { log('warn', `Drift ratio persist failed: ${err?.message || err}`); }
+      }
+
+      if (scan.triggered > 0) {
+        log('warn', `Edge-case scan: grade=${scan.grade}, ${scan.triggered}/${scan.total} triggered`);
+        for (const r of scan.results.filter(r => r.triggered)) {
+          log(r.severity === 'emergency' || r.severity === 'critical' ? 'error' : 'warn',
+            `  [${r.check}] ${r.severity}: ${r.message}`);
+        }
+      }
+
+      // Emergency escalation: abort if scan found emergencies
+      if (scan.emergencies > 0) {
+        const emergencyMsgs = scan.results.filter(r => r.severity === 'emergency')
+          .map(r => r.message).join('; ');
+        await sendAlert(`🔥 Edge-case EMERGENCY: ${emergencyMsgs}`, 'critical');
+        return { ...health, abort: true, reason: 'edge_case_emergency' };
+      }
+    } catch (err) {
+      log('warn', `Edge-case checks failed: ${err?.message || err}`);
+    }
+  }
+
   health.abort = false;
   return health;
 }
@@ -234,9 +414,66 @@ function phaseBrainEvolution() {
       log('info', `Brain evolved to gen ${result.generation?.id} (calibration: ${result.calibration?.score})`);
       log('info', `  Weights: ${JSON.stringify(result.weights)}`);
       log('info', `  Streak: ${result.streaks?.current}`);
+
+      // ═══ STRATEGY PROMOTER — register evolved weights for validation ═══
+      if (strategyPromoter && result.weights) {
+        try {
+          const stratName = `brain-gen-${result.generation?.id || 'latest'}`;
+          strategyPromoter.registerStrategy({
+            name: stratName,
+            description: `Auto-evolved weights gen ${result.generation?.id}, calibration ${result.calibration?.score}`,
+            weights: result.weights,
+            thresholds: result.thresholds || {},
+            author: 'self-evolving-brain',
+          });
+          log('info', `  Strategy registered: ${stratName}`);
+        } catch (err) { log('warn', `Strategy registration failed: ${err?.message || err}`); }
+      }
     } else {
       log('info', `Brain skipped evolution: ${result.reason}`);
     }
+
+    // ═══ STRATEGY REVIEW — demote degraded strategies ═══
+    if (strategyPromoter) {
+      try {
+        const review = strategyPromoter.reviewStrategies();
+        if (review.actions.length > 0) {
+          log('warn', `Strategy review: ${review.actions.length} demotion(s)`);
+          for (const a of review.actions) {
+            log('warn', `  ${a.name}: ${a.from} → ${a.to} (${a.reason})`);
+          }
+        }
+      } catch (err) { log('warn', `Strategy review failed: ${err?.message || err}`); }
+
+      // ═══ PROMOTED STRATEGY WEIGHTS — publish highest-stage strategy weights to signal bus ═══
+      // Edge-detector checks for promoted_weights signals to override brain defaults
+      try {
+        const active = strategyPromoter.getActiveStrategies();
+        if (active.length > 0 && signalBus) {
+          // Sort by stage priority (LIVE_FULL > LIVE_SMALL), then by most recent
+          const promoted = active.sort((a, b) => {
+            const stagePriority = { LIVE_FULL: 2, LIVE_SMALL: 1 };
+            return (stagePriority[b.status] || 0) - (stagePriority[a.status] || 0);
+          })[0];
+          if (promoted.weights && Object.keys(promoted.weights).length > 0) {
+            signalBus.publish({
+              type: 'promoted_weights',
+              source: 'strategy-promoter',
+              confidence: 0.9,
+              payload: {
+                strategyName: promoted.name,
+                stage: promoted.status,
+                weights: promoted.weights,
+                thresholds: promoted.thresholds || {},
+              },
+              ttlMs: 30 * 60 * 1000,
+            });
+            log('info', `  Published promoted weights: ${promoted.name} (${promoted.status})`);
+          }
+        }
+      } catch (err) { log('warn', `Promoted weights publish failed: ${err?.message || err}`); }
+    }
+
     return result;
   } catch (err) {
     log('error', `Brain evolution failed: ${err.message}`);
@@ -307,6 +544,21 @@ async function phaseSignalGeneration(assets) {
     return [];
   }
 
+  // ═══ BRAIN TIME-OF-DAY GATE ═══
+  // Respect the same time-based filter that individual venue engines use
+  if (brain && typeof brain.shouldTradeNow === 'function') {
+    try {
+      const timeCheck = brain.shouldTradeNow();
+      if (!timeCheck.trade) {
+        log('info', `Brain time filter: ${timeCheck.reason} — skipping signal generation`);
+        return [];
+      }
+      if (timeCheck.reducedSize) {
+        log('info', `Brain time advisory: ${timeCheck.reason} — will use reduced sizing`);
+      }
+    } catch (err) { log('warn', `Brain time check error: ${err?.message || err}`); }
+  }
+
   const signals = [];
   const resolvedMinConf = brain
     ? brain.getEvolvedMinConfidence(0.56)
@@ -353,6 +605,8 @@ function getVenueScript(venue) {
     kraken: 'scripts/kraken-spot-engine.js',
     coinbase: 'scripts/coinbase-spot-engine.js',
     prediction: 'scripts/prediction-market-engine.js',
+    alpaca: 'scripts/alpaca-equities-engine.js',
+    ibkr: 'scripts/ibkr-engine.js',
   };
   return map[venue] || null;
 }
@@ -361,6 +615,8 @@ function isVenueEnabled(venue) {
   if (venue === 'kraken') return KRAKEN_ENABLED;
   if (venue === 'coinbase') return COINBASE_ENABLED;
   if (venue === 'prediction') return PRED_ENABLED;
+  if (venue === 'alpaca') return ALPACA_ENABLED;
+  if (venue === 'ibkr') return IBKR_ENABLED;
   return false;
 }
 
@@ -462,6 +718,36 @@ async function phaseTradeExecution(signals) {
         orderUsd = Math.min(orderUsd, mandateSize);
       }
 
+      // ═══ VaR CONSTRAINT — Portfolio-level risk budget ═══
+      if (varEngine && typeof varEngine.varConstrainedSize === 'function') {
+        try {
+          const historicalReturns = varEngine.getHistoricalReturns();
+          let currentVaR = 0;
+          if (historicalReturns.length >= 5) {
+            const histVaR = varEngine.calculateVaR(historicalReturns);
+            currentVaR = Math.abs(histVaR.var95);
+          }
+          const varAdjusted = varEngine.varConstrainedSize({
+            baseUsd: orderUsd,
+            currentVaR,
+            assetVol: 3, // default crypto vol estimate
+            confidence: signal.confidence,
+            edge: signal.edge,
+          });
+          if (varAdjusted <= 0) {
+            log('warn', `  VaR blocked ${signal.asset}: portfolio VaR at limit`);
+            executions.push({ asset: signal.asset, side: signal.side, status: 'var_blocked', reasons: ['VaR limit reached'] });
+            continue;
+          }
+          if (varAdjusted < orderUsd) {
+            log('info', `  VaR constrained ${signal.asset}: $${orderUsd.toFixed(2)} → $${varAdjusted.toFixed(2)}`);
+          }
+          orderUsd = varAdjusted;
+        } catch (err) {
+          log('warn', `VaR constraint error: ${err?.message || err}`);
+        }
+      }
+
       // Liquidation guardian gate — check ALL venues before attempting
       if (liquidationGuardian) {
         const cbCheck = liquidationGuardian.shouldAllowNewTrade('coinbase', { tradeType: 'spot' });
@@ -491,6 +777,72 @@ async function phaseTradeExecution(signals) {
           reasons: check.reasons,
         });
         continue;
+      }
+
+      // ═══ ORDER DEDUP GUARD — prevent duplicate orders within short window ═══
+      if (edgeCaseMitigations) {
+        try {
+          const dedup = edgeCaseMitigations.checkOrderDuplication({
+            venue: 'orchestrator',
+            asset: signal.asset,
+            side: signal.side,
+            usdSize: orderUsd,
+          });
+          if (dedup.triggered) {
+            log('info', `  Dedup blocked ${signal.asset}: ${dedup.message}`);
+            executions.push({ asset: signal.asset, side: signal.side, status: 'dedup_blocked', reasons: [dedup.message] });
+            continue;
+          }
+        } catch (err) { log('warn', `Order dedup error: ${err?.message || err}`); }
+      }
+
+      // ═══ FLASH CRASH GUARD — halt if price collapsed ═══
+      if (edgeCaseMitigations && signal.meta?.lastPrice > 0) {
+        try {
+          const recentPrices = [];
+          if (signal.meta.lastPrice) recentPrices.push(signal.meta.lastPrice);
+          // Fetch price from signal bus for historical context
+          if (signalBus) {
+            const priceSignals = signalBus.query({ type: 'asset_intelligence', maxAgeMs: 30 * 60 * 1000 })
+              .filter(s => s.payload?.asset === signal.asset);
+            for (const ps of priceSignals) {
+              if (ps.payload?.lastPrice > 0) recentPrices.push(ps.payload.lastPrice);
+            }
+          }
+          if (recentPrices.length >= 2) {
+            const crash = edgeCaseMitigations.checkFlashCrash({
+              asset: signal.asset,
+              currentPrice: signal.meta.lastPrice,
+              recentPrices,
+            });
+            if (crash.triggered) {
+              log('error', `  Flash crash detected for ${signal.asset}: ${crash.message}`);
+              await sendAlert(`⚡ Flash crash: ${crash.message}`, 'critical');
+              executions.push({ asset: signal.asset, side: signal.side, status: 'flash_crash', reasons: [crash.message] });
+              continue;
+            }
+          }
+        } catch (err) { log('warn', `Flash crash check error: ${err?.message || err}`); }
+      }
+
+      // ═══ WAL: Write pending entry BEFORE attempting any venue ═══
+      let walTradeId = null;
+      if (tradeJournal) {
+        try {
+          walTradeId = tradeJournal.recordTrade({
+            venue: 'pending',
+            asset: signal.asset,
+            side: signal.side,
+            entryPrice: signal.meta?.lastPrice || 0,
+            usdSize: orderUsd,
+            signal: { side: signal.side, confidence: signal.confidence, edge: signal.edge, compositeScore: signal.compositeScore },
+            signalComponents: signal.components || {},
+            dryRun: DRY_RUN,
+            expectedPrice: signal.meta?.lastPrice || 0,
+            signalSources: Object.keys(signal.components || {}),
+            walStatus: 'pending',
+          });
+        } catch (err) { log('warn', 'WAL pending write failed: ' + (err?.message || err)); }
       }
 
       // Try each venue in priority order
@@ -523,20 +875,52 @@ async function phaseTradeExecution(signals) {
             venue,
           });
 
-          // Record in journal
-          if (tradeJournal) {
+          // ═══ WAL: Update pending entry → placed ═══
+          if (tradeJournal && walTradeId) {
             try {
-              tradeJournal.recordTrade({
+              tradeJournal.updateTradeById(walTradeId, {
                 venue,
-                asset: signal.asset,
-                side: signal.side,
-                entryPrice: signal.meta?.lastPrice || 0,
-                usdSize: orderUsd,
-                signal: { side: signal.side, confidence: signal.confidence, edge: signal.edge, compositeScore: signal.compositeScore },
-                signalComponents: signal.components || {},
-                dryRun: DRY_RUN,
+                walStatus: 'placed',
+                orderId: null, // will be updated by fill verifier below
               });
-            } catch (err) { log('warn', 'journal record failed: ' + (err?.message || err)); }
+            } catch (err) { log('warn', 'WAL update failed: ' + (err?.message || err)); }
+          }
+
+          // Post-order fill verification
+          if (fillVerifier && !DRY_RUN) {
+            try {
+              const orderId = fillVerifier.extractOrderId(venue, result.stdout);
+              if (orderId) {
+                const fill = await fillVerifier.verifyFill({
+                  venue,
+                  orderId,
+                  expectedPrice: signal.meta?.lastPrice || 0,
+                  side: signal.side,
+                  requestedUsd: orderUsd,
+                });
+                result.fill = {
+                  verified: fill.verified,
+                  status: fill.status,
+                  fillPrice: fill.fillPrice,
+                  slippagePct: fill.slippagePct,
+                  attempts: fill.attempts,
+                };
+                if (fill.verified && fill.status === 'filled' && tradeJournal && walTradeId) {
+                  try {
+                    tradeJournal.updateTradeById(walTradeId, {
+                      fillPrice: fill.fillPrice,
+                      slippagePct: fill.slippagePct,
+                      slippageUsd: Math.round(fill.slippagePct * orderUsd) / 100,
+                      orderId,
+                      walStatus: 'filled',
+                    });
+                  } catch { /* best-effort */ }
+                }
+                log('info', `  Fill verified: ${signal.asset} on ${venue} — ${fill.status} @ $${fill.fillPrice.toFixed(2)} (slip: ${fill.slippagePct}%)`);
+              }
+            } catch (err) {
+              log('warn', `  Fill verification failed for ${signal.asset}: ${err?.message || err}`);
+            }
           }
 
           break;
@@ -553,8 +937,19 @@ async function phaseTradeExecution(signals) {
         }
       }
 
+      // ═══ WAL: Mark as failed if no venue accepted the trade ═══
       if (!traded) {
         log('info', `  No venue accepted trade for ${signal.asset}`);
+        if (tradeJournal && walTradeId) {
+          try {
+            tradeJournal.updateTradeById(walTradeId, {
+              walStatus: 'failed',
+              outcome: 'skipped',
+              closedAt: new Date().toISOString(),
+              closeReason: 'all_venues_rejected',
+            });
+          } catch (err) { log('warn', 'WAL failure update failed: ' + (err?.message || err)); }
+        }
       }
     } else {
       // No risk manager — direct execution on first available venue
@@ -617,6 +1012,8 @@ function phasePublishState(health, brainResult, signals, execution, predResult, 
       brainGeneration: brainResult?.generation?.id || null,
       riskHealthy: health.riskHealthy !== false,
       drawdownPct: health.drawdownPct || 0,
+      edgeCaseGrade: health.edgeCaseGrade || 'N/A',
+      edgeCaseTriggered: health.edgeCaseTriggered || 0,
       predictionStatus: predResult?.status || 'disabled',
       topSignals: signals.slice(0, 3).map(s => ({
         asset: s.asset, side: s.side,
@@ -746,6 +1143,19 @@ async function main() {
 
 async function runCycle(startMs) {
 
+  // ─── WAL Recovery: close orphaned pending trades from crashes ───────────
+  if (tradeJournal && typeof tradeJournal.recoverPendingTrades === 'function') {
+    try {
+      const recovered = tradeJournal.recoverPendingTrades();
+      if (recovered.length > 0) {
+        log('warn', `WAL recovery: closed ${recovered.length} orphaned pending trade(s): ${recovered.join(', ')}`);
+        await sendAlert(`⚠️ WAL recovery: ${recovered.length} orphaned trade(s) found and closed`, 'critical');
+      }
+    } catch (err) {
+      log('error', `WAL recovery failed: ${err?.message || err}`);
+    }
+  }
+
   // Check min interval
   const state = loadState();
   const sinceLastRun = (startMs - (state.lastRunAt || 0)) / 1000;
@@ -762,6 +1172,37 @@ async function runCycle(startMs) {
   log('info', `  Time: ${new Date().toISOString()}`);
   log('info', `${'═'.repeat(60)}\n`);
 
+  // ─── HEALTH GATE: Refuse to trade without critical safety modules ─────────
+  const missingCritical = [];
+  if (!riskManager) missingCritical.push('risk-manager');
+  if (!capitalMandate) missingCritical.push('capital-mandate');
+  if (!edgeDetector) missingCritical.push('edge-detector');
+  if (!signalBus) missingCritical.push('agent-signal-bus');
+
+  if (missingCritical.length > 0) {
+    const msg = `HEALTH GATE FAILED: ${missingCritical.length} critical module(s) missing: ${missingCritical.join(', ')}. Refusing to trade.`;
+    log('error', msg);
+    await sendAlert(`[ORCHESTRATOR] ${msg}`, 'critical');
+    state.errors.push({ ts: Date.now(), phase: 'health_gate', msg });
+    saveState(state);
+    return;
+  }
+
+  // ─── LEADER LOCK: Only one instance should run the orchestrator ──────────
+  let leaderLock = null;
+  if (distributedLock) {
+    leaderLock = await distributedLock.acquireLeaderLock();
+    if (!leaderLock.acquired) {
+      log('warn', `Leader lock not acquired — another instance is active (${leaderLock.heldBy || 'unknown'}). Skipping cycle.`);
+      state.lastRunAt = startMs;
+      state.lastCycle = { ts: new Date().toISOString(), skipped: true, reason: 'leader_lock_held' };
+      saveState(state);
+      return;
+    }
+    log('info', `Leader lock acquired (${leaderLock.backend})`);
+  }
+
+  try {
   // Phase 1: Health Check (includes liquidation guardian)
   const health = await phaseHealthCheck();
   if (health.abort) {
@@ -825,6 +1266,38 @@ async function runCycle(startMs) {
 
   // Phase 8: Data Maintenance (signal pruning every cycle, heavy trim every 10th)
   phaseDataMaintenance();
+
+  // Phase 8b: Refresh correlation matrix for diversification monitoring
+  if (correlationMonitor && typeof correlationMonitor.updateCorrelations === 'function') {
+    try {
+      correlationMonitor.updateCorrelations();
+    } catch (e) {
+      log('warn', `Correlation refresh failed: ${e?.message || e}`);
+    }
+  }
+
+  // Phase 8c: ML Pipeline — periodic retraining trigger
+  if (mlPipeline && typeof mlPipeline.trainModel === 'function') {
+    try {
+      // Retrain every 10 cycles if feature store has enough new samples
+      if ((state.cycleCount + 1) % 10 === 0) {
+        const mlResult = mlPipeline.trainModel();
+        if (mlResult) {
+          log('info', `ML pipeline: ${mlResult.trained ? 'retrained' : 'skipped'} — val accuracy: ${mlResult.valAccuracy}%, samples: ${mlResult.samples}`);
+          if (mlResult.trained && mlResult.featureImportance) {
+            const topFeatures = Object.entries(mlResult.featureImportance)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+              .map(([name, count]) => `${name}:${count}`)
+              .join(', ');
+            log('info', `  Top features: ${topFeatures}`);
+          }
+        }
+      }
+    } catch (e) {
+      log('warn', `ML training trigger failed: ${e?.message || e}`);
+    }
+  }
 
   // Update state
   state.lastRunAt = startMs;
@@ -900,7 +1373,63 @@ async function runCycle(startMs) {
     ).join(', ');
     await sendAlert(`💰 Orchestrator placed ${execution.tradesPlaced} trades: ${tradeList}`, 'info');
   }
+
+  } finally {
+    // Release leader lock
+    if (leaderLock?.acquired && distributedLock) {
+      await distributedLock.releaseLock(leaderLock.lockKey, leaderLock.lockId);
+      log('info', 'Leader lock released');
+    }
+  }
 }
+
+// ─── Graceful Shutdown ──────────────────────────────────────────────────────
+
+let shuttingDown = false;
+
+function gracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  log('warn', `Received ${signal} — initiating graceful shutdown...`);
+
+  // Save current state
+  try {
+    const state = loadState();
+    state.lastShutdown = { signal, ts: Date.now(), iso: new Date().toISOString() };
+    saveState(state);
+    log('info', 'State saved');
+  } catch (err) {
+    console.error('[orchestrator] State save during shutdown failed:', err?.message || err);
+  }
+
+  // Release leader lock if held
+  if (distributedLock) {
+    // Synchronous file-based release as best-effort since we're shutting down
+    try {
+      distributedLock.cleanupExpiredLocks();
+      log('info', 'Lock cleanup done');
+    } catch { /* ignore */ }
+  }
+
+  // Publish shutdown signal to bus
+  if (signalBus) {
+    try {
+      signalBus.publish({
+        type: 'orchestrator_shutdown',
+        source: 'master-orchestrator',
+        confidence: 1.0,
+        payload: { signal, ts: Date.now() },
+        ttlMs: 30 * 60 * 1000,
+      });
+    } catch { /* ignore */ }
+  }
+
+  log('info', 'Graceful shutdown complete');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 main().then(() => process.exit(0)).catch(async (err) => {
   console.error('[orchestrator] Fatal:', err.message);

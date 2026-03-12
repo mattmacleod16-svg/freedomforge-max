@@ -18,7 +18,7 @@ const configuredInterval = parseInt(process.env.TRADE_LOOP_INTERVAL_MS || '1000'
 const intervalMs = Number.isFinite(configuredInterval) ? Math.max(1000, configuredInterval) : 1000;
 const maxAdaptiveIntervalMs = Math.max(intervalMs, parseInt(process.env.TRADE_LOOP_MAX_INTERVAL_MS || '10000', 10));
 const skipBackoffFactorRaw = Number(process.env.TRADE_LOOP_SKIP_BACKOFF_FACTOR || 1.35);
-const skipBackoffFactor = Number.isFinite(skipBackoffFactorRaw) ? Math.max(1, Math.min(3, skipBackoffFactorRaw)) : 1.35;
+const skipBackoffFactor = Number.isFinite(skipBackoffFactorRaw) ? Math.max(1.05, Math.min(5.0, skipBackoffFactorRaw)) : 1.35;
 const successCooldownMs = Math.max(intervalMs, parseInt(process.env.TRADE_LOOP_SUCCESS_COOLDOWN_MS || '8000', 10));
 const jitterMs = Math.max(0, parseInt(process.env.TRADE_LOOP_JITTER_MS || '200', 10));
 const shardPhaseMs = Math.max(0, parseInt(process.env.TRADE_LOOP_SHARD_PHASE_MS || '300', 10));
@@ -26,8 +26,8 @@ const healthEvery = Math.max(1, parseInt(process.env.TRADE_LOOP_HEALTH_EVERY || 
 const requestTimeoutMs = Math.max(1000, parseInt(process.env.TRADE_LOOP_REQUEST_TIMEOUT_MS || '12000', 10));
 const profitGuardEnabled = String(process.env.TRADE_LOOP_PROFIT_GUARD_ENABLED || 'true').toLowerCase() !== 'false';
 const profitGuardLookbackHours = Math.max(1, parseInt(process.env.TRADE_LOOP_PROFIT_GUARD_LOOKBACK_HOURS || '2', 10));
-const profitGuardMinNetEth = Number(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_NET_ETH || '0.001');
-const profitGuardMinSuccessRate = Number(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_SUCCESS_RATE || '0.8');
+const profitGuardMinNetEth = Math.max(0.0001, Math.min(1.0, Number(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_NET_ETH || '0.001')));
+const profitGuardMinSuccessRate = Math.max(0.1, Math.min(1.0, Number(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_SUCCESS_RATE || '0.8')));
 const profitGuardMinAttempts = Math.max(1, parseInt(process.env.TRADE_LOOP_PROFIT_GUARD_MIN_ATTEMPTS || '3', 10));
 const profitGuardLogLimit = Math.max(200, parseInt(process.env.TRADE_LOOP_PROFIT_GUARD_LOG_LIMIT || '1500', 10));
 
