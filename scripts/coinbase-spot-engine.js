@@ -335,8 +335,15 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
         return { status: 'dry-run', order: payload, usdNotional: Number((baseSize * limitPrice).toFixed(2)), estBaseSize: baseSize, limitPrice };
       }
       const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
-      const success = result?.success === true && !result?.error_response?.error;
-      return { status: success ? 'placed' : 'error', order: payload, result, limitPrice, ...(success ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
+      const success = result?.success === true && !result?.error_response?.error && !result?.failure_reason;
+      if (!success) {
+        const errMsg = result?.error_response?.error || result?.failure_reason || 'order_rejected';
+        console.error(`[coinbase] CDP BUY order rejected: ${errMsg}`, JSON.stringify({ product: meta.id, baseSize, limitPrice, errorResponse: result?.error_response }).slice(0, 500));
+        return { status: 'error', order: payload, result, limitPrice, error: errMsg };
+      }
+      const buyOrderId = result?.success_response?.order_id || result?.order_id || 'unknown';
+      console.error(`[coinbase] CDP BUY order placed: orderId=${buyOrderId}, product=${meta.id}, size=${baseSize}, limitPrice=${limitPrice}`);
+      return { status: 'placed', order: payload, result, limitPrice };
     }
 
     const rawSize = orderUsd / price;
@@ -369,8 +376,15 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
     }
 
     const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
-    const sellSuccess = result?.success === true && !result?.error_response?.error;
-    return { status: sellSuccess ? 'placed' : 'error', order: payload, result, limitPrice, ...(sellSuccess ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
+    const sellSuccess = result?.success === true && !result?.error_response?.error && !result?.failure_reason;
+    if (!sellSuccess) {
+      const errMsg = result?.error_response?.error || result?.failure_reason || 'order_rejected';
+      console.error(`[coinbase] CDP SELL order rejected: ${errMsg}`, JSON.stringify({ product: meta.id, size, limitPrice, errorResponse: result?.error_response }).slice(0, 500));
+      return { status: 'error', order: payload, result, limitPrice, error: errMsg };
+    }
+    const sellOrderId = result?.success_response?.order_id || result?.order_id || 'unknown';
+    console.error(`[coinbase] CDP SELL order placed: orderId=${sellOrderId}, product=${meta.id}, size=${size}, limitPrice=${limitPrice}`);
+    return { status: 'placed', order: payload, result, limitPrice };
   }
 
   // Legacy Coinbase Exchange — limit IOC
@@ -391,8 +405,15 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
       return { status: 'dry-run', order: payload, usdNotional: Number((baseSize * limitPrice).toFixed(2)), estBaseSize: baseSize, limitPrice };
     }
     const result = await coinbasePrivate('POST', '/orders', payload);
-    const buyOk = !result?.message;
-    return { status: buyOk ? 'placed' : 'error', order: payload, result, limitPrice, ...(buyOk ? {} : { error: result?.message || 'order_rejected' }) };
+    const buyOk = !result?.message && !result?.reject_reason;
+    if (!buyOk) {
+      const errMsg = result?.message || result?.reject_reason || 'order_rejected';
+      console.error(`[coinbase] Legacy BUY order rejected: ${errMsg}`, JSON.stringify({ product: meta.id, baseSize, limitPrice }).slice(0, 500));
+      return { status: 'error', order: payload, result, limitPrice, error: errMsg };
+    }
+    const legacyBuyId = result?.id || 'unknown';
+    console.error(`[coinbase] Legacy BUY order placed: orderId=${legacyBuyId}, product=${meta.id}, size=${baseSize}, limitPrice=${limitPrice}`);
+    return { status: 'placed', order: payload, result, limitPrice };
   }
 
   const rawSize = orderUsd / price;
@@ -418,8 +439,15 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
   }
 
   const result = await coinbasePrivate('POST', '/orders', payload);
-  const sellOk = !result?.message;
-  return { status: sellOk ? 'placed' : 'error', order: payload, result, limitPrice, ...(sellOk ? {} : { error: result?.message || 'order_rejected' }) };
+  const sellOk = !result?.message && !result?.reject_reason;
+  if (!sellOk) {
+    const errMsg = result?.message || result?.reject_reason || 'order_rejected';
+    console.error(`[coinbase] Legacy SELL order rejected: ${errMsg}`, JSON.stringify({ product: meta.id, size, limitPrice }).slice(0, 500));
+    return { status: 'error', order: payload, result, limitPrice, error: errMsg };
+  }
+  const legacySellId = result?.id || 'unknown';
+  console.error(`[coinbase] Legacy SELL order placed: orderId=${legacySellId}, product=${meta.id}, size=${size}, limitPrice=${limitPrice}`);
+  return { status: 'placed', order: payload, result, limitPrice };
 }
 
 async function main() {

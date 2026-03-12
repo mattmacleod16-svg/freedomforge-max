@@ -35,6 +35,8 @@ const ARB_ASSETS    = String(process.env.ARB_ASSETS || 'BTC,ETH,SOL,XRP,DOGE')
 const STATE_FILE    = path.resolve(process.cwd(), 'data/arb-scanner-state.json');
 const MAX_HISTORY   = 500;  // Cap opportunity history
 const MAX_SPREADS   = 200;  // Cap spread snapshots per venue pair
+const QUOTE_MAX_AGE_MS = Math.max(500, Number(process.env.ARB_QUOTE_MAX_AGE_MS || 2000));
+const SLIPPAGE_BPS  = Math.max(0, Math.min(50, Number(process.env.ARB_SLIPPAGE_BPS || 8)));
 
 // ─── Venue Fee Schedule (bps) ──────────────────────────────────────────────
 // Conservative fee estimates; taker fees including spread cost.
@@ -226,7 +228,9 @@ async function fetchAllVenueQuotes(asset) {
   const fetches = VENUE_NAMES.map(async (venue) => {
     const pair = pairInfo[venue];
     if (!pair) { results[venue] = null; return; }
-    results[venue] = await VENUE_FETCHERS[venue](pair);
+    const quote = await VENUE_FETCHERS[venue](pair);
+    if (quote) quote.fetchedAt = Date.now();
+    results[venue] = quote;
   });
 
   await Promise.all(fetches);
@@ -260,8 +264,9 @@ function computePairwiseSpreads(asset, quotes) {
       if (qB.bid > qA.ask) {
         const grossBps = ((qB.bid - qA.ask) / qA.ask) * 10000;
         const netBps = grossBps - VENUE_FEE_BPS[venueA] - VENUE_FEE_BPS[venueB];
-        if (netBps > 0) {
-          const estimatedPnlUsd = (netBps / 10000) * 1000; // Profit per $1000 notional
+        const adjustedNetBps = netBps - SLIPPAGE_BPS;
+        if (adjustedNetBps > 0) {
+          const estimatedPnlUsd = (adjustedNetBps / 10000) * 1000; // Profit per $1000 notional
           opportunities.push({
             asset,
             buyVenue: venueA,
@@ -270,6 +275,8 @@ function computePairwiseSpreads(asset, quotes) {
             sellPrice: qB.bid,
             grossSpreadBps: Math.round(grossBps * 100) / 100,
             netSpreadBps: Math.round(netBps * 100) / 100,
+            adjustedNetBps: Math.round(adjustedNetBps * 100) / 100,
+            slippageBps: SLIPPAGE_BPS,
             estimatedPnlUsd: Math.round(estimatedPnlUsd * 100) / 100,
           });
         }
@@ -279,8 +286,9 @@ function computePairwiseSpreads(asset, quotes) {
       if (qA.bid > qB.ask) {
         const grossBps = ((qA.bid - qB.ask) / qB.ask) * 10000;
         const netBps = grossBps - VENUE_FEE_BPS[venueA] - VENUE_FEE_BPS[venueB];
-        if (netBps > 0) {
-          const estimatedPnlUsd = (netBps / 10000) * 1000;
+        const adjustedNetBps = netBps - SLIPPAGE_BPS;
+        if (adjustedNetBps > 0) {
+          const estimatedPnlUsd = (adjustedNetBps / 10000) * 1000;
           opportunities.push({
             asset,
             buyVenue: venueB,
@@ -289,6 +297,8 @@ function computePairwiseSpreads(asset, quotes) {
             sellPrice: qA.bid,
             grossSpreadBps: Math.round(grossBps * 100) / 100,
             netSpreadBps: Math.round(netBps * 100) / 100,
+            adjustedNetBps: Math.round(adjustedNetBps * 100) / 100,
+            slippageBps: SLIPPAGE_BPS,
             estimatedPnlUsd: Math.round(estimatedPnlUsd * 100) / 100,
           });
         }
@@ -344,6 +354,19 @@ async function main() {
     try {
       const quotes = await fetchAllVenueQuotes(asset);
       assetQuotes[asset] = quotes;
+
+      // Validate quote freshness — discard quotes that arrived too long after the newest
+      const quotedVenues = VENUE_NAMES.filter((v) => quotes[v] !== null && quotes[v].fetchedAt);
+      if (quotedVenues.length >= 2) {
+        const newest = Math.max(...quotedVenues.map((v) => quotes[v].fetchedAt));
+        for (const v of quotedVenues) {
+          const age = newest - quotes[v].fetchedAt;
+          if (age > QUOTE_MAX_AGE_MS) {
+            logger.warn(`${asset}: Discarding stale quote from ${v} (age: ${age}ms > ${QUOTE_MAX_AGE_MS}ms)`);
+            quotes[v] = null;
+          }
+        }
+      }
 
       const activeVenues = VENUE_NAMES.filter((v) => quotes[v] !== null);
       if (activeVenues.length < 2) {
