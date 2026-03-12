@@ -15,7 +15,7 @@ const BASE_URL = (process.env.KRAKEN_BASE_URL || 'https://api.kraken.com').repla
 const API_KEY = (process.env.KRAKEN_API_KEY || '').trim();
 const API_SECRET = (process.env.KRAKEN_API_SECRET || '').trim();
 const PAIR = (process.env.KRAKEN_PAIR || 'XXBTZUSD').trim();
-const ORDER_USD = Math.max(5, Number(process.env.KRAKEN_ORDER_USD || 15));
+const ORDER_USD = Math.max(25, Number(process.env.KRAKEN_ORDER_USD || 25));
 const MIN_CONFIDENCE = Math.max(0.5, Math.min(0.95, Number(process.env.KRAKEN_MIN_CONFIDENCE || 0.56)));
 const SIDE_MODE = String(process.env.KRAKEN_SIDE_MODE || 'momentum').toLowerCase(); // momentum|buy_only|sell_only
 const MAX_ORDERS_PER_CYCLE = Math.max(1, Math.min(3, Number(process.env.KRAKEN_MAX_ORDERS_PER_CYCLE || 1)));
@@ -24,6 +24,8 @@ const REQUEST_TIMEOUT_MS = Math.max(3000, Number(process.env.KRAKEN_TIMEOUT_MS |
 const STATE_FILE = process.env.KRAKEN_STATE_FILE || 'data/kraken-spot-state.json';
 const USE_COMPOSITE_SIGNAL = String(process.env.KRAKEN_USE_COMPOSITE_SIGNAL || 'true').toLowerCase() !== 'false';
 const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.KRAKEN_MAX_ORDER_USD || 50));
+const SLIPPAGE_TOLERANCE_PCT = Math.max(0.001, Math.min(0.01, Number(process.env.KRAKEN_SLIPPAGE_TOLERANCE || 0.003)));
+const PRICE_FRESHNESS_MS = Math.max(3000, Math.min(30000, Number(process.env.KRAKEN_PRICE_FRESHNESS_MS || 10000)));
 
 let edgeDetector, tradeJournal, brain, riskManager, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
@@ -258,11 +260,12 @@ async function main() {
       signalComponents = composite.components || {};
       effectiveOrderUsd = edgeDetector.dynamicOrderSize(composite, ORDER_USD, MAX_ORDER_USD / ORDER_USD);
     } catch (err) {
-      console.error(`[edge-detector] fallback to momentum: ${err.message}`);
-      signal = await getMomentumSignal();
+      console.error(`[edge-detector] error, no fallback — skipping cycle: ${err.message}`);
+      signal = { side: 'neutral', confidence: 0, returnBps: 0 };
     }
   } else {
-    signal = await getMomentumSignal();
+    // No edge detector available — do NOT fall back to momentum (negative EV after fees)
+    signal = { side: 'neutral', confidence: 0, returnBps: 0 };
   }
 
   const side = resolveSide(signal.side);
@@ -279,7 +282,8 @@ async function main() {
   }
 
   const pair = await getPairMeta(PAIR);
-  const price = await getLastPrice(PAIR);
+  let price = await getLastPrice(PAIR);
+  let tickerFetchedAt = Date.now();
   const requestedVolume = effectiveOrderUsd / price;
   const volume = roundDown(requestedVolume, pair.lotDecimals);
 
@@ -351,23 +355,36 @@ async function main() {
     return;
   }
 
+  // Pre-flight price freshness check: if ticker is >10s stale, re-fetch before ordering
+  if (Date.now() - tickerFetchedAt > PRICE_FRESHNESS_MS) {
+    price = await getLastPrice(PAIR);
+    tickerFetchedAt = Date.now();
+  }
+
+  // Compute slippage-protected limit price
+  const limitPrice = side === 'buy'
+    ? Number((price * (1 + SLIPPAGE_TOLERANCE_PCT)).toFixed(2))
+    : Number((price * (1 - SLIPPAGE_TOLERANCE_PCT)).toFixed(2));
+
   const actions = [];
   for (let i = 0; i < MAX_ORDERS_PER_CYCLE; i += 1) {
     const order = {
       pair: pair.altname,
       type: side,
-      ordertype: 'market',
+      ordertype: 'limit',
+      price: String(limitPrice),
       volume: String(finalVolume),
+      oflags: 'ioc',
       validate: DRY_RUN ? 'true' : undefined,
     };
 
     if (DRY_RUN) {
-      actions.push({ status: 'dry-run', order, usdNotional: Number((finalVolume * price).toFixed(4)), signal });
+      actions.push({ status: 'dry-run', order, usdNotional: Number((finalVolume * price).toFixed(4)), signal, limitPrice });
       continue;
     }
 
     const result = await krakenPrivate('/0/private/AddOrder', order);
-    actions.push({ status: 'placed', order, result });
+    actions.push({ status: 'placed', order, result, limitPrice });
   }
 
   state.data.lastRunAt = nowMs;
@@ -375,11 +392,12 @@ async function main() {
   state.data.lastConfidence = signal.confidence;
   saveState(state.path, state.data);
 
-  // Record in trade journal
+  // Record in trade journal — capture tradeIds for fill verification by ID (not last-index)
+  const tradeIds = [];
   if (tradeJournal) {
     try {
       for (const action of actions) {
-        tradeJournal.recordTrade({
+        const tradeId = tradeJournal.recordTrade({
           venue: 'kraken',
           asset: 'BTC',
           side,
@@ -387,18 +405,21 @@ async function main() {
           usdSize: effectiveOrderUsd,
           signal,
           signalComponents,
+          strategy: signal.compositeScore != null ? 'composite' : (signal.edge != null ? 'edge' : 'unknown'),
           dryRun: DRY_RUN,
           orderId: action.result?.txid || null,
           expectedPrice: price,
           signalSources: Object.keys(signalComponents),
         });
+        tradeIds.push(tradeId);
       }
     } catch (err) { console.error('[kraken] journal record error:', err?.message || err); }
   }
 
   // Post-order fill verification — confirm actual fill price/size
   if (fillVerifier && !DRY_RUN) {
-    for (const action of actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
       if (action.status !== 'placed') continue;
       const txid = Array.isArray(action.result?.txid) ? action.result.txid[0] : (action.result?.txid || null);
       if (!txid) continue;
@@ -419,12 +440,15 @@ async function main() {
           slippagePct: fill.slippagePct,
           attempts: fill.attempts,
         };
-        // Update journal with real fill data
-        if (fill.verified && fill.status === 'filled' && tradeJournal) {
+        // Update journal with real fill data — match by trade ID, not last-index
+        if (fill.verified && fill.status === 'filled' && tradeJournal && tradeIds[i]) {
           try {
-            tradeJournal.updateLastTradeField('fillPrice', fill.fillPrice);
-            tradeJournal.updateLastTradeField('slippagePct', fill.slippagePct);
-            tradeJournal.updateLastTradeField('slippageUsd', Math.round(fill.slippagePct * effectiveOrderUsd) / 100);
+            tradeJournal.updateTradeById(tradeIds[i], {
+              fillPrice: fill.fillPrice,
+              entryPrice: fill.fillPrice, // actual fill replaces ticker-based entry
+              slippagePct: fill.slippagePct,
+              slippageUsd: Math.round((fill.slippagePct || 0) * effectiveOrderUsd) / 100,
+            });
           } catch { /* journal update is best-effort */ }
         }
       } catch (err) {

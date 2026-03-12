@@ -20,7 +20,7 @@ const COINBASE_CDP_MODE =
   String(process.env.COINBASE_CDP_MODE || '').toLowerCase() === 'true' ||
   (API_KEY.startsWith('organizations/') && API_SECRET.includes('BEGIN EC PRIVATE KEY'));
 const PRODUCT_ID = (process.env.COINBASE_PRODUCT_ID || 'BTC-USD').trim();
-const ORDER_USD = Math.max(5, Number(process.env.COINBASE_ORDER_USD || 15));
+const ORDER_USD = Math.max(25, Number(process.env.COINBASE_ORDER_USD || 25));
 const MIN_CONFIDENCE = Math.max(0.5, Math.min(0.95, Number(process.env.COINBASE_MIN_CONFIDENCE || 0.56)));
 const SIDE_MODE = String(process.env.COINBASE_SIDE_MODE || 'momentum').toLowerCase(); // momentum|buy_only|sell_only
 const MAX_ORDERS_PER_CYCLE = Math.max(1, Math.min(3, Number(process.env.COINBASE_MAX_ORDERS_PER_CYCLE || 1)));
@@ -29,6 +29,8 @@ const REQUEST_TIMEOUT_MS = Math.max(3000, Number(process.env.COINBASE_TIMEOUT_MS
 const STATE_FILE = process.env.COINBASE_STATE_FILE || 'data/coinbase-spot-state.json';
 const USE_COMPOSITE_SIGNAL = String(process.env.COINBASE_USE_COMPOSITE_SIGNAL || 'true').toLowerCase() !== 'false';
 const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.COINBASE_MAX_ORDER_USD || 50));
+const SLIPPAGE_TOLERANCE_PCT = Math.max(0.001, Math.min(0.01, Number(process.env.COINBASE_SLIPPAGE_TOLERANCE || 0.003)));
+const PRICE_FRESHNESS_MS = Math.max(3000, Math.min(30000, Number(process.env.COINBASE_PRICE_FRESHNESS_MS || 10000)));
 
 let edgeDetector, tradeJournal, brain, riskManager, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
@@ -272,26 +274,35 @@ async function getProductMeta(product) {
 }
 
 async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
+  // Compute slippage-protected limit price
+  const limitPrice = side === 'buy'
+    ? Number((price * (1 + SLIPPAGE_TOLERANCE_PCT)).toFixed(2))
+    : Number((price * (1 - SLIPPAGE_TOLERANCE_PCT)).toFixed(2));
+
   if (COINBASE_CDP_MODE) {
     const clientOrderId = crypto.randomUUID();
     if (side === 'buy') {
-      const quoteSize = Number(orderUsd.toFixed(2));
+      const baseSize = roundDown(orderUsd / limitPrice, meta.decimals);
+      if (!Number.isFinite(baseSize) || baseSize <= 0) {
+        return { status: 'skipped', reason: 'computed buy base_size is zero', orderUsd, limitPrice };
+      }
       const payload = {
         client_order_id: clientOrderId,
         product_id: meta.id,
         side: 'BUY',
         order_configuration: {
-          market_market_ioc: {
-            quote_size: String(quoteSize),
+          limit_limit_ioc: {
+            base_size: String(baseSize),
+            limit_price: String(limitPrice),
           },
         },
       };
       if (DRY_RUN) {
-        return { status: 'dry-run', order: payload, usdNotional: quoteSize, estBaseSize: Number((quoteSize / price).toFixed(meta.decimals)) };
+        return { status: 'dry-run', order: payload, usdNotional: Number((baseSize * limitPrice).toFixed(2)), estBaseSize: baseSize, limitPrice };
       }
       const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
       const success = result?.success === true && !result?.error_response?.error;
-      return { status: success ? 'placed' : 'error', order: payload, result, ...(success ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
+      return { status: success ? 'placed' : 'error', order: payload, result, limitPrice, ...(success ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
     }
 
     const rawSize = orderUsd / price;
@@ -312,35 +323,42 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
       product_id: meta.id,
       side: 'SELL',
       order_configuration: {
-        market_market_ioc: {
+        limit_limit_ioc: {
           base_size: String(size),
+          limit_price: String(limitPrice),
         },
       },
     };
 
     if (DRY_RUN) {
-      return { status: 'dry-run', order: payload, usdNotional: Number((size * price).toFixed(2)) };
+      return { status: 'dry-run', order: payload, usdNotional: Number((size * price).toFixed(2)), limitPrice };
     }
 
     const result = await coinbasePrivateCdp('POST', '/api/v3/brokerage/orders', payload);
     const sellSuccess = result?.success === true && !result?.error_response?.error;
-    return { status: sellSuccess ? 'placed' : 'error', order: payload, result, ...(sellSuccess ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
+    return { status: sellSuccess ? 'placed' : 'error', order: payload, result, limitPrice, ...(sellSuccess ? {} : { error: result?.error_response?.error || 'order_rejected' }) };
   }
 
+  // Legacy Coinbase Exchange — limit IOC
   if (side === 'buy') {
-    const funds = Number(orderUsd.toFixed(2));
+    const baseSize = roundDown(orderUsd / limitPrice, meta.decimals);
+    if (!Number.isFinite(baseSize) || baseSize <= 0) {
+      return { status: 'skipped', reason: 'computed buy size is zero', orderUsd, limitPrice };
+    }
     const payload = {
-      type: 'market',
+      type: 'limit',
       side: 'buy',
       product_id: meta.id,
-      funds: String(funds),
+      price: String(limitPrice),
+      size: String(baseSize),
+      time_in_force: 'IOC',
     };
     if (DRY_RUN) {
-      return { status: 'dry-run', order: payload, usdNotional: funds, estBaseSize: Number((funds / price).toFixed(meta.decimals)) };
+      return { status: 'dry-run', order: payload, usdNotional: Number((baseSize * limitPrice).toFixed(2)), estBaseSize: baseSize, limitPrice };
     }
     const result = await coinbasePrivate('POST', '/orders', payload);
     const buyOk = !result?.message;
-    return { status: buyOk ? 'placed' : 'error', order: payload, result, ...(buyOk ? {} : { error: result?.message || 'order_rejected' }) };
+    return { status: buyOk ? 'placed' : 'error', order: payload, result, limitPrice, ...(buyOk ? {} : { error: result?.message || 'order_rejected' }) };
   }
 
   const rawSize = orderUsd / price;
@@ -353,19 +371,21 @@ async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
   }
 
   const payload = {
-    type: 'market',
+    type: 'limit',
     side: 'sell',
     product_id: meta.id,
+    price: String(limitPrice),
     size: String(size),
+    time_in_force: 'IOC',
   };
 
   if (DRY_RUN) {
-    return { status: 'dry-run', order: payload, usdNotional: Number((size * price).toFixed(2)) };
+    return { status: 'dry-run', order: payload, usdNotional: Number((size * price).toFixed(2)), limitPrice };
   }
 
   const result = await coinbasePrivate('POST', '/orders', payload);
   const sellOk = !result?.message;
-  return { status: sellOk ? 'placed' : 'error', order: payload, result, ...(sellOk ? {} : { error: result?.message || 'order_rejected' }) };
+  return { status: sellOk ? 'placed' : 'error', order: payload, result, limitPrice, ...(sellOk ? {} : { error: result?.message || 'order_rejected' }) };
 }
 
 async function main() {
@@ -404,11 +424,12 @@ async function main() {
       signalComponents = composite.components || {};
       effectiveOrderUsd = edgeDetector.dynamicOrderSize(composite, ORDER_USD, MAX_ORDER_USD / ORDER_USD);
     } catch (err) {
-      console.error(`[edge-detector] fallback to momentum: ${err.message}`);
-      signal = await getMomentumSignal();
+      console.error(`[edge-detector] error, no fallback — skipping cycle: ${err.message}`);
+      signal = { side: 'neutral', confidence: 0, returnBps: 0 };
     }
   } else {
-    signal = await getMomentumSignal();
+    // No edge detector available — do NOT fall back to momentum (negative EV after fees)
+    signal = { side: 'neutral', confidence: 0, returnBps: 0 };
   }
 
   const side = resolveSide(signal.side);
@@ -463,8 +484,17 @@ async function main() {
     effectiveOrderUsd = riskManager.riskAdjustedSize({ baseUsd: effectiveOrderUsd, confidence: signal.confidence, edge: signal.edge || 0, asset: 'BTC', venue: 'coinbase' });
   }
 
-  const { price } = await getTicker(PRODUCT_ID);
+  let { price } = await getTicker(PRODUCT_ID);
+  let tickerFetchedAt = Date.now();
   const meta = await getProductMeta(PRODUCT_ID);
+
+  // Pre-flight price freshness check: if ticker is >10s stale, re-fetch before ordering
+  if (Date.now() - tickerFetchedAt > PRICE_FRESHNESS_MS) {
+    const refreshed = await getTicker(PRODUCT_ID);
+    price = refreshed.price;
+    tickerFetchedAt = Date.now();
+  }
+
   const actions = [];
 
   for (let i = 0; i < MAX_ORDERS_PER_CYCLE; i += 1) {
@@ -477,11 +507,12 @@ async function main() {
   state.data.lastConfidence = signal.confidence;
   saveState(state.path, state.data);
 
-  // Record in trade journal
+  // Record in trade journal — capture tradeIds for fill verification by ID (not last-index)
+  const tradeIds = [];
   if (tradeJournal) {
     try {
       for (const action of actions) {
-        tradeJournal.recordTrade({
+        const tradeId = tradeJournal.recordTrade({
           venue: 'coinbase',
           asset: 'BTC',
           side,
@@ -489,18 +520,21 @@ async function main() {
           usdSize: effectiveOrderUsd,
           signal,
           signalComponents,
+          strategy: signal.compositeScore != null ? 'composite' : (signal.edge != null ? 'edge' : 'unknown'),
           dryRun: DRY_RUN,
           orderId: action.result?.order_id || action.result?.success_response?.order_id || null,
           expectedPrice: price,
           signalSources: Object.keys(signalComponents),
         });
+        tradeIds.push(tradeId);
       }
     } catch (err) { console.error('[coinbase] journal record error:', err?.message || err); }
   }
 
   // Post-order fill verification — confirm actual fill price/size
   if (fillVerifier && !DRY_RUN) {
-    for (const action of actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
       if (action.status !== 'placed') continue;
       const orderId = action.result?.order_id || action.result?.success_response?.order_id || null;
       if (!orderId) continue;
@@ -521,12 +555,15 @@ async function main() {
           slippagePct: fill.slippagePct,
           attempts: fill.attempts,
         };
-        // Update journal with real fill data
-        if (fill.verified && fill.status === 'filled' && tradeJournal) {
+        // Update journal with real fill data — match by trade ID, not last-index
+        if (fill.verified && fill.status === 'filled' && tradeJournal && tradeIds[i]) {
           try {
-            tradeJournal.updateLastTradeField('fillPrice', fill.fillPrice);
-            tradeJournal.updateLastTradeField('slippagePct', fill.slippagePct);
-            tradeJournal.updateLastTradeField('slippageUsd', Math.round(fill.slippagePct * effectiveOrderUsd) / 100);
+            tradeJournal.updateTradeById(tradeIds[i], {
+              fillPrice: fill.fillPrice,
+              entryPrice: fill.fillPrice, // actual fill replaces ticker-based entry
+              slippagePct: fill.slippagePct,
+              slippageUsd: Math.round((fill.slippagePct || 0) * effectiveOrderUsd) / 100,
+            });
           } catch { /* journal update is best-effort */ }
         }
       } catch (err) {
