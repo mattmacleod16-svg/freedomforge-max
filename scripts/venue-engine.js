@@ -61,6 +61,8 @@ const map = {
   alpaca: ['node', ['scripts/alpaca-equities-engine.js']],
   ibkr: ['node', ['scripts/ibkr-engine.js']],
   prediction: ['node', ['scripts/prediction-market-engine.js']],
+  multiversx: ['node', ['scripts/multiversx-engine.js']],
+  predictions: ['node', ['scripts/multi-prediction-engine.js']],
   orchestrator: ['node', ['scripts/master-orchestrator.js']],
 };
 

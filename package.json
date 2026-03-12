@@ -55,6 +55,8 @@
     "backtest": "node scripts/backtest.js",
     "alpaca:equities": "node scripts/alpaca-equities-engine.js",
     "defi:yield": "node scripts/defi-yield-engine.js",
+    "multiversx:engine": "node scripts/multiversx-engine.js",
+    "predictions:multi": "node scripts/multi-prediction-engine.js",
     "sentiment:agent": "node scripts/sentiment-agent.js",
     "arb:scanner": "node scripts/arb-scanner.js",
     "ml:train": "node -e \"const ml=require('./lib/ml-pipeline'); ml.trainModel().then(r=>console.log(JSON.stringify(r,null,2)))\"",

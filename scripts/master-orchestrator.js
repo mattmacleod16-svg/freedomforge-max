@@ -91,6 +91,20 @@ try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null
 let _exitLoopHandle = null; // Handle for exit-manager background loop (used in graceful shutdown)
 let _reducedSizeActive = false; // Set by brain.shouldTradeNow() time-of-day filter
 
+// ─── Enhanced Agent Mesh Modules ─────────────────────────────────────────────
+let eventMesh;
+try { eventMesh = require('../lib/event-mesh'); } catch { eventMesh = null; }
+let consensusEngine;
+try { consensusEngine = require('../lib/consensus-engine'); } catch { consensusEngine = null; }
+let memoryBridge;
+try { memoryBridge = require('../lib/memory-bridge'); } catch { memoryBridge = null; }
+let agentSupervisor;
+try { agentSupervisor = require('../lib/agent-supervisor'); } catch { agentSupervisor = null; }
+let asyncExecutor;
+try { asyncExecutor = require('../lib/async-executor'); } catch { asyncExecutor = null; }
+let arbDetector;
+try { arbDetector = require('../lib/arb-detector'); } catch { arbDetector = null; }
+
 // ─── State Management ────────────────────────────────────────────────────────
 
 // Resilient I/O — atomic writes, backup recovery, file locking
@@ -1206,6 +1220,48 @@ async function runCycle(startMs) {
   log('info', `  Time: ${new Date().toISOString()}`);
   log('info', `${'═'.repeat(60)}\n`);
 
+  // ─── Agent Mesh Initialization (once per cycle) ─────────────────────────
+  if (consensusEngine && riskManager && !consensusEngine._votersRegistered) {
+    consensusEngine.registerVoter('risk-manager', consensusEngine.createRiskVoter(riskManager), { weight: 1.2 });
+    if (brain) consensusEngine.registerVoter('brain', consensusEngine.createBrainVoter(brain), { weight: 1.0 });
+    consensusEngine.registerVoter('regime', consensusEngine.createRegimeVoter(), { weight: 0.8 });
+    consensusEngine._votersRegistered = true;
+    log('info', 'Consensus engine: voters registered');
+  }
+
+  // Start memory bridge (scans journal for outcomes → episodic memory)
+  if (memoryBridge && !memoryBridge._started) {
+    try {
+      const mbInit = memoryBridge.start();
+      memoryBridge._started = true;
+      log('info', `Memory bridge started: ${mbInit.recorded} initial episodes recorded`);
+    } catch (e) { log('warn', `Memory bridge start failed: ${e?.message || e}`); }
+  }
+
+  // Start arb detector
+  if (arbDetector && !arbDetector._started) {
+    try {
+      arbDetector.start();
+      arbDetector._started = true;
+      log('info', 'Arb detector started');
+    } catch (e) { log('warn', `Arb detector start failed: ${e?.message || e}`); }
+  }
+
+  // Agent supervisor — register critical agents & start monitoring
+  if (agentSupervisor && !agentSupervisor._started) {
+    try {
+      if (exitManager && typeof exitManager.runExitLoop === 'function') {
+        agentSupervisor.register('exit-manager', {
+          restart: () => exitManager.runExitLoop(),
+          critical: true,
+        });
+      }
+      agentSupervisor.start();
+      agentSupervisor._started = true;
+      log('info', 'Agent supervisor started');
+    } catch (e) { log('warn', `Agent supervisor start failed: ${e?.message || e}`); }
+  }
+
   // ─── HEALTH GATE: Refuse to trade without critical safety modules ─────────
   const missingCritical = [];
   if (!riskManager) missingCritical.push('risk-manager');
@@ -1319,12 +1375,48 @@ async function runCycle(startMs) {
     }
   }
 
+  // Phase 5e: Consensus & Memory Feedback
+  // After trade execution, feed outcomes back to consensus voter accuracy and memory bridge
+  if (memoryBridge && execution.executions) {
+    try {
+      const scanResult = memoryBridge.scanJournal();
+      if (scanResult.recorded > 0) {
+        log('info', `  Memory bridge: ${scanResult.recorded} new episodes from journal`);
+      }
+    } catch (e) { log('warn', `Memory bridge scan failed: ${e?.message || e}`); }
+  }
+
+  // Phase 5f: Arb Detector — scan for cross-venue opportunities
+  let arbResult = { opportunities: 0 };
+  if (arbDetector) {
+    try {
+      log('info', '═══ Phase 5f: Cross-Venue Arb Detection ═══');
+      arbResult = await arbDetector.scan();
+      if (arbResult.opportunities > 0) {
+        log('info', `  Found ${arbResult.opportunities} arb opportunities`);
+      }
+    } catch (e) { log('warn', `Arb scan failed: ${e?.message || e}`); }
+  }
+
   // Phase 6: Prediction Markets
   const predResult = phasePredictionMarkets();
 
   // Phase 7: Publish State
   const durationMs = Date.now() - startMs;
   phasePublishState(health, brainResult, signals, execution, predResult, durationMs, exitResult);
+
+  // Publish enhanced state via event mesh
+  if (eventMesh) {
+    eventMesh.publish('orchestrator.cycle_complete', {
+      cycle: state.cycleCount + 1,
+      durationMs,
+      signals: signals.length,
+      tradesPlaced: execution.tradesPlaced,
+      arbOpportunities: arbResult.opportunities,
+      exitChecked: exitResult.checked || 0,
+      exitExited: exitResult.exited || 0,
+    }, { source: 'master-orchestrator', priority: eventMesh.PRIORITY?.NORMAL });
+  }
 
   // Phase 8: Data Maintenance (signal pruning every cycle, heavy trim every 10th)
   phaseDataMaintenance();
@@ -1491,6 +1583,29 @@ function gracefulShutdown(signal) {
       _exitLoopHandle.stop();
       log('info', 'Exit manager loop stopped');
     } catch { /* ignore — best-effort cleanup */ }
+  }
+
+  // Stop agent mesh subsystems
+  if (agentSupervisor) { try { agentSupervisor.stop(); } catch { /* ignore */ } }
+  if (memoryBridge) { try { memoryBridge.stop(); } catch { /* ignore */ } }
+  if (arbDetector) { try { arbDetector.stop(); } catch { /* ignore */ } }
+
+  // Save trailing stop state to disk (previously lost on restart)
+  if (asyncExecutor && exitManager) {
+    try {
+      const openPositions = typeof exitManager.getOpenPositions === 'function'
+        ? exitManager.getOpenPositions() : [];
+      if (openPositions.length > 0) {
+        asyncExecutor.saveTrailingStopState({
+          positions: openPositions.map(p => ({
+            asset: p.asset, venue: p.venue, side: p.side,
+            trailingStopPrice: p.trailingStopPrice,
+            highWaterMark: p.highWaterMark,
+          })),
+        });
+        log('info', `Saved trailing stop state for ${openPositions.length} positions`);
+      }
+    } catch { /* ignore */ }
   }
 
   // Publish shutdown signal to bus

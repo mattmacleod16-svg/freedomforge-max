@@ -126,5 +126,107 @@ declare namespace NodeJS {
     AI_ESCALATION_AGREEMENT_THRESHOLD?: string;
     AI_ESCALATION_CONFIDENCE_THRESHOLD?: string;
     VERCEL?: string;
+
+    // ─── MultiversX (xPortal) ─────────────────────────────────────────
+    MVX_ENABLED?: string;
+    MVX_DRY_RUN?: string;
+    MVX_WALLET_ADDRESS?: string;
+    MVX_WALLET_PEM?: string;
+    MVX_NETWORK?: string;
+    MVX_MIN_STAKE_EGLD?: string;
+    MVX_MAX_STAKE_PCT?: string;
+    MVX_MIN_BALANCE_EGLD?: string;
+    MVX_AUTO_CLAIM_REWARDS?: string;
+    MVX_AUTO_STAKE_IDLE?: string;
+    MVX_PREFERRED_VALIDATOR?: string;
+    MVX_CHECK_INTERVAL_SEC?: string;
+    MVX_TIMEOUT_MS?: string;
+    MVX_STATE_FILE?: string;
+
+    // ─── Solana ───────────────────────────────────────────────────────
+    SOLANA_RPC_URL?: string;
+    SOLANA_WALLET_ADDRESS?: string;
+    SOLANA_PRIVATE_KEY?: string;
+    SOLANA_NETWORK?: string;
+
+    // ─── DeFi Multi-Chain ─────────────────────────────────────────────
+    DEFI_MULTICHAIN_ENABLED?: string;
+    DEFI_MIN_APY?: string;
+    DEFI_MAX_CHAIN_ALLOCATION_PCT?: string;
+
+    // ─── Alpaca Markets ───────────────────────────────────────────────
+    ALPACA_ENABLED?: string;
+    ALPACA_DRY_RUN?: string;
+    ALPACA_API_KEY?: string;
+    ALPACA_API_SECRET?: string;
+    ALPACA_BASE_URL?: string;
+    ALPACA_DATA_URL?: string;
+    ALPACA_SYMBOLS?: string;
+    ALPACA_ORDER_USD?: string;
+    ALPACA_MAX_ORDER_USD?: string;
+    ALPACA_MIN_CONFIDENCE?: string;
+    ALPACA_MAX_ORDERS_PER_CYCLE?: string;
+    ALPACA_MIN_INTERVAL_SEC?: string;
+    ALPACA_SIDE_MODE?: string;
+    ALPACA_TIMEOUT_MS?: string;
+    ALPACA_STATE_FILE?: string;
+    ALPACA_USE_COMPOSITE_SIGNAL?: string;
+
+    // ─── Interactive Brokers ──────────────────────────────────────────
+    IBKR_ENABLED?: string;
+    IBKR_DRY_RUN?: string;
+    IBKR_GATEWAY_URL?: string;
+    IBKR_ACCOUNT_ID?: string;
+    IBKR_SYMBOLS?: string;
+    IBKR_ORDER_USD?: string;
+    IBKR_MAX_ORDER_USD?: string;
+    IBKR_MIN_CONFIDENCE?: string;
+    IBKR_MAX_ORDERS_PER_CYCLE?: string;
+    IBKR_MIN_INTERVAL_SEC?: string;
+    IBKR_SIDE_MODE?: string;
+    IBKR_TIMEOUT_MS?: string;
+    IBKR_STATE_FILE?: string;
+
+    // ─── Kalshi Prediction Markets ────────────────────────────────────
+    KALSHI_ENABLED?: string;
+    KALSHI_API_KEY?: string;
+    KALSHI_API_SECRET?: string;
+    KALSHI_BASE_URL?: string;
+
+    // ─── Overtime Sports Markets ──────────────────────────────────────
+    OVERTIME_ENABLED?: string;
+    OVERTIME_API_URL?: string;
+    OVERTIME_NETWORK?: string;
+
+    // ─── Augur Decentralized Markets ──────────────────────────────────
+    AUGUR_ENABLED?: string;
+    AUGUR_NETWORK?: string;
+    AUGUR_SUBGRAPH_URL?: string;
+    AUGUR_POLYGON_SUBGRAPH?: string;
+
+    // ─── Multi-Prediction Engine ──────────────────────────────────────
+    MULTI_PRED_ENABLED?: string;
+    MULTI_PRED_DRY_RUN?: string;
+    MULTI_PRED_MIN_EDGE?: string;
+    MULTI_PRED_MAX_ORDER_USD?: string;
+    MULTI_PRED_CHECK_INTERVAL_SEC?: string;
+    MULTI_PRED_STATE_FILE?: string;
+
+    // ─── Plaid (Fiat Banking Rails) ───────────────────────────────────
+    PLAID_CLIENT_ID?: string;
+    PLAID_SECRET?: string;
+    PLAID_ENV?: string;
+    PLAID_ACCESS_TOKEN?: string;
+
+    // ─── DeFi Yield Engine ────────────────────────────────────────────
+    DEFI_YIELD_ENABLED?: string;
+    DEFI_YIELD_DRY_RUN?: string;
+    DEFI_YIELD_MIN_IDLE_USD?: string;
+    DEFI_YIELD_MAX_DEPOSIT_PCT?: string;
+    DEFI_YIELD_MIN_APY?: string;
+    DEFI_YIELD_PROTOCOL?: string;
+    DEFI_YIELD_NETWORK?: string;
+    DEFI_YIELD_CHECK_INTERVAL_SEC?: string;
+    DEFI_YIELD_STATE_FILE?: string;
   }
 }
