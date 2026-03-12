@@ -32,6 +32,11 @@ const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.COINBASE_MAX_ORDER_
 const SLIPPAGE_TOLERANCE_PCT = Math.max(0.001, Math.min(0.01, Number(process.env.COINBASE_SLIPPAGE_TOLERANCE || 0.003)));
 const PRICE_FRESHNESS_MS = Math.max(3000, Math.min(30000, Number(process.env.COINBASE_PRICE_FRESHNESS_MS || 10000)));
 
+// ─── Order Book Spread Protection ────────────────────────────────────────────
+// Skip or reduce size when bid-ask spread is too wide (illiquid conditions)
+const MAX_SPREAD_PCT = Math.max(0.001, Math.min(0.02, Number(process.env.COINBASE_MAX_SPREAD_PCT || 0.005)));
+const SPREAD_REDUCE_FACTOR = Math.max(0.1, Math.min(0.9, Number(process.env.COINBASE_SPREAD_REDUCE_FACTOR || 0.5)));
+
 let edgeDetector, tradeJournal, brain, riskManager, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
@@ -43,6 +48,8 @@ let fillVerifier;
 try { fillVerifier = require('../lib/fill-verifier'); } catch { fillVerifier = null; }
 let heartbeatRegistry;
 try { heartbeatRegistry = require('../lib/heartbeat-registry'); } catch { heartbeatRegistry = null; }
+let exitManager;
+try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null; }
 
 // Resilient I/O for atomic state writes
 let rio;
@@ -273,6 +280,33 @@ async function getProductMeta(product) {
   };
 }
 
+/**
+ * Check bid-ask spread from order book level 1.
+ * Returns { spreadPct, bestBid, bestAsk, liquid } or null on failure.
+ * If spread > MAX_SPREAD_PCT, the market is considered illiquid.
+ */
+async function checkOrderBookSpread(product) {
+  try {
+    const book = await coinbasePublic(`/products/${encodeURIComponent(product)}/book?level=1`);
+    const bestBid = Number(book?.bids?.[0]?.[0] || 0);
+    const bestAsk = Number(book?.asks?.[0]?.[0] || 0);
+    if (!Number.isFinite(bestBid) || !Number.isFinite(bestAsk) || bestBid <= 0 || bestAsk <= 0) {
+      return null; // Can't determine spread, non-fatal
+    }
+    const mid = (bestBid + bestAsk) / 2;
+    const spreadPct = (bestAsk - bestBid) / mid;
+    return {
+      spreadPct,
+      bestBid,
+      bestAsk,
+      mid,
+      liquid: spreadPct <= MAX_SPREAD_PCT,
+    };
+  } catch {
+    return null; // Order book check failure is non-fatal
+  }
+}
+
 async function placeOrder(side, price, meta, orderUsd = ORDER_USD) {
   // Compute slippage-protected limit price
   const limitPrice = side === 'buy'
@@ -488,6 +522,28 @@ async function main() {
   let tickerFetchedAt = Date.now();
   const meta = await getProductMeta(PRODUCT_ID);
 
+  // ═══ Order Book Spread Protection ═══
+  // Check bid-ask spread before trading — skip or reduce in illiquid conditions
+  const spreadCheck = await checkOrderBookSpread(PRODUCT_ID);
+  if (spreadCheck) {
+    if (!spreadCheck.liquid) {
+      // Spread exceeds threshold — reduce order size proportionally
+      const spreadRatio = spreadCheck.spreadPct / MAX_SPREAD_PCT;
+      if (spreadRatio > 2.0) {
+        // Spread is 2x+ the max — skip trade entirely
+        console.log(JSON.stringify({
+          status: 'skipped',
+          reason: `illiquid: bid-ask spread ${(spreadCheck.spreadPct * 100).toFixed(3)}% exceeds 2x max ${(MAX_SPREAD_PCT * 100).toFixed(2)}%`,
+          spread: spreadCheck,
+        }, null, 2));
+        return;
+      }
+      // Spread is between 1x and 2x max — reduce size
+      effectiveOrderUsd = Math.max(25, effectiveOrderUsd * SPREAD_REDUCE_FACTOR);
+      console.error(`[coinbase] wide spread ${(spreadCheck.spreadPct * 100).toFixed(3)}% — reducing order to $${effectiveOrderUsd.toFixed(2)}`);
+    }
+  }
+
   // Pre-flight price freshness check: if ticker is >10s stale, re-fetch before ordering
   if (Date.now() - tickerFetchedAt > PRICE_FRESHNESS_MS) {
     const refreshed = await getTicker(PRODUCT_ID);
@@ -582,6 +638,18 @@ async function main() {
         tradesPlaced: actions.filter(a => a.status === 'placed' || a.status === 'dry-run').length,
       });
     } catch { /* heartbeat is best-effort */ }
+  }
+
+  // Post-trade exit check — evaluate open positions for trailing stop / take-profit exits
+  if (exitManager && typeof exitManager.checkExits === 'function') {
+    try {
+      const exitResult = await exitManager.checkExits();
+      if (exitResult.exited > 0) {
+        console.error(`[coinbase] exit-manager: closed ${exitResult.exited} position(s) of ${exitResult.checked} open`);
+      }
+    } catch (err) {
+      console.error('[coinbase] exit-manager check failed:', err?.message || err);
+    }
   }
 
   console.log(JSON.stringify({

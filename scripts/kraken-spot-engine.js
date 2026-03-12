@@ -27,6 +27,11 @@ const MAX_ORDER_USD = Math.max(ORDER_USD, Number(process.env.KRAKEN_MAX_ORDER_US
 const SLIPPAGE_TOLERANCE_PCT = Math.max(0.001, Math.min(0.01, Number(process.env.KRAKEN_SLIPPAGE_TOLERANCE || 0.003)));
 const PRICE_FRESHNESS_MS = Math.max(3000, Math.min(30000, Number(process.env.KRAKEN_PRICE_FRESHNESS_MS || 10000)));
 
+// ─── Order Book Spread Protection ────────────────────────────────────────────
+// Skip or reduce size when bid-ask spread is too wide (illiquid conditions)
+const MAX_SPREAD_PCT = Math.max(0.001, Math.min(0.02, Number(process.env.KRAKEN_MAX_SPREAD_PCT || 0.005)));
+const SPREAD_REDUCE_FACTOR = Math.max(0.1, Math.min(0.9, Number(process.env.KRAKEN_SPREAD_REDUCE_FACTOR || 0.5)));
+
 let edgeDetector, tradeJournal, brain, riskManager, liquidationGuardian, capitalMandate;
 try { edgeDetector = require('../lib/edge-detector'); } catch { edgeDetector = null; }
 try { tradeJournal = require('../lib/trade-journal'); } catch { tradeJournal = null; }
@@ -38,6 +43,8 @@ let fillVerifier;
 try { fillVerifier = require('../lib/fill-verifier'); } catch { fillVerifier = null; }
 let heartbeatRegistry;
 try { heartbeatRegistry = require('../lib/heartbeat-registry'); } catch { heartbeatRegistry = null; }
+let exitManager;
+try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null; }
 
 // Resilient I/O for atomic state writes
 let rio;
@@ -218,6 +225,37 @@ async function getLastPrice(pairCode) {
   return price;
 }
 
+/**
+ * Check bid-ask spread from Kraken order book depth.
+ * Returns { spreadPct, bestBid, bestAsk, liquid } or null on failure.
+ * If spread > MAX_SPREAD_PCT, the market is considered illiquid.
+ */
+async function checkOrderBookSpread(pairCode) {
+  try {
+    const result = await krakenPublic('/0/public/Depth', { pair: pairCode, count: 1 });
+    const key = Object.keys(result || {})[0];
+    const book = key ? result[key] : null;
+    if (!book) return null;
+
+    const bestBid = Number(book?.bids?.[0]?.[0] || 0);
+    const bestAsk = Number(book?.asks?.[0]?.[0] || 0);
+    if (!Number.isFinite(bestBid) || !Number.isFinite(bestAsk) || bestBid <= 0 || bestAsk <= 0) {
+      return null; // Can't determine spread, non-fatal
+    }
+    const mid = (bestBid + bestAsk) / 2;
+    const spreadPct = (bestAsk - bestBid) / mid;
+    return {
+      spreadPct,
+      bestBid,
+      bestAsk,
+      mid,
+      liquid: spreadPct <= MAX_SPREAD_PCT,
+    };
+  } catch {
+    return null; // Order book check failure is non-fatal
+  }
+}
+
 function resolveSide(signal) {
   if (SIDE_MODE === 'buy_only') return 'buy';
   if (SIDE_MODE === 'sell_only') return 'sell';
@@ -284,6 +322,29 @@ async function main() {
   const pair = await getPairMeta(PAIR);
   let price = await getLastPrice(PAIR);
   let tickerFetchedAt = Date.now();
+
+  // ═══ Order Book Spread Protection ═══
+  // Check bid-ask spread before trading — skip or reduce in illiquid conditions
+  const spreadCheck = await checkOrderBookSpread(PAIR);
+  if (spreadCheck) {
+    if (!spreadCheck.liquid) {
+      // Spread exceeds threshold — reduce order size proportionally
+      const spreadRatio = spreadCheck.spreadPct / MAX_SPREAD_PCT;
+      if (spreadRatio > 2.0) {
+        // Spread is 2x+ the max — skip trade entirely
+        console.log(JSON.stringify({
+          status: 'skipped',
+          reason: `illiquid: bid-ask spread ${(spreadCheck.spreadPct * 100).toFixed(3)}% exceeds 2x max ${(MAX_SPREAD_PCT * 100).toFixed(2)}%`,
+          spread: spreadCheck,
+        }, null, 2));
+        return;
+      }
+      // Spread is between 1x and 2x max — reduce size
+      effectiveOrderUsd = Math.max(25, effectiveOrderUsd * SPREAD_REDUCE_FACTOR);
+      console.error(`[kraken] wide spread ${(spreadCheck.spreadPct * 100).toFixed(3)}% — reducing order to $${effectiveOrderUsd.toFixed(2)}`);
+    }
+  }
+
   const requestedVolume = effectiveOrderUsd / price;
   const volume = roundDown(requestedVolume, pair.lotDecimals);
 
@@ -467,6 +528,18 @@ async function main() {
         tradesPlaced: actions.filter(a => a.status === 'placed' || a.status === 'dry-run').length,
       });
     } catch { /* heartbeat is best-effort */ }
+  }
+
+  // Post-trade exit check — evaluate open positions for trailing stop / take-profit exits
+  if (exitManager && typeof exitManager.checkExits === 'function') {
+    try {
+      const exitResult = await exitManager.checkExits();
+      if (exitResult.exited > 0) {
+        console.error(`[kraken] exit-manager: closed ${exitResult.exited} position(s) of ${exitResult.checked} open`);
+      }
+    } catch (err) {
+      console.error('[kraken] exit-manager check failed:', err?.message || err);
+    }
   }
 
   console.log(JSON.stringify({

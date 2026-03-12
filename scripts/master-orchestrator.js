@@ -86,6 +86,9 @@ let strategyPromoter;
 try { strategyPromoter = require('../lib/strategy-promoter'); } catch { strategyPromoter = null; }
 let mlPipeline;
 try { mlPipeline = require('../lib/ml-pipeline'); } catch { mlPipeline = null; }
+let exitManager;
+try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null; }
+let _exitLoopHandle = null; // Handle for exit-manager background loop (used in graceful shutdown)
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -159,6 +162,7 @@ async function phaseHealthCheck() {
     brain: !!brain,
     riskManager: !!riskManager,
     liquidationGuardian: !!liquidationGuardian,
+    exitManager: !!exitManager,
   };
 
   // Run liquidation guardian check first
@@ -994,7 +998,7 @@ function phasePredictionMarkets() {
 
 // ─── Phase 7: Publish State ──────────────────────────────────────────────────
 
-function phasePublishState(health, brainResult, signals, execution, predResult, durationMs) {
+function phasePublishState(health, brainResult, signals, execution, predResult, durationMs, exitResult) {
   log('info', '═══ Phase 7: Publishing State ═══');
 
   if (!signalBus) return;
@@ -1015,6 +1019,9 @@ function phasePublishState(health, brainResult, signals, execution, predResult, 
       edgeCaseGrade: health.edgeCaseGrade || 'N/A',
       edgeCaseTriggered: health.edgeCaseTriggered || 0,
       predictionStatus: predResult?.status || 'disabled',
+      exitManagerChecked: exitResult?.checked || 0,
+      exitManagerExited: exitResult?.exited || 0,
+      exitManagerErrors: exitResult?.errors || 0,
       topSignals: signals.slice(0, 3).map(s => ({
         asset: s.asset, side: s.side,
         confidence: Math.round(s.confidence * 1000) / 1000,
@@ -1035,6 +1042,7 @@ function phasePublishState(health, brainResult, signals, execution, predResult, 
         signalBus: health.signalBus,
         brain: health.brain,
         riskManager: health.riskManager,
+        exitManager: health.exitManager,
       },
       signalBusSignals: health.signalBusSignals || 0,
     },
@@ -1257,12 +1265,40 @@ async function runCycle(startMs) {
     }
   }
 
+  // Phase 5d: Exit Manager — check open positions for trailing stop / take-profit exits
+  let exitResult = { checked: 0, exited: 0, errors: 0, exits: [] };
+  if (exitManager) {
+    try {
+      log('info', '═══ Phase 5d: Exit Manager — Position Exit Check ═══');
+      exitResult = await exitManager.checkExits();
+      log('info', `  Exit check: ${exitResult.checked} open, ${exitResult.exited} exited, ${exitResult.errors} errors`);
+      if (exitResult.exits && exitResult.exits.length > 0) {
+        for (const ex of exitResult.exits) {
+          log('info', `    Closed ${ex.asset} ${ex.side} on ${ex.venue}: entry=$${ex.entryPrice} exit=$${ex.exitPrice} P&L=$${ex.pnl.toFixed(2)} (${ex.reason})`);
+        }
+      }
+    } catch (e) {
+      log('error', `Exit manager check failed: ${e.message}`);
+    }
+  }
+
+  // Start exit-manager background loop (timer is .unref()'d so it won't block process exit)
+  // This ensures exits are continuously monitored if the orchestrator runs as a long-lived process
+  if (exitManager && typeof exitManager.runExitLoop === 'function') {
+    try {
+      _exitLoopHandle = exitManager.runExitLoop();
+      log('info', '  Exit manager background loop started');
+    } catch (e) {
+      log('warn', `Exit manager loop start failed: ${e.message}`);
+    }
+  }
+
   // Phase 6: Prediction Markets
   const predResult = phasePredictionMarkets();
 
   // Phase 7: Publish State
   const durationMs = Date.now() - startMs;
-  phasePublishState(health, brainResult, signals, execution, predResult, durationMs);
+  phasePublishState(health, brainResult, signals, execution, predResult, durationMs, exitResult);
 
   // Phase 8: Data Maintenance (signal pruning every cycle, heavy trim every 10th)
   phaseDataMaintenance();
@@ -1312,6 +1348,8 @@ async function runCycle(startMs) {
     reconciled: reconcileResult.closedCount || 0,
     reconcilePnl: Math.round((reconcileResult.totalPnl || 0) * 100) / 100,
     openRemaining: reconcileResult.openRemaining ?? null,
+    exitChecked: exitResult.checked || 0,
+    exitExited: exitResult.exited || 0,
     brainEvolved: brainResult?.evolved || false,
     predStatus: predResult?.status || 'disabled',
   };
@@ -1356,6 +1394,16 @@ async function runCycle(startMs) {
         closed: reconcileResult.closedCount || 0,
         pnl: Math.round((reconcileResult.totalPnl || 0) * 100) / 100,
         openRemaining: reconcileResult.openRemaining ?? null,
+      },
+      exitManager: {
+        checked: exitResult.checked || 0,
+        exited: exitResult.exited || 0,
+        errors: exitResult.errors || 0,
+        exits: (exitResult.exits || []).map(ex => ({
+          asset: ex.asset, venue: ex.venue, side: ex.side,
+          pnl: Math.round((ex.pnl || 0) * 100) / 100,
+          reason: ex.reason,
+        })),
       },
     },
     totals: {
@@ -1409,6 +1457,14 @@ function gracefulShutdown(signal) {
       distributedLock.cleanupExpiredLocks();
       log('info', 'Lock cleanup done');
     } catch { /* ignore */ }
+  }
+
+  // Stop exit-manager background loop if running
+  if (exitManager && _exitLoopHandle && typeof _exitLoopHandle.stop === 'function') {
+    try {
+      _exitLoopHandle.stop();
+      log('info', 'Exit manager loop stopped');
+    } catch { /* ignore — best-effort cleanup */ }
   }
 
   // Publish shutdown signal to bus
