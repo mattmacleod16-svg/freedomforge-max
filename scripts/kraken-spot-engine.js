@@ -445,6 +445,13 @@ async function main() {
     }
 
     const result = await krakenPrivate('/0/private/AddOrder', order);
+    if (Array.isArray(result?.error) && result.error.length > 0) {
+      const errMsg = result.error.join(', ');
+      log('warn', `Kraken order rejected: ${errMsg}`, { asset, side, order });
+      actions.push({ status: 'error', order, result, error: errMsg, limitPrice });
+      continue;
+    }
+    log('info', `Kraken order placed: ${side} ${order.volume} ${asset}`, { limitPrice, txid: result?.result?.txid });
     actions.push({ status: 'placed', order, result, limitPrice });
   }
 
