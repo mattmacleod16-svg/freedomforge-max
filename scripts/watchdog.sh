@@ -34,7 +34,7 @@ HEALED=0
 ALERTS=""
 
 # ─── 1. Check & restart critical services ─────────────────────────────────────
-CRITICAL_SERVICES="ff-dashboard ff-tunnel caddy"
+CRITICAL_SERVICES="ff-dashboard ff-dashboard-api ff-tunnel caddy"
 for svc in $CRITICAL_SERVICES; do
   if ! systemctl is-active --quiet "$svc"; then
     if can_restart "$svc"; then
@@ -125,6 +125,21 @@ if [[ "$HTTP_CODE" != "200" ]]; then
     ALERTS="${ALERTS}\"dashboard_${HTTP_CODE}\","
   else
     ALERTS="${ALERTS}\"dashboard_${HTTP_CODE}_cooldown\","
+  fi
+fi
+
+# ─── 6b. Check mobile dashboard API responding ───────────────────────────────
+MOBILE_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 http://localhost:9091/api/health 2>/dev/null)
+MOBILE_CODE=${MOBILE_CODE:-0}
+if [[ "$MOBILE_CODE" != "200" ]]; then
+  if can_restart "ff-dashboard-api"; then
+    log "HEAL: Mobile Dashboard API returned $MOBILE_CODE — restarting ff-dashboard-api"
+    sudo systemctl restart ff-dashboard-api
+    mark_restart "ff-dashboard-api"
+    HEALED=$((HEALED + 1))
+    ALERTS="${ALERTS}\"dashboard_api_${MOBILE_CODE}\","
+  else
+    ALERTS="${ALERTS}\"dashboard_api_${MOBILE_CODE}_cooldown\","
   fi
 fi
 

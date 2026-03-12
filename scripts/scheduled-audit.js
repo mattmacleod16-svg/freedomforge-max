@@ -123,7 +123,7 @@ function patched(action) {
 // 1. Core system services (actual names on this VM)
 function checkCoreServices() {
   const services = [
-    'ff-dashboard', 'ff-tunnel', 'caddy',
+    'ff-dashboard', 'ff-dashboard-api', 'ff-tunnel', 'caddy',
     'freedomforge-trade-loop-arb', 'freedomforge-trade-loop-eth-shard0',
     'freedomforge-trade-loop-eth-shard1', 'freedomforge-trade-loop-op',
     'freedomforge-trade-loop-pol',
