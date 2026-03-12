@@ -29,8 +29,8 @@ const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 
 const LOOKBACK_HOURS = Math.max(1, parseInt(process.env.SCORECARD_LOOKBACK_HOURS || '6', 10));
 const LOG_LIMIT = Math.max(100, parseInt(process.env.SCORECARD_LOG_LIMIT || '4000', 10));
-const MIN_SUCCESS_RATE = Number(process.env.SCORECARD_MIN_SUCCESS_RATE || '0.85');
-const MIN_NET_ETH = Number(process.env.SCORECARD_MIN_NET_ETH || '0.001');
+const MIN_SUCCESS_RATE = Math.min(1.0, Math.max(0.01, Number(process.env.SCORECARD_MIN_SUCCESS_RATE || '0.85')));
+const MIN_NET_ETH = Math.min(1000, Math.max(0, Number(process.env.SCORECARD_MIN_NET_ETH || '0.001')));
 const HARD_FAIL_TOPUP_ERRORS = Math.max(0, parseInt(process.env.SCORECARD_HARD_FAIL_TOPUP_ERRORS || '2', 10));
 const NO_PAYOUT_MAX_SKIPS = Math.max(10, parseInt(process.env.SCORECARD_NO_PAYOUT_MAX_SKIPS || '120', 10));
 

@@ -57,7 +57,7 @@ try {
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
-const PORT = parseInt(process.env.DASHBOARD_PORT || '9091', 10);
+const PORT = Math.max(1024, Math.min(65535, parseInt(process.env.DASHBOARD_PORT || '9091', 10) || 9091));
 const ALERT_SECRET = (process.env.ALERT_SECRET || '').trim();
 const CORS_ORIGIN = process.env.DASHBOARD_CORS || '*';
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -638,7 +638,7 @@ function setupSSE(req, res) {
   try {
     const summary = getSummary();
     res.write(`id: ${Date.now()}\nevent: summary\ndata: ${JSON.stringify(summary)}\n\n`);
-  } catch {}
+  } catch (err) { console.warn('[dashboard-api] SSE data push failed', err?.message || err); }
 
   // Cleanup on disconnect
   req.on('close', () => {
@@ -679,7 +679,7 @@ setInterval(() => {
   try {
     const summary = getSummary();
     broadcastSSE('summary', summary);
-  } catch {}
+  } catch (err) { console.warn('[dashboard-api] SSE data push failed', err?.message || err); }
 }, SSE_PUSH_MS).unref();
 
 // Watch events.log for new entries and stream them

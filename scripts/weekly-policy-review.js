@@ -5,7 +5,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
-const LOOKBACK_HOURS = Number(process.env.POLICY_LOOKBACK_HOURS || 168);
+const LOOKBACK_HOURS = Math.min(8760, Math.max(1, Number(process.env.POLICY_LOOKBACK_HOURS || 168)));
 const AUTO_REDEPLOY = String(process.env.POLICY_AUTO_REDEPLOY || 'true').toLowerCase() === 'true';
 const SELF_FUNDING_MODE = String(process.env.SELF_FUNDING_MODE || 'true').toLowerCase() !== 'false';
 const POLICY_OVERRIDE_MIN_PAYOUT = String(process.env.POLICY_OVERRIDE_MIN_PAYOUT || 'false').toLowerCase() === 'true';

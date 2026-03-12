@@ -17,8 +17,8 @@ const POLY_CLOB_API_KEY = (process.env.POLY_CLOB_API_KEY || '').trim();
 const POLY_CLOB_API_SECRET = (process.env.POLY_CLOB_API_SECRET || '').trim();
 const POLY_CLOB_API_PASSPHRASE = (process.env.POLY_CLOB_API_PASSPHRASE || '').trim();
 const POLY_PRIVATE_KEY = (process.env.POLYMARKET_PRIVATE_KEY || process.env.WALLET_PRIVATE_KEY || '').trim();
-const POLY_CHAIN_ID = Number(process.env.POLY_CHAIN_ID || 137);
-const POLY_SIGNATURE_TYPE = Number(process.env.POLY_SIGNATURE_TYPE || 0);
+const POLY_CHAIN_ID = Math.max(1, Math.min(999999, Number(process.env.POLY_CHAIN_ID || 137) || 137));
+const POLY_SIGNATURE_TYPE = Math.max(0, Math.min(3, Number(process.env.POLY_SIGNATURE_TYPE || 0)));
 const POLY_FUNDER_ADDRESS = (process.env.POLY_FUNDER_ADDRESS || process.env.FUNDER_ADDRESS || '').trim();
 const POLY_USE_SDK_AUTH = String(process.env.POLY_CLOB_USE_SDK_AUTH || 'true').toLowerCase() !== 'false';
 

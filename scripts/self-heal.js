@@ -32,9 +32,9 @@ const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.verc
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL || '';
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 const ALERT_MODE = String(process.env.SELF_HEAL_ALERT_MODE || 'critical').toLowerCase();
-const TIMEOUT_MS = parseInt(process.env.SELF_HEAL_TIMEOUT_MS || '10000', 10);
+const TIMEOUT_MS = Math.min(120000, Math.max(1000, parseInt(process.env.SELF_HEAL_TIMEOUT_MS || '10000', 10)));
 const NOTIFY_OK = String(process.env.SELF_HEAL_NOTIFY_OK || 'false').toLowerCase() === 'true';
-const REMEDIATION_PAUSE_MS = parseInt(process.env.SELF_HEAL_REMEDIATION_PAUSE_MS || '5000', 10);
+const REMEDIATION_PAUSE_MS = Math.min(60000, Math.max(1000, parseInt(process.env.SELF_HEAL_REMEDIATION_PAUSE_MS || '5000', 10)));
 const PROFIT_GUARD_ENABLED = String(process.env.SELF_HEAL_PROFIT_GUARD_ENABLED || 'true').toLowerCase() !== 'false';
 const PROFIT_GUARD_LOOKBACK_HOURS = Math.max(1, parseInt(process.env.SELF_HEAL_PROFIT_GUARD_LOOKBACK_HOURS || '2', 10));
 const PROFIT_GUARD_MIN_NET_ETH = Math.max(0.0001, Math.min(1.0, Number(process.env.SELF_HEAL_PROFIT_GUARD_MIN_NET_ETH || '0.0005')));

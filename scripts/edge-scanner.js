@@ -28,7 +28,7 @@ const TOP_OPPORTUNITIES = Math.max(1, parseInt(process.env.EDGE_SCAN_TOP_N || '5
 const ENABLE_STRATEGY_EVOLUTION = String(process.env.EDGE_SCAN_STRATEGY_EVOLUTION || 'true').toLowerCase() !== 'false';
 const ALERT_WEBHOOK_URL = (process.env.ALERT_WEBHOOK_URL || '').trim();
 const ALERT_ON_HIGH_EDGE = String(process.env.EDGE_SCAN_ALERT_HIGH_EDGE || 'true').toLowerCase() !== 'false';
-const HIGH_EDGE_THRESHOLD = Number(process.env.EDGE_SCAN_HIGH_EDGE_THRESHOLD || 0.35);
+const HIGH_EDGE_THRESHOLD = Math.min(1.0, Math.max(0.01, Number(process.env.EDGE_SCAN_HIGH_EDGE_THRESHOLD || 0.35)));
 
 let edgeDetector, signalBus, tradeJournal, brain, riskManager;
 try { edgeDetector = require('../lib/edge-detector'); } catch (e) { console.error('edge-detector not available:', e.message); process.exit(1); }

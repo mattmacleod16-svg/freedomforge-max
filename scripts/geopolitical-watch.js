@@ -3,7 +3,7 @@
 const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL || '';
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
-const THRESHOLD = Number(process.env.GEO_RISK_ALERT_THRESHOLD || 0.6);
+const THRESHOLD = Math.min(1.0, Math.max(0.01, Number(process.env.GEO_RISK_ALERT_THRESHOLD || 0.6)));
 
 function withMention(message) {
   if (!ALERT_MENTION) return message;
