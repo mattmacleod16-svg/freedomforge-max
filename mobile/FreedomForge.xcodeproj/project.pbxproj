@@ -22,6 +22,8 @@
 		552E8D50EE565605F3A8921C /* SignalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF68A52ADFD1AFC92A02A14 /* SignalsView.swift */; };
 		4B27DA943B712220B8F6AAAA /* InfrastructureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 390A2BA9882C1B063C2446DE /* InfrastructureView.swift */; };
 		2AF4C1199109185F6D471547 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66FC1475E44B8CD0A8093222 /* SettingsView.swift */; };
+		F395D67735E57D31250589A0 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD09B30B2C76CCEA04D62EE /* SplashView.swift */; };
+		5E7994C1A68DBC0350DA86F2 /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0A3B1459DD91DD91CA72B4 /* MoreView.swift */; };
 		592833D47527B48D4A3A9F00 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 54E323E032C6FBC1E18C0587 /* Charts.framework */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +43,8 @@
 		9CF68A52ADFD1AFC92A02A14 /* SignalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalsView.swift; sourceTree = "<group>"; };
 		390A2BA9882C1B063C2446DE /* InfrastructureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfrastructureView.swift; sourceTree = "<group>"; };
 		66FC1475E44B8CD0A8093222 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9DD09B30B2C76CCEA04D62EE /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
+		BD0A3B1459DD91DD91CA72B4 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
 		0096DDB5D5C93DB7732319BF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		71CCD365E3A654DA84DBA191 /* FreedomForge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FreedomForge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		54E323E032C6FBC1E18C0587 /* Charts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Charts.framework; path = System/Library/Frameworks/Charts.framework; sourceTree = SDKROOT; };
@@ -266,6 +270,8 @@
 				552E8D50EE565605F3A8921C /* SignalsView.swift in Sources */,
 				4B27DA943B712220B8F6AAAA /* InfrastructureView.swift in Sources */,
 				2AF4C1199109185F6D471547 /* SettingsView.swift in Sources */,
+				F395D67735E57D31250589A0 /* SplashView.swift in Sources */,
+				5E7994C1A68DBC0350DA86F2 /* MoreView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -7,7 +7,7 @@ struct PortfolioView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 14) {
@@ -123,7 +123,19 @@ struct PortfolioView: View {
                             }
 
                         } else {
-                            EmptyState(icon: "chart.pie", message: "Pull to refresh portfolio data")
+                            // Skeleton loading placeholders
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                SkeletonCard(height: 80)
+                                SkeletonCard(height: 80)
+                            }
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                SkeletonCard(height: 60)
+                                SkeletonCard(height: 60)
+                            }
+                            SkeletonCard(height: 50)
+                            SkeletonCard(height: 50)
+                            SkeletonCard(height: 50)
+                            SkeletonCard(height: 100)
                         }
                     }
                     .padding(.horizontal, 14)

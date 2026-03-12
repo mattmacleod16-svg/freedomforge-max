@@ -3,11 +3,12 @@ import SwiftUI
 /// Infrastructure view — system health, CPU, memory, disk, agents, circuits.
 struct InfrastructureView: View {
     @EnvironmentObject var appState: AppState
+    @State private var gaugeProgress: Double = 0
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 14) {
@@ -47,13 +48,18 @@ struct InfrastructureView: View {
                             // Resource Gauges
                             SectionHeader(title: "Resources", icon: "gauge")
                             HStack(spacing: 14) {
-                                resourceGauge("CPU", value: infra.cpu?.usagePct ?? 0)
-                                resourceGauge("Memory", value: infra.memory?.usagePct ?? 0)
+                                resourceGauge("CPU", value: (infra.cpu?.usagePct ?? 0) * gaugeProgress)
+                                resourceGauge("Memory", value: (infra.memory?.usagePct ?? 0) * gaugeProgress)
                                 if let disk = infra.disk?.usagePct {
-                                    resourceGauge("Disk", value: disk)
+                                    resourceGauge("Disk", value: disk * gaugeProgress)
                                 }
                             }
                             .padding(.vertical, 8)
+                            .onAppear {
+                                withAnimation(.easeOut(duration: 1.0)) {
+                                    gaugeProgress = 1.0
+                                }
+                            }
 
                             // Memory Detail
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
@@ -175,7 +181,22 @@ struct InfrastructureView: View {
                             }
 
                         } else {
-                            EmptyState(icon: "server.rack", message: "Pull to refresh infrastructure data")
+                            // Skeleton loading placeholders
+                            SkeletonCard(height: 80)
+                            HStack(spacing: 14) {
+                                SkeletonCard(height: 90)
+                                SkeletonCard(height: 90)
+                                SkeletonCard(height: 90)
+                            }
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                SkeletonCard(height: 60)
+                                SkeletonCard(height: 60)
+                                SkeletonCard(height: 60)
+                            }
+                            SkeletonCard(height: 60)
+                            SkeletonCard(height: 50)
+                            SkeletonCard(height: 50)
+                            SkeletonCard(height: 50)
                         }
                     }
                     .padding(.horizontal, 14)

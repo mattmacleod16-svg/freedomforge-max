@@ -3,6 +3,9 @@ import SwiftUI
 // MARK: - Design Tokens
 
 enum FFDesign {
+    // Background
+    static let background = Color(red: 0.04, green: 0.04, blue: 0.06)
+
     // Premium color palette
     static let accent = Color(red: 0.0, green: 0.82, blue: 1.0)         // Electric cyan
     static let accentDim = Color(red: 0.0, green: 0.55, blue: 0.72)
@@ -39,6 +42,18 @@ enum FFDesign {
         colors: [Color.red.opacity(0.15), Color.red.opacity(0.05)],
         startPoint: .top, endPoint: .bottom
     )
+
+    // Glass morphism card gradient
+    static let glassGradient = LinearGradient(
+        colors: [Color.white.opacity(0.08), Color.white.opacity(0.02)],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    // Premium glow gradient for highlighted borders
+    static let premiumBorderGradient = AngularGradient(
+        colors: [accent.opacity(0.6), premium.opacity(0.3), accent.opacity(0.6)],
+        center: .center
+    )
 }
 
 // MARK: - Premium Card
@@ -60,15 +75,36 @@ struct PremiumCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(FFDesign.cardGradient)
+                    .fill(FFDesign.glassGradient)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .stroke(
-                                highlighted ? highlightColor.opacity(0.3) : FFDesign.border,
+                                highlighted
+                                    ? AnyShapeStyle(LinearGradient(
+                                        colors: [highlightColor.opacity(0.5), highlightColor.opacity(0.15)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    : AnyShapeStyle(FFDesign.border),
                                 lineWidth: 1
                             )
                     )
             )
+            // Subtle inner glow overlay
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.white.opacity(0.03), Color.clear],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: 200
+                        )
+                    )
+                    .allowsHitTesting(false)
+            )
+            // Tight shadow layer
+            .shadow(color: Color.black.opacity(0.3), radius: 4, y: 2)
+            // Wide ambient shadow layer
+            .shadow(color: Color.black.opacity(0.15), radius: 20, y: 8)
     }
 }
 
@@ -181,6 +217,7 @@ struct KPICard: View {
                         .stroke(color.opacity(0.15), lineWidth: 1)
                 )
         )
+        .shadow(color: color.opacity(0.15), radius: 12, y: 4)
     }
 }
 
@@ -449,16 +486,179 @@ struct ConnectionStatusBar: View {
 struct EmptyState: View {
     let icon: String
     let message: String
+    @State private var breathing = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 40, weight: .light))
-                .foregroundColor(FFDesign.textTertiary)
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [FFDesign.accent.opacity(0.08), Color.clear],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 50
+                        )
+                    )
+                    .frame(width: 100, height: 100)
+                Image(systemName: icon)
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundColor(FFDesign.textTertiary)
+                    .scaleEffect(breathing ? 1.05 : 1.0)
+            }
+            .onAppear {
+                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                    breathing = true
+                }
+            }
             Text(message)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(FFDesign.textSecondary)
                 .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(32)
+    }
+}
+
+// MARK: - Shimmer / Skeleton Loading
+
+struct ShimmerModifier: ViewModifier {
+    @State private var phase: CGFloat = -1
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                LinearGradient(
+                    colors: [.clear, Color.white.opacity(0.12), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .rotationEffect(.degrees(20))
+                .offset(x: phase * 400)
+                .mask(content)
+            )
+            .onAppear {
+                withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+    }
+}
+
+extension View {
+    func shimmer() -> some View { modifier(ShimmerModifier()) }
+}
+
+struct SkeletonCard: View {
+    var height: CGFloat = 80
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(FFDesign.surface)
+            .frame(height: height)
+            .shimmer()
+    }
+}
+
+struct SkeletonRow: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RoundedRectangle(cornerRadius: 4).fill(FFDesign.surface).frame(width: 120, height: 10)
+            RoundedRectangle(cornerRadius: 4).fill(FFDesign.surface).frame(width: 80, height: 18)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(FFDesign.surface))
+        .shimmer()
+    }
+}
+
+// MARK: - Haptic Manager
+
+struct HapticManager {
+    #if os(iOS)
+    static func light() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+    static func medium() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+    static func heavy() { UIImpactFeedbackGenerator(style: .heavy).impactOccurred() }
+    static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
+    static func error() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+    #else
+    static func light() {}
+    static func medium() {}
+    static func heavy() {}
+    static func success() {}
+    static func warning() {}
+    static func error() {}
+    #endif
+}
+
+// MARK: - Staggered Appearance
+
+struct StaggeredAppearance: ViewModifier {
+    let index: Int
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared ? 1 : 0)
+            .offset(y: appeared ? 0 : 12)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.05), value: appeared)
+            .onAppear { appeared = true }
+    }
+}
+
+extension View {
+    func staggered(index: Int) -> some View { modifier(StaggeredAppearance(index: index)) }
+}
+
+// MARK: - Connection Error View
+
+struct ConnectionErrorView: View {
+    let error: String
+    let onRetry: () -> Void
+    @State private var pulse = false
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Animated icon with glow
+            ZStack {
+                Circle()
+                    .fill(FFDesign.negative.opacity(0.08))
+                    .frame(width: 80, height: 80)
+                    .scaleEffect(pulse ? 1.2 : 1.0)
+                Image(systemName: "wifi.slash")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundColor(FFDesign.negative)
+                    .scaleEffect(pulse ? 1.05 : 1.0)
+            }
+            .onAppear {
+                withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) { pulse = true }
+            }
+
+            VStack(spacing: 8) {
+                Text("CONNECTION LOST")
+                    .font(.system(size: 14, weight: .bold, design: .monospaced))
+                    .foregroundColor(FFDesign.textPrimary)
+                    .tracking(1)
+                Text(error)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(FFDesign.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+            }
+
+            Button(action: { HapticManager.medium(); onRetry() }) {
+                Text("RETRY")
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .tracking(1)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: 200)
+                    .padding(.vertical, 14)
+                    .background(FFDesign.accentGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(32)

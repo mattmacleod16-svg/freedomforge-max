@@ -8,7 +8,7 @@ struct TradesView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     ConnectionStatusBar()
@@ -28,6 +28,7 @@ struct TradesView: View {
                         statsView
                     }
                 }
+                .animation(.easeInOut(duration: 0.2), value: selectedTab)
             }
             .navigationTitle("Trades")
             .refreshable {
@@ -49,6 +50,15 @@ struct TradesView: View {
                 LazyVStack(spacing: 8) {
                     ForEach(trades, id: \.displayId) { trade in
                         TradeRow(trade: trade)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 20)
+            } else if appState.trades == nil {
+                // Skeleton loading placeholders
+                LazyVStack(spacing: 8) {
+                    ForEach(0..<6, id: \.self) { _ in
+                        SkeletonRow()
                     }
                 }
                 .padding(.horizontal, 14)
@@ -174,6 +184,18 @@ struct TradeRow: View {
                 Text(FF.timeAgo(trade.entryTs))
                     .font(.system(size: 10, weight: .medium, design: .monospaced))
                     .foregroundColor(FFDesign.textTertiary)
+            }
+
+            // P&L magnitude bar indicator
+            if trade.closedAt != nil, let pnl = trade.pnl, let size = trade.usdSize, size > 0 {
+                let magnitude = min(abs(pnl) / size, 1.0)
+                let barColor = pnl >= 0 ? FFDesign.positive : FFDesign.negative
+                HorizontalBar(
+                    value: magnitude,
+                    maxValue: 1.0,
+                    color: barColor,
+                    height: 3
+                )
             }
         }
         .padding(14)

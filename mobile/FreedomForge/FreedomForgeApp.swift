@@ -20,16 +20,28 @@ import SwiftUI
 @main
 struct FreedomForgeApp: App {
     @StateObject private var appState = AppState()
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(appState)
-                .preferredColorScheme(.dark)
-                .onAppear {
-                    appState.startPolling()
-                    appState.refreshAll()
+            ZStack {
+                if !showSplash {
+                    ContentView()
+                        .environmentObject(appState)
+                        .transition(.opacity)
+                        .onAppear {
+                            appState.startPolling()
+                            appState.refreshAll()
+                        }
                 }
+
+                if showSplash {
+                    SplashView(isPresented: $showSplash)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.4), value: showSplash)
+            .preferredColorScheme(.dark)
         }
         #if os(macOS)
         .defaultSize(width: 1200, height: 800)

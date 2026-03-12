@@ -33,6 +33,8 @@ const sourceFiles = [
   { name: 'SignalsView.swift', dir: 'Views/Signals' },
   { name: 'InfrastructureView.swift', dir: 'Views/Infrastructure' },
   { name: 'SettingsView.swift', dir: 'Views/Settings' },
+  { name: 'SplashView.swift', dir: 'Views' },
+  { name: 'MoreView.swift', dir: 'Views/More' },
 ];
 
 // Generate UUIDs

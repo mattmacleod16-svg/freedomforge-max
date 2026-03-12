@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
@@ -238,7 +238,10 @@ struct SettingsView: View {
 
                         // Actions
                         SectionHeader(title: "Actions", icon: "bolt.circle")
-                        Button(action: { appState.refreshAll() }) {
+                        Button(action: {
+                            HapticManager.medium()
+                            appState.refreshAll()
+                        }) {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 14, weight: .semibold))
@@ -285,6 +288,7 @@ struct SettingsView: View {
     }
 
     func saveAndConnect() {
+        HapticManager.medium()
         appState.serverURL = tempURL
         appState.apiToken = tempToken
         appState.reconfigure()

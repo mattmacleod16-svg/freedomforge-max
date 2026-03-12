@@ -3,11 +3,13 @@ import SwiftUI
 /// Risk view — VaR, drawdown, kill switch, margin health, risk events.
 struct RiskView: View {
     @EnvironmentObject var appState: AppState
+    @State private var killSwitchPulseOpacity: Double = 0.3
+    @State private var killSwitchIconScale: Double = 1.0
 
     var body: some View {
         NavigationStack {
             ZStack {
-                Color.black.ignoresSafeArea()
+                Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 14) {
@@ -118,7 +120,18 @@ struct RiskView: View {
                             }
 
                         } else {
-                            EmptyState(icon: "shield.lefthalf.filled", message: "Pull to refresh risk data")
+                            // Skeleton loading placeholders
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                SkeletonCard(height: 80)
+                                SkeletonCard(height: 80)
+                            }
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                SkeletonCard(height: 60)
+                                SkeletonCard(height: 60)
+                            }
+                            SkeletonCard(height: 90)
+                            SkeletonCard(height: 80)
+                            SkeletonCard(height: 80)
                         }
                     }
                     .padding(.horizontal, 14)
@@ -149,6 +162,7 @@ struct RiskView: View {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.octagon.fill")
                     .font(.system(size: 22, weight: .bold))
+                    .scaleEffect(killSwitchIconScale)
                 Text("KILL SWITCH ACTIVE")
                     .font(.system(size: 16, weight: .bold, design: .monospaced))
                     .tracking(1)
@@ -168,9 +182,16 @@ struct RiskView: View {
                 .fill(FFDesign.killGradient)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(FFDesign.negative.opacity(0.3), lineWidth: 2)
+                        .stroke(FFDesign.negative.opacity(killSwitchPulseOpacity), lineWidth: 2)
                 )
         )
+        .onAppear {
+            HapticManager.error()
+            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                killSwitchPulseOpacity = 0.8
+                killSwitchIconScale = 1.15
+            }
+        }
     }
 
     // MARK: - Margin Card
