@@ -105,6 +105,18 @@ try { asyncExecutor = require('../lib/async-executor'); } catch { asyncExecutor 
 let arbDetector;
 try { arbDetector = require('../lib/arb-detector'); } catch { arbDetector = null; }
 
+// ─── Wave 2: Advanced Trading Modules ────────────────────────────────────────
+let priceAggregator;
+try { priceAggregator = require('../lib/price-aggregator'); } catch { priceAggregator = null; }
+let hedgeEngine;
+try { hedgeEngine = require('../lib/hedge-engine'); } catch { hedgeEngine = null; }
+let regimeSizer;
+try { regimeSizer = require('../lib/regime-sizer'); } catch { regimeSizer = null; }
+let circuitBreaker;
+try { circuitBreaker = require('../lib/circuit-breaker'); } catch { circuitBreaker = null; }
+let smartOrderRouter;
+try { smartOrderRouter = require('../lib/smart-order-router'); } catch { smartOrderRouter = null; }
+
 // ─── State Management ────────────────────────────────────────────────────────
 
 // Resilient I/O — atomic writes, backup recovery, file locking
@@ -649,13 +661,27 @@ function isVenueEnabled(venue) {
   return false;
 }
 
-function executeVenueTrade(venue, signal, orderUsd) {
+/**
+ * Execute a trade on a venue — uses async executor when available, falls back to sync.
+ * The async executor spawns a non-blocking child process with proper timeout + metrics.
+ */
+async function executeVenueTrade(venue, signal, orderUsd) {
+  // ═══ ASYNC PATH: Use the non-blocking async executor (preferred) ═══
+  if (asyncExecutor && typeof asyncExecutor.executeVenue === 'function') {
+    log('info', `  Executing on ${venue} (async): ${signal.asset} ${signal.side} $${orderUsd.toFixed(2)}`);
+    try {
+      return await asyncExecutor.executeVenue({ venue, signal, orderUsd });
+    } catch (err) {
+      log('warn', `Async executor failed for ${venue}, falling back to sync: ${err?.message || err}`);
+    }
+  }
+
+  // ═══ SYNC FALLBACK: Original spawnSync path ═══
   const script = getVenueScript(venue);
   if (!script) return { success: false, reason: `no script for venue ${venue}` };
 
-  log('info', `  Executing on ${venue}: ${signal.asset} ${signal.side} $${orderUsd.toFixed(2)}`);
+  log('info', `  Executing on ${venue} (sync): ${signal.asset} ${signal.side} $${orderUsd.toFixed(2)}`);
 
-  // ═══ FIX C-5: Route asset to correct product ID / pair ═══
   const asset = (signal.asset || 'BTC').toUpperCase();
   const krakenPairMap = {
     BTC: 'XXBTZUSD', ETH: 'XETHZUSD', SOL: 'SOLUSD', AVAX: 'AVAXUSD',
@@ -668,12 +694,10 @@ function executeVenueTrade(venue, signal, orderUsd) {
   const result = spawnSync('node', [script], {
     env: {
       ...process.env,
-      // Override per-trade parameters
       [`${venue.toUpperCase()}_ORDER_USD`]: String(orderUsd),
       KRAKEN_ORDER_USD: venue === 'kraken' ? String(orderUsd) : process.env.KRAKEN_ORDER_USD,
       COINBASE_ORDER_USD: venue === 'coinbase' ? String(orderUsd) : process.env.COINBASE_ORDER_USD,
       PRED_MARKET_ORDER_USD: venue === 'prediction' ? String(orderUsd) : process.env.PRED_MARKET_ORDER_USD,
-      // Route to correct asset product / pair
       COINBASE_PRODUCT_ID: venue === 'coinbase' ? coinbaseProductId : (process.env.COINBASE_PRODUCT_ID || 'BTC-USD'),
       KRAKEN_PAIR: venue === 'kraken' ? krakenPair : (process.env.KRAKEN_PAIR || 'XXBTZUSD'),
     },
@@ -727,8 +751,24 @@ async function phaseTradeExecution(signals) {
         venue: 'unknown',
       });
 
+      // ═══ REGIME-AWARE SIZING — adjust for market regime + time + streak ═══
+      if (regimeSizer) {
+        try {
+          const regimeSize = regimeSizer.regimeAdjustedSize({
+            baseUsd: orderUsd,
+            confidence: signal.confidence,
+            edge: signal.edge,
+            asset: signal.asset,
+          });
+          if (regimeSize !== orderUsd) {
+            log('info', `  Regime-adjusted ${signal.asset}: $${orderUsd.toFixed(2)} → $${regimeSize.toFixed(2)} (${regimeSizer.getCurrentRegime().regime})`);
+            orderUsd = regimeSize;
+          }
+        } catch (err) { log('warn', `Regime sizer error: ${err?.message || err}`); }
+      }
+
       // ═══ TIME-OF-DAY REDUCTION — brain advisory for off-peak hours ═══
-      if (_reducedSizeActive) {
+      if (_reducedSizeActive && !regimeSizer) {
         const preReduction = orderUsd;
         orderUsd = Math.round(orderUsd * 0.6 * 100) / 100;
         log('info', `  Time-of-day reduction for ${signal.asset}: $${preReduction.toFixed(2)} → $${orderUsd.toFixed(2)} (0.6x)`);
@@ -868,6 +908,53 @@ async function phaseTradeExecution(signals) {
         } catch (err) { log('warn', `Flash crash check error: ${err?.message || err}`); }
       }
 
+      // ═══ HEDGE CHECK — would this trade exceed exposure limits? ═══
+      if (hedgeEngine) {
+        try {
+          const hedgeCheck = hedgeEngine.shouldHedge({
+            asset: signal.asset,
+            side: signal.side,
+            usdSize: orderUsd,
+          });
+          if (hedgeCheck.hedgeNeeded && !hedgeCheck.allowed) {
+            log('warn', `  Hedge engine blocked ${signal.asset}: ${hedgeCheck.recommendation?.reason || 'exposure limit'}`);
+            executions.push({
+              asset: signal.asset, side: signal.side, status: 'hedge_blocked',
+              reasons: [hedgeCheck.recommendation?.reason || 'net exposure exceeded'],
+              hedgeRecommendation: hedgeCheck.recommendation,
+            });
+            continue;
+          }
+        } catch (err) { log('warn', `Hedge check error: ${err?.message || err}`); }
+      }
+
+      // ═══ CONSENSUS GATE — Multi-agent vote before execution ═══
+      if (consensusEngine && !DRY_RUN) {
+        try {
+          const proposal = await consensusEngine.propose({
+            asset: signal.asset,
+            side: signal.side,
+            confidence: signal.confidence,
+            edge: signal.edge,
+            venue: 'best',
+            orderUsd,
+            proposer: 'orchestrator',
+            meta: signal.meta || {},
+          });
+          if (!proposal.approved) {
+            log('info', `  Consensus rejected ${signal.asset} ${signal.side}: score=${(proposal.approvalScore * 100).toFixed(1)}% (need ${(proposal.threshold * 100).toFixed(0)}%)`);
+            executions.push({
+              asset: signal.asset, side: signal.side, status: 'consensus_rejected',
+              reasons: [`approval ${(proposal.approvalScore * 100).toFixed(1)}% < ${(proposal.threshold * 100).toFixed(0)}%`],
+              consensusScore: proposal.approvalScore,
+              voters: Object.keys(proposal.votes || {}),
+            });
+            continue;
+          }
+          log('info', `  Consensus approved ${signal.asset}: ${(proposal.approvalScore * 100).toFixed(1)}% (${Object.keys(proposal.votes || {}).length} voters)`);
+        } catch (err) { log('warn', `Consensus vote error: ${err?.message || err}`); }
+      }
+
       // ═══ WAL: Write pending entry BEFORE attempting any venue ═══
       let walTradeId = null;
       if (tradeJournal) {
@@ -888,9 +975,30 @@ async function phaseTradeExecution(signals) {
         } catch (err) { log('warn', 'WAL pending write failed: ' + (err?.message || err)); }
       }
 
-      // Try each venue in priority order
+      // ═══ SMART ORDER ROUTING — data-driven venue selection ═══
+      let venueOrder = VENUE_PRIORITY;
+      if (smartOrderRouter) {
+        try {
+          const enabledVenues = VENUE_PRIORITY.filter(v => isVenueEnabled(v) && v !== 'prediction');
+          const orderedVenues = await smartOrderRouter.getOrderedVenues({
+            asset: signal.asset,
+            side: signal.side,
+            usdSize: orderUsd,
+            enabledVenues,
+            priorityOrder: VENUE_PRIORITY,
+          });
+          if (orderedVenues.length > 0) {
+            venueOrder = orderedVenues;
+            if (venueOrder[0] !== VENUE_PRIORITY.find(v => isVenueEnabled(v))) {
+              log('info', `  Smart router: ${signal.asset} → ${venueOrder[0]} (vs default ${VENUE_PRIORITY[0]})`);
+            }
+          }
+        } catch (err) { log('warn', `Smart router error: ${err?.message || err}`); }
+      }
+
+      // Try each venue in optimized order
       let traded = false;
-      for (const venue of VENUE_PRIORITY) {
+      for (const venue of venueOrder) {
         if (!isVenueEnabled(venue)) continue;
         if (venue === 'prediction') continue; // prediction engine handles its own assets
 
@@ -903,8 +1011,13 @@ async function phaseTradeExecution(signals) {
           }
         }
 
-        const result = executeVenueTrade(venue, signal, orderUsd);
+        const result = await executeVenueTrade(venue, signal, orderUsd);
         executions.push(result);
+
+        // Record execution quality for smart router learning
+        if (smartOrderRouter) {
+          try { smartOrderRouter.recordExecution(venue, result); } catch { /* best-effort */ }
+        }
 
         if (result.success) {
           tradesPlaced++;
@@ -918,6 +1031,11 @@ async function phaseTradeExecution(signals) {
             usdSize: orderUsd,
             venue,
           });
+
+          // Update hedge engine exposure tracking
+          if (hedgeEngine) {
+            try { hedgeEngine.updateExposure(signal.asset, signal.side, orderUsd, venue); } catch { /* best-effort */ }
+          }
 
           // ═══ WAL: Update pending entry → placed ═══
           if (tradeJournal && walTradeId) {
@@ -999,7 +1117,7 @@ async function phaseTradeExecution(signals) {
       // No risk manager — direct execution on first available venue
       for (const venue of VENUE_PRIORITY) {
         if (!isVenueEnabled(venue) || venue === 'prediction') continue;
-        const result = executeVenueTrade(venue, signal, BASE_ORDER_USD);
+        const result = await executeVenueTrade(venue, signal, BASE_ORDER_USD);
         executions.push(result);
         if (result.success) { tradesPlaced++; break; }
       }
@@ -1085,6 +1203,12 @@ function phasePublishState(health, brainResult, signals, execution, predResult, 
         exitManager: health.exitManager,
       },
       signalBusSignals: health.signalBusSignals || 0,
+      // Wave 2: Enhanced observability
+      circuitBreakers: circuitBreaker ? circuitBreaker.getStats() : null,
+      orderRouter: smartOrderRouter ? smartOrderRouter.getStats() : null,
+      hedgeExposure: hedgeEngine ? hedgeEngine.getNetExposure() : null,
+      regime: regimeSizer ? regimeSizer.getCurrentRegime() : null,
+      priceSourceHealth: priceAggregator ? priceAggregator.getSourceHealth() : null,
     },
     ttlMs: 10 * 60 * 1000,
   });
@@ -1396,6 +1520,37 @@ async function runCycle(startMs) {
         log('info', `  Found ${arbResult.opportunities} arb opportunities`);
       }
     } catch (e) { log('warn', `Arb scan failed: ${e?.message || e}`); }
+  }
+
+  // Phase 5g: Hedge Recommendations — check portfolio balance
+  let hedgeRecommendations = [];
+  if (hedgeEngine) {
+    try {
+      // Feed reconciliation outcomes to regime sizer
+      if (regimeSizer && reconcileResult.closed) {
+        for (const c of reconcileResult.closed) {
+          regimeSizer.recordTradeOutcome((c.pnl || 0) > 0);
+          hedgeEngine.closeExposure(c.asset, c.side, Math.abs(c.usdSize || c.pnl || 0));
+        }
+      }
+
+      hedgeRecommendations = hedgeEngine.computeHedgeRecommendations();
+      if (hedgeRecommendations.length > 0) {
+        log('info', `═══ Phase 5g: Hedge Recommendations (${hedgeRecommendations.length}) ═══`);
+        for (const h of hedgeRecommendations) {
+          log('info', `    ${h.type}: ${h.side} $${h.usdSize} ${h.asset} — ${h.reason}`);
+        }
+        // Publish hedge recommendations to signal bus for next cycle consideration
+        if (signalBus) {
+          signalBus.publish({
+            type: 'hedge_recommendations',
+            source: 'hedge-engine',
+            payload: { recommendations: hedgeRecommendations, exposure: hedgeEngine.getNetExposure() },
+            ttlMs: 10 * 60 * 1000,
+          });
+        }
+      }
+    } catch (e) { log('warn', `Hedge engine error: ${e?.message || e}`); }
   }
 
   // Phase 6: Prediction Markets

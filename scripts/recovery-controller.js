@@ -289,10 +289,69 @@ async function main() {
   const logs = Array.isArray(logsPayload?.logs) ? logsPayload.logs : [];
   const window = summarizeWindow(logs);
 
+  // ═══ ENHANCED: Also check trade journal for dry-run profitability ═══
+  // If wallet logs show 0 attempts (common during DRY_RUN mode), check
+  // whether the orchestrator's simulated trades have been profitable.
+  // This prevents the system from being stuck in 'safe' mode forever
+  // when DRY_RUN=true prevents actual wallet transactions.
+  let journalPositive = false;
+  let journalStats = null;
+  if (window.attempts < MIN_ATTEMPTS) {
+    try {
+      const journalPath = path.resolve(process.cwd(), 'data/trade-journal.json');
+      if (fs.existsSync(journalPath)) {
+        const journalData = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
+        const trades = Array.isArray(journalData) ? journalData : (journalData.trades || []);
+        const cutoff = Date.now() - WINDOW_HOURS * 60 * 60 * 1000;
+        const recentTrades = trades.filter(t => {
+          const ts = Date.parse(t?.openedAt || t?.closedAt || '');
+          return Number.isFinite(ts) && ts >= cutoff;
+        });
+
+        const closedRecent = recentTrades.filter(t => t.closedAt && t.pnl != null);
+        const totalPnl = closedRecent.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0);
+        const winCount = closedRecent.filter(t => (Number(t.pnl) || 0) > 0).length;
+        const journalAttempts = recentTrades.length;
+
+        journalStats = {
+          recentTrades: journalAttempts,
+          closedTrades: closedRecent.length,
+          totalPnl: Math.round(totalPnl * 100) / 100,
+          winRate: closedRecent.length > 0 ? Math.round(winCount / closedRecent.length * 100) / 100 : 0,
+        };
+
+        // Journal counts as positive if:
+        // 1. At least MIN_ATTEMPTS dry-run trades in the window
+        // 2. Closed trades have net positive P&L
+        // 3. Win rate >= 50%
+        if (journalAttempts >= MIN_ATTEMPTS && closedRecent.length >= 2 && totalPnl > 0 && winCount / closedRecent.length >= 0.5) {
+          journalPositive = true;
+        }
+      }
+    } catch (err) {
+      // Non-fatal — fall through to wallet-only logic
+      console.warn(`Journal check failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Also check orchestrator state for cycle health
+  let orchestratorHealthy = false;
+  try {
+    const orchStatePath = path.resolve(process.cwd(), 'data/orchestrator-state.json');
+    if (fs.existsSync(orchStatePath)) {
+      const orchState = JSON.parse(fs.readFileSync(orchStatePath, 'utf8'));
+      const sinceLastCycle = Date.now() - (orchState.lastRunAt || 0);
+      // Orchestrator ran within last 10 minutes and has completed >5 cycles
+      orchestratorHealthy = sinceLastCycle < 10 * 60 * 1000 && (orchState.cycleCount || 0) >= 5;
+    }
+  } catch { /* ignore */ }
+
   const statePath = path.resolve(process.cwd(), STATE_FILE);
   const state = loadState(statePath);
 
-  const nextPositiveStreak = window.isPositive ? state.positiveStreak + 1 : 0;
+  // Window is positive if either wallet logs OR journal data show positive performance
+  const windowIsPositive = window.isPositive || (journalPositive && orchestratorHealthy);
+  const nextPositiveStreak = windowIsPositive ? state.positiveStreak + 1 : 0;
   let nextMode = 'safe';
   if (nextPositiveStreak >= POSITIVE_WINDOWS_REQUIRED) {
     nextMode = 'phase2-conservative';
@@ -310,6 +369,10 @@ async function main() {
     lastUpdatedAt: Date.now(),
     lastWindow: {
       ...window,
+      journalPositive,
+      journalStats,
+      orchestratorHealthy,
+      windowIsPositive,
       ts: new Date().toISOString(),
     },
   };

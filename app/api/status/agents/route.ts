@@ -40,6 +40,11 @@ export async function GET(req: Request) {
       arbDetector,
       heartbeatRegistry,
       signalBus,
+      circuitBreaker,
+      smartOrderRouter,
+      priceAggregator,
+      hedgeEngine,
+      regimeSizer,
     ] = await Promise.all([
       safeRequire('@/lib/event-mesh'),
       safeRequire('@/lib/consensus-engine'),
@@ -49,6 +54,11 @@ export async function GET(req: Request) {
       safeRequire('@/lib/arb-detector'),
       safeRequire('@/lib/heartbeat-registry'),
       safeRequire('@/lib/agent-signal-bus'),
+      safeRequire('@/lib/circuit-breaker'),
+      safeRequire('@/lib/smart-order-router'),
+      safeRequire('@/lib/price-aggregator'),
+      safeRequire('@/lib/hedge-engine'),
+      safeRequire('@/lib/regime-sizer'),
     ]);
 
     const health: Record<string, unknown> = {
@@ -110,6 +120,43 @@ export async function GET(req: Request) {
       health.signalBus = signalBus.summary();
     } else {
       health.signalBus = { status: 'not_loaded' };
+    }
+
+    // ─── Wave 2: Advanced Trading Modules ─────────────────────────────────
+
+    // Circuit Breaker
+    if (circuitBreaker?.getStats) {
+      health.circuitBreaker = circuitBreaker.getStats();
+    } else {
+      health.circuitBreaker = { status: 'not_loaded' };
+    }
+
+    // Smart Order Router
+    if (smartOrderRouter?.getStats) {
+      health.orderRouter = smartOrderRouter.getStats();
+    } else {
+      health.orderRouter = { status: 'not_loaded' };
+    }
+
+    // Price Aggregator
+    if (priceAggregator?.getSourceHealth) {
+      health.priceAggregator = priceAggregator.getSourceHealth();
+    } else {
+      health.priceAggregator = { status: 'not_loaded' };
+    }
+
+    // Hedge Engine
+    if (hedgeEngine?.getStats) {
+      health.hedgeEngine = hedgeEngine.getStats();
+    } else {
+      health.hedgeEngine = { status: 'not_loaded' };
+    }
+
+    // Regime Sizer
+    if (regimeSizer?.getStats) {
+      health.regimeSizer = regimeSizer.getStats();
+    } else {
+      health.regimeSizer = { status: 'not_loaded' };
     }
 
     // Overall system health
