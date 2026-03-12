@@ -273,16 +273,18 @@ function scoreAndDecide(features) {
   let riskOnScore = 0;
   let riskOffScore = 0;
 
-  riskOnScore += clamp((features.momentum.composite24hPct + 4) / 8, 0, 1) * 0.40;
-  riskOnScore += clamp(features.oss.innovationScore, 0, 1) * 0.20;
-  riskOnScore += clamp(features.trending.aiHits / 4, 0, 1) * 0.20;
-  riskOnScore += (features.fearGreed.value !== null ? clamp((features.fearGreed.value - 35) / 35, 0, 1) : 0.5) * 0.20;
-  riskOnScore += clamp((features.wormhole.netRiskBias + 1) / 2, 0, 1) * 0.15;
+  // Weights normalized to sum to 1.0 (were 0.40+0.20+0.20+0.20+0.15=1.15, each divided by 1.15)
+  riskOnScore += clamp((features.momentum.composite24hPct + 4) / 8, 0, 1) * 0.3478;
+  riskOnScore += clamp(features.oss.innovationScore, 0, 1) * 0.1739;
+  riskOnScore += clamp(features.trending.aiHits / 4, 0, 1) * 0.1739;
+  riskOnScore += (features.fearGreed.value !== null ? clamp((features.fearGreed.value - 35) / 35, 0, 1) : 0.5) * 0.1739;
+  riskOnScore += clamp((features.wormhole.netRiskBias + 1) / 2, 0, 1) * 0.1305;
 
-  riskOffScore += clamp((-features.momentum.composite24hPct + 4) / 8, 0, 1) * 0.40;
-  riskOffScore += (features.fearGreed.value !== null ? clamp((35 - features.fearGreed.value) / 35, 0, 1) : 0.5) * 0.35;
-  riskOffScore += (features.trending.signal === 'trending_error' ? 0.1 : 0) + (features.momentum.signal === 'momentum_down' ? 0.15 : 0);
-  riskOffScore += clamp((1 - features.wormhole.netRiskBias) / 2, 0, 1) * 0.10;
+  // Weights normalized to sum to 1.0 (were 0.40+0.35+0.25+0.10=1.10, each divided by 1.10)
+  riskOffScore += clamp((-features.momentum.composite24hPct + 4) / 8, 0, 1) * 0.3636;
+  riskOffScore += (features.fearGreed.value !== null ? clamp((35 - features.fearGreed.value) / 35, 0, 1) : 0.5) * 0.3182;
+  riskOffScore += (features.trending.signal === 'trending_error' ? 0.0909 : 0) + (features.momentum.signal === 'momentum_down' ? 0.1364 : 0);
+  riskOffScore += clamp((1 - features.wormhole.netRiskBias) / 2, 0, 1) * 0.0909;
 
   const delta = riskOnScore - riskOffScore;
   const confidence = clamp(Math.abs(delta) * 1.4, 0.35, 0.92);

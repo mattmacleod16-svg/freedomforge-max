@@ -89,6 +89,7 @@ try { mlPipeline = require('../lib/ml-pipeline'); } catch { mlPipeline = null; }
 let exitManager;
 try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null; }
 let _exitLoopHandle = null; // Handle for exit-manager background loop (used in graceful shutdown)
+let _reducedSizeActive = false; // Set by brain.shouldTradeNow() time-of-day filter
 
 // ─── State Management ────────────────────────────────────────────────────────
 
@@ -558,7 +559,10 @@ async function phaseSignalGeneration(assets) {
         return [];
       }
       if (timeCheck.reducedSize) {
-        log('info', `Brain time advisory: ${timeCheck.reason} — will use reduced sizing`);
+        log('info', `Brain time advisory: ${timeCheck.reason} — will use reduced sizing (0.6x)`);
+        _reducedSizeActive = true;
+      } else {
+        _reducedSizeActive = false;
       }
     } catch (err) { log('warn', `Brain time check error: ${err?.message || err}`); }
   }
@@ -587,6 +591,13 @@ async function phaseSignalGeneration(assets) {
       const sig = r.value;
       if (sig.side !== 'neutral' && sig.confidence >= resolvedMinConf && sig.edge >= 0.10) {
         signals.push(sig);
+      } else {
+        // Diagnostic logging for filtered signals
+        const reasons = [];
+        if (sig.side === 'neutral') reasons.push('neutral');
+        if (sig.confidence < resolvedMinConf) reasons.push(`low-conf:${sig.confidence.toFixed(3)}<${resolvedMinConf.toFixed(3)}`);
+        if (sig.edge < 0.10) reasons.push(`low-edge:${sig.edge.toFixed(3)}<0.100`);
+        log('debug', `  Filtered ${sig.asset} ${sig.side}: ${reasons.join(', ')}`);
       }
     }
   }
@@ -681,9 +692,16 @@ async function phaseTradeExecution(signals) {
 
   const executions = [];
   let tradesPlaced = 0;
+  const tradedAssetsThisCycle = new Set();
 
   for (const signal of signals.slice(0, MAX_TRADES_PER_CYCLE * 2)) {
     if (tradesPlaced >= MAX_TRADES_PER_CYCLE) break;
+
+    // Same-asset duplicate prevention within a single cycle
+    if (tradedAssetsThisCycle.has(signal.asset)) {
+      log('info', `  Skipping duplicate ${signal.asset} — already traded this cycle`);
+      continue;
+    }
 
     // Risk check before each trade
     if (riskManager) {
@@ -694,6 +712,13 @@ async function phaseTradeExecution(signals) {
         asset: signal.asset,
         venue: 'unknown',
       });
+
+      // ═══ TIME-OF-DAY REDUCTION — brain advisory for off-peak hours ═══
+      if (_reducedSizeActive) {
+        const preReduction = orderUsd;
+        orderUsd = Math.round(orderUsd * 0.6 * 100) / 100;
+        log('info', `  Time-of-day reduction for ${signal.asset}: $${preReduction.toFixed(2)} → $${orderUsd.toFixed(2)} (0.6x)`);
+      }
 
       // ═══ CAPITAL MANDATE GATE — No more funds. Ever. ═══
       if (capitalMandate) {
@@ -734,7 +759,7 @@ async function phaseTradeExecution(signals) {
           const varAdjusted = varEngine.varConstrainedSize({
             baseUsd: orderUsd,
             currentVaR,
-            assetVol: 3, // default crypto vol estimate
+            assetVol: varEngine.getAssetVolatility ? varEngine.getAssetVolatility(signal.asset) : 3,
             confidence: signal.confidence,
             edge: signal.edge,
           });
@@ -870,6 +895,7 @@ async function phaseTradeExecution(signals) {
         if (result.success) {
           tradesPlaced++;
           traded = true;
+          tradedAssetsThisCycle.add(signal.asset);
 
           // Update risk exposure
           riskManager.updateExposure({
