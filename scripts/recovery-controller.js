@@ -19,6 +19,15 @@ const MIN_ATTEMPTS = Math.max(1, Number(process.env.RECOVERY_MIN_ATTEMPTS || 3))
 const AUTO_REDEPLOY = String(process.env.RECOVERY_AUTO_REDEPLOY || 'true').toLowerCase() === 'true';
 const STATE_FILE = process.env.RECOVERY_STATE_FILE || 'data/recovery-controller-state.json';
 
+// ── 5-Level Mode System ───────────────────────────────────────────────────────
+// Promotion: safe → cautious → moderate → aggressive → full-live
+// Demotion: drops 1 level on negative window, 2 levels on drawdown breach
+const MODE_LADDER = ['safe', 'cautious', 'moderate', 'aggressive', 'full-live'];
+const MODE_INDEX = Object.freeze(MODE_LADDER.reduce((acc, m, i) => { acc[m] = i; return acc; }, {}));
+const MODE_COOLDOWN_HOURS = Math.max(1, Number(process.env.RECOVERY_MODE_COOLDOWN_HOURS || 6)); // Min 6h per mode
+const DRAWDOWN_DEMOTE_PCT = Number(process.env.RECOVERY_DRAWDOWN_DEMOTE_PCT || 5); // 5% drawdown → emergency demote
+const NEGATIVE_STREAK_EMERGENCY = Math.max(1, Number(process.env.RECOVERY_NEGATIVE_STREAK_EMERGENCY || 3)); // 3 negative → drop to safe
+
 const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
 const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || '';
 const VERCEL_PROJECT_SLUG = process.env.VERCEL_PROJECT_SLUG || 'freedomforge-max';
@@ -42,12 +51,20 @@ function weiToEthNumber(wei) {
 
 function loadState(absPath) {
   if (!fs.existsSync(absPath)) {
-    return { mode: 'safe', positiveStreak: 0, lastUpdatedAt: 0 };
+    return { mode: 'safe', modeIndex: 0, positiveStreak: 0, negativeStreak: 0, lastUpdatedAt: 0, lastModeChangeAt: 0, modeHistory: [] };
   }
   try {
-    return JSON.parse(fs.readFileSync(absPath, 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(absPath, 'utf8'));
+    // Migrate old 'phase2-conservative' mode to 'cautious'
+    if (raw.mode === 'phase2-conservative') raw.mode = 'cautious';
+    if (MODE_INDEX[raw.mode] === undefined) raw.mode = 'safe';
+    raw.modeIndex = MODE_INDEX[raw.mode] || 0;
+    raw.negativeStreak = raw.negativeStreak || 0;
+    raw.lastModeChangeAt = raw.lastModeChangeAt || raw.lastUpdatedAt || 0;
+    raw.modeHistory = raw.modeHistory || [];
+    return raw;
   } catch {
-    return { mode: 'safe', positiveStreak: 0, lastUpdatedAt: 0 };
+    return { mode: 'safe', modeIndex: 0, positiveStreak: 0, negativeStreak: 0, lastUpdatedAt: 0, lastModeChangeAt: 0, modeHistory: [] };
   }
 }
 
@@ -236,8 +253,23 @@ async function tryRedeployLatestProduction() {
 }
 
 function profileForMode(mode) {
-  if (mode === 'phase2-conservative') {
-    return {
+  // 5-level risk profiles with progressively less conservative settings
+  const profiles = {
+    'safe': {
+      POLY_CLOB_ENABLED: 'false',
+      POLY_CLOB_DRY_RUN: 'true',
+      CONVERSION_ENGINE_ENABLED: 'false',
+      CONVERSION_ENGINE_DRY_RUN: 'true',
+      MIN_PAYOUT_ETH_POLYGON_MAINNET: '10',
+      MIN_PAYOUT_GAS_MULTIPLIER_POLYGON_MAINNET: '100',
+      GAS_RESERVE_ETH_POLYGON_MAINNET: '100',
+      GAS_TOPUP_THRESHOLD_POLYGON_MAINNET: '100',
+      GAS_TOPUP_AMOUNT_POLYGON_MAINNET: '0',
+      SELF_SUSTAIN_REINVEST_BPS_POLYGON_MAINNET: '9800',
+      MAX_TRADES_PER_CYCLE: '1',
+      BASE_ORDER_USD: '10',
+    },
+    'cautious': {
       POLY_CLOB_ENABLED: 'false',
       POLY_CLOB_DRY_RUN: 'true',
       CONVERSION_ENGINE_ENABLED: 'false',
@@ -248,21 +280,54 @@ function profileForMode(mode) {
       GAS_TOPUP_THRESHOLD_POLYGON_MAINNET: '20',
       GAS_TOPUP_AMOUNT_POLYGON_MAINNET: '0',
       SELF_SUSTAIN_REINVEST_BPS_POLYGON_MAINNET: '9800',
-    };
-  }
-
-  return {
-    POLY_CLOB_ENABLED: 'false',
-    POLY_CLOB_DRY_RUN: 'true',
-    CONVERSION_ENGINE_ENABLED: 'false',
-    CONVERSION_ENGINE_DRY_RUN: 'true',
-    MIN_PAYOUT_ETH_POLYGON_MAINNET: '10',
-    MIN_PAYOUT_GAS_MULTIPLIER_POLYGON_MAINNET: '100',
-    GAS_RESERVE_ETH_POLYGON_MAINNET: '100',
-    GAS_TOPUP_THRESHOLD_POLYGON_MAINNET: '100',
-    GAS_TOPUP_AMOUNT_POLYGON_MAINNET: '0',
-    SELF_SUSTAIN_REINVEST_BPS_POLYGON_MAINNET: '9800',
+      MAX_TRADES_PER_CYCLE: '2',
+      BASE_ORDER_USD: '12',
+    },
+    'moderate': {
+      POLY_CLOB_ENABLED: 'true',
+      POLY_CLOB_DRY_RUN: 'true',
+      CONVERSION_ENGINE_ENABLED: 'true',
+      CONVERSION_ENGINE_DRY_RUN: 'true',
+      MIN_PAYOUT_ETH_POLYGON_MAINNET: '3',
+      MIN_PAYOUT_GAS_MULTIPLIER_POLYGON_MAINNET: '40',
+      GAS_RESERVE_ETH_POLYGON_MAINNET: '10',
+      GAS_TOPUP_THRESHOLD_POLYGON_MAINNET: '10',
+      GAS_TOPUP_AMOUNT_POLYGON_MAINNET: '0',
+      SELF_SUSTAIN_REINVEST_BPS_POLYGON_MAINNET: '9500',
+      MAX_TRADES_PER_CYCLE: '3',
+      BASE_ORDER_USD: '15',
+    },
+    'aggressive': {
+      POLY_CLOB_ENABLED: 'true',
+      POLY_CLOB_DRY_RUN: 'false',
+      CONVERSION_ENGINE_ENABLED: 'true',
+      CONVERSION_ENGINE_DRY_RUN: 'false',
+      MIN_PAYOUT_ETH_POLYGON_MAINNET: '2',
+      MIN_PAYOUT_GAS_MULTIPLIER_POLYGON_MAINNET: '20',
+      GAS_RESERVE_ETH_POLYGON_MAINNET: '5',
+      GAS_TOPUP_THRESHOLD_POLYGON_MAINNET: '5',
+      GAS_TOPUP_AMOUNT_POLYGON_MAINNET: '0.01',
+      SELF_SUSTAIN_REINVEST_BPS_POLYGON_MAINNET: '9000',
+      MAX_TRADES_PER_CYCLE: '4',
+      BASE_ORDER_USD: '20',
+    },
+    'full-live': {
+      POLY_CLOB_ENABLED: 'true',
+      POLY_CLOB_DRY_RUN: 'false',
+      CONVERSION_ENGINE_ENABLED: 'true',
+      CONVERSION_ENGINE_DRY_RUN: 'false',
+      MIN_PAYOUT_ETH_POLYGON_MAINNET: '1',
+      MIN_PAYOUT_GAS_MULTIPLIER_POLYGON_MAINNET: '10',
+      GAS_RESERVE_ETH_POLYGON_MAINNET: '3',
+      GAS_TOPUP_THRESHOLD_POLYGON_MAINNET: '3',
+      GAS_TOPUP_AMOUNT_POLYGON_MAINNET: '0.02',
+      SELF_SUSTAIN_REINVEST_BPS_POLYGON_MAINNET: '8500',
+      MAX_TRADES_PER_CYCLE: '5',
+      BASE_ORDER_USD: '25',
+    },
   };
+
+  return profiles[mode] || profiles['safe'];
 }
 
 async function applyMode(mode) {
@@ -352,10 +417,56 @@ async function main() {
   // Window is positive if either wallet logs OR journal data show positive performance
   const windowIsPositive = window.isPositive || (journalPositive && orchestratorHealthy);
   const nextPositiveStreak = windowIsPositive ? state.positiveStreak + 1 : 0;
-  let nextMode = 'safe';
-  if (nextPositiveStreak >= POSITIVE_WINDOWS_REQUIRED) {
-    nextMode = 'phase2-conservative';
+  const nextNegativeStreak = !windowIsPositive ? (state.negativeStreak || 0) + 1 : 0;
+
+  // ── Check drawdown from risk-manager state ──────────────────────────────
+  let drawdownPct = 0;
+  let drawdownBreach = false;
+  try {
+    const riskStatePath = path.resolve(process.cwd(), 'data/risk-manager-state.json');
+    if (fs.existsSync(riskStatePath)) {
+      const riskState = JSON.parse(fs.readFileSync(riskStatePath, 'utf8'));
+      drawdownPct = Math.abs(Number(riskState.currentDrawdownPct || riskState.drawdownPct || 0));
+      drawdownBreach = drawdownPct >= DRAWDOWN_DEMOTE_PCT;
+    }
+  } catch { /* ignore */ }
+
+  // ── Mode transition logic: 5-level ladder with cooldown ─────────────────
+  const currentModeIdx = MODE_INDEX[state.mode] !== undefined ? MODE_INDEX[state.mode] : 0;
+  const cooldownMs = MODE_COOLDOWN_HOURS * 60 * 60 * 1000;
+  const timeSinceLastChange = Date.now() - (state.lastModeChangeAt || 0);
+  const cooldownMet = timeSinceLastChange >= cooldownMs;
+
+  let nextModeIdx = currentModeIdx;
+  let transitionReason = 'hold';
+
+  // Emergency: drawdown breach → drop 2 levels
+  if (drawdownBreach) {
+    nextModeIdx = Math.max(0, currentModeIdx - 2);
+    transitionReason = `drawdown_emergency: ${drawdownPct.toFixed(1)}% >= ${DRAWDOWN_DEMOTE_PCT}% threshold`;
   }
+  // Emergency: too many consecutive negative windows → drop to safe
+  else if (nextNegativeStreak >= NEGATIVE_STREAK_EMERGENCY) {
+    nextModeIdx = 0; // safe
+    transitionReason = `negative_streak_emergency: ${nextNegativeStreak} consecutive negative windows`;
+  }
+  // Demotion: single negative window → drop 1 level (cooldown ignored for demotions)
+  else if (!windowIsPositive && currentModeIdx > 0) {
+    nextModeIdx = currentModeIdx - 1;
+    transitionReason = `demotion: negative window (attempts=${window.attempts}, successRate=${window.successRate.toFixed(2)}, netEth=${window.netEth.toFixed(4)})`;
+  }
+  // Promotion: enough positive windows + cooldown met → promote 1 level
+  else if (windowIsPositive && nextPositiveStreak >= POSITIVE_WINDOWS_REQUIRED && cooldownMet && currentModeIdx < MODE_LADDER.length - 1) {
+    nextModeIdx = currentModeIdx + 1;
+    transitionReason = `promotion: ${nextPositiveStreak} positive windows (needed ${POSITIVE_WINDOWS_REQUIRED}), cooldown met`;
+  }
+  // Hold: positive but not enough streak or cooldown
+  else if (windowIsPositive) {
+    transitionReason = `hold: positive window ${nextPositiveStreak}/${POSITIVE_WINDOWS_REQUIRED}` +
+      (!cooldownMet ? `, cooldown ${Math.round(timeSinceLastChange / 60000)}m/${MODE_COOLDOWN_HOURS * 60}m` : '');
+  }
+
+  const nextMode = MODE_LADDER[nextModeIdx];
 
   let changed = false;
   if (nextMode !== state.mode) {
@@ -365,8 +476,13 @@ async function main() {
 
   const nextState = {
     mode: nextMode,
+    modeIndex: nextModeIdx,
     positiveStreak: nextPositiveStreak,
+    negativeStreak: nextNegativeStreak,
+    lastModeChangeAt: changed ? Date.now() : (state.lastModeChangeAt || Date.now()),
     lastUpdatedAt: Date.now(),
+    transitionReason,
+    drawdownPct,
     lastWindow: {
       ...window,
       journalPositive,
@@ -375,6 +491,10 @@ async function main() {
       windowIsPositive,
       ts: new Date().toISOString(),
     },
+    modeHistory: [
+      ...(state.modeHistory || []).slice(-19), // Keep last 20 transitions
+      ...(changed ? [{ from: state.mode, to: nextMode, reason: transitionReason, ts: new Date().toISOString() }] : []),
+    ],
   };
 
   saveState(statePath, nextState);
@@ -386,8 +506,16 @@ async function main() {
         changed,
         fromMode: state.mode,
         toMode: nextMode,
+        modeIndex: nextModeIdx,
+        modeLadder: MODE_LADDER,
         positiveStreak: nextPositiveStreak,
+        negativeStreak: nextNegativeStreak,
         requiredPositiveStreak: POSITIVE_WINDOWS_REQUIRED,
+        cooldownHours: MODE_COOLDOWN_HOURS,
+        cooldownMet,
+        drawdownPct,
+        drawdownBreach,
+        transitionReason,
         window,
         stateFile: STATE_FILE,
       },
