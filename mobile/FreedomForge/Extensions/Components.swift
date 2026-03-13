@@ -3,27 +3,32 @@ import SwiftUI
 // MARK: - Design Tokens
 
 enum FFDesign {
-    // Background
-    static let background = Color(red: 0.04, green: 0.04, blue: 0.06)
+    // Background — deep void black with purple undertone
+    static let background = Color(red: 0.012, green: 0.004, blue: 0.031)  // #030108
 
-    // Premium color palette
-    static let accent = Color(red: 0.0, green: 0.82, blue: 1.0)         // Electric cyan
-    static let accentDim = Color(red: 0.0, green: 0.55, blue: 0.72)
-    static let positive = Color(red: 0.16, green: 0.87, blue: 0.44)     // Emerald green
-    static let negative = Color(red: 1.0, green: 0.27, blue: 0.33)      // Signal red
-    static let warning = Color(red: 1.0, green: 0.72, blue: 0.0)        // Amber
-    static let premium = Color(red: 0.56, green: 0.44, blue: 1.0)       // Violet
-    static let surface = Color.white.opacity(0.04)
-    static let surfaceElevated = Color.white.opacity(0.07)
-    static let border = Color.white.opacity(0.08)
-    static let borderLight = Color.white.opacity(0.12)
-    static let textPrimary = Color.white
-    static let textSecondary = Color.white.opacity(0.55)
-    static let textTertiary = Color.white.opacity(0.35)
+    // Phoenix color palette
+    static let accent = Color(red: 0.576, green: 0.200, blue: 0.918)      // Royal purple #9333ea
+    static let accentDim = Color(red: 0.400, green: 0.133, blue: 0.730)   // Deep purple
+    static let gold = Color(red: 0.831, green: 0.627, blue: 0.090)        // Phoenix gold #d4a017
+    static let positive = Color(red: 0.16, green: 0.87, blue: 0.44)       // Emerald green
+    static let negative = Color(red: 1.0, green: 0.27, blue: 0.33)        // Signal red
+    static let warning = Color(red: 1.0, green: 0.72, blue: 0.0)          // Amber
+    static let premium = Color(red: 0.831, green: 0.627, blue: 0.090)     // Phoenix gold
+    static let surface = Color(red: 0.05, green: 0.02, blue: 0.10).opacity(0.6)
+    static let surfaceElevated = Color(red: 0.08, green: 0.03, blue: 0.15).opacity(0.7)
+    static let border = Color(red: 0.576, green: 0.200, blue: 0.918).opacity(0.12)
+    static let borderLight = Color(red: 0.576, green: 0.200, blue: 0.918).opacity(0.20)
+    static let textPrimary = Color(red: 0.96, green: 0.94, blue: 1.0)     // #f5f0ff
+    static let textSecondary = Color(red: 0.66, green: 0.61, blue: 0.77)  // #a89cc4
+    static let textTertiary = Color(red: 0.42, green: 0.37, blue: 0.51)   // #6b5f82
 
     // Gradients
     static let accentGradient = LinearGradient(
-        colors: [accent, Color(red: 0.0, green: 0.55, blue: 1.0)],
+        colors: [accent, Color(red: 0.659, green: 0.333, blue: 0.969)],   // #a855f7
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+    static let goldGradient = LinearGradient(
+        colors: [gold, Color(red: 0.96, green: 0.77, blue: 0.26)],        // #f5c542
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
     static let positiveGradient = LinearGradient(
@@ -35,7 +40,7 @@ enum FFDesign {
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
     static let cardGradient = LinearGradient(
-        colors: [Color.white.opacity(0.06), Color.white.opacity(0.02)],
+        colors: [Color(red: 0.576, green: 0.200, blue: 0.918).opacity(0.06), Color(red: 0.05, green: 0.02, blue: 0.10).opacity(0.03)],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
     static let killGradient = LinearGradient(
@@ -43,15 +48,15 @@ enum FFDesign {
         startPoint: .top, endPoint: .bottom
     )
 
-    // Glass morphism card gradient
+    // Glass morphism card gradient — purple-tinted glass
     static let glassGradient = LinearGradient(
-        colors: [Color.white.opacity(0.08), Color.white.opacity(0.02)],
+        colors: [Color(red: 0.576, green: 0.200, blue: 0.918).opacity(0.08), Color(red: 0.05, green: 0.02, blue: 0.10).opacity(0.04)],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
-    // Premium glow gradient for highlighted borders
+    // Premium glow gradient for highlighted borders — purple ↔ gold
     static let premiumBorderGradient = AngularGradient(
-        colors: [accent.opacity(0.6), premium.opacity(0.3), accent.opacity(0.6)],
+        colors: [accent.opacity(0.6), gold.opacity(0.4), accent.opacity(0.6)],
         center: .center
     )
 }

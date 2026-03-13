@@ -206,7 +206,7 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="font-mono text-xs tracking-widest text-teal-300/60">
+    <span className="font-mono text-xs tracking-widest text-purple-300/60">
       {now.toISOString().replace('T', ' ').slice(0, 19)} UTC
     </span>
   );
@@ -243,18 +243,18 @@ function HexStatus({ active, label, pulse }: { active: boolean; label: string; p
   return (
     <div className="flex items-center gap-2">
       <div className="relative">
-        <div className={`w-3 h-3 rotate-45 rounded-sm ${active ? 'bg-teal-400' : 'bg-red-400'}`} />
+        <div className={`w-3 h-3 rotate-45 rounded-sm ${active ? 'bg-purple-400' : 'bg-red-400'}`} />
         {pulse && active && (
-          <div className="absolute inset-0 w-3 h-3 rotate-45 rounded-sm bg-teal-400 animate-ping opacity-20" />
+          <div className="absolute inset-0 w-3 h-3 rotate-45 rounded-sm bg-purple-400 animate-ping opacity-20" />
         )}
       </div>
-      <span className={`text-xs uppercase tracking-wider font-mono ${active ? 'text-teal-300' : 'text-red-400'}`}>{label}</span>
+      <span className={`text-xs uppercase tracking-wider font-mono ${active ? 'text-purple-300' : 'text-red-400'}`}>{label}</span>
     </div>
   );
 }
 
 /* ─── Rocket Ship (Enhanced Cyber Version) ────────────────────────────────── */
-function RocketShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }) {
+function PhoenixShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }) {
   const altitude = Math.min(100, Math.max(5, (portfolioUsd / 600) * 100));
   const flameIntensity = Math.min(1, Math.max(0.2, Math.abs(roi) / 20));
   const isRising = roi >= 0;
@@ -272,16 +272,16 @@ function RocketShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }
   []);
 
   return (
-    <div className="relative w-full h-80 rounded-2xl overflow-hidden border border-teal-500/10 scanline-overlay">
+    <div className="relative w-full h-80 rounded-2xl overflow-hidden border border-purple-500/10 scanline-overlay">
       {/* Deep space gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#071525] via-[#0c1e32] to-[#0b1a2b]" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0d0619] via-[#050110] to-[#030108]" />
 
       {/* Grid overlay */}
       <div className="absolute inset-0 cyber-grid-bg opacity-20" />
 
       {/* Nebula glow */}
-      <div className="absolute top-10 right-10 w-40 h-40 rounded-full bg-teal-500/[0.04] blur-3xl" />
-      <div className="absolute bottom-20 left-20 w-32 h-32 rounded-full bg-sky-500/[0.04] blur-3xl" />
+      <div className="absolute top-10 right-10 w-40 h-40 rounded-full bg-purple-500/[0.06] blur-3xl" />
+      <div className="absolute bottom-20 left-20 w-32 h-32 rounded-full bg-amber-500/[0.04] blur-3xl" />
 
       {/* Stars */}
       <div className="absolute inset-0">
@@ -300,62 +300,70 @@ function RocketShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }
         ))}
       </div>
 
-      {/* Rocket */}
+      {/* Phoenix */}
       <div
         className="absolute left-1/2 -translate-x-1/2 transition-all duration-[2500ms] ease-out"
-        style={{ bottom: `${altitude}%`, filter: 'drop-shadow(0 0 25px rgba(0,255,255,0.4))' }}
+        style={{ bottom: `${altitude}%`, filter: 'drop-shadow(0 0 30px rgba(212,160,23,0.5)) drop-shadow(0 0 60px rgba(147,51,234,0.3))' }}
       >
-        <svg width="60" height="120" viewBox="0 0 60 120">
+        <svg width="100" height="120" viewBox="0 0 100 120">
           <defs>
-            <linearGradient id="rocketBody" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#94a3b8" />
-              <stop offset="50%" stopColor="#e2e8f0" />
-              <stop offset="100%" stopColor="#94a3b8" />
+            <linearGradient id="phoenixBody" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#f5c542" />
+              <stop offset="50%" stopColor="#d4a017" />
+              <stop offset="100%" stopColor="#9333ea" />
             </linearGradient>
-            <linearGradient id="rocketNose" x1="0%" y1="100%" x2="0%" y2="0%">
-              <stop offset="0%" stopColor="#00ffff" />
-              <stop offset="100%" stopColor="#0ea5e9" />
+            <linearGradient id="phoenixWing" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#d4a017" />
+              <stop offset="60%" stopColor="#9333ea" />
+              <stop offset="100%" stopColor="#6b21a8" />
             </linearGradient>
-            <linearGradient id="flame" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#00ffff" />
-              <stop offset="40%" stopColor="#6366f1" />
+            <linearGradient id="phoenixTail" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#f5c542" />
+              <stop offset="40%" stopColor="#9333ea" />
               <stop offset="100%" stopColor="transparent" />
             </linearGradient>
-            <filter id="rocketGlow">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+            <filter id="phoenixGlow">
+              <feGaussianBlur stdDeviation="2" result="blur" />
               <feComposite in="SourceGraphic" in2="blur" operator="over" />
             </filter>
           </defs>
-          {/* Nose cone */}
-          <path d="M30 5 L40 35 L20 35 Z" fill="url(#rocketNose)" filter="url(#rocketGlow)" />
+          {/* Left wing */}
+          <path d={`M50 45 Q30 ${30 - flameIntensity * 10} ${10 - flameIntensity * 8} ${20 - flameIntensity * 15} Q25 35 50 50 Z`} fill="url(#phoenixWing)" opacity="0.9" filter="url(#phoenixGlow)">
+            <animate attributeName="d" values={`M50 45 Q30 ${30 - flameIntensity * 10} ${10 - flameIntensity * 8} ${20 - flameIntensity * 15} Q25 35 50 50 Z;M50 45 Q28 ${25 - flameIntensity * 10} ${5 - flameIntensity * 8} ${15 - flameIntensity * 15} Q23 33 50 50 Z;M50 45 Q30 ${30 - flameIntensity * 10} ${10 - flameIntensity * 8} ${20 - flameIntensity * 15} Q25 35 50 50 Z`} dur="2s" repeatCount="indefinite" />
+          </path>
+          {/* Right wing */}
+          <path d={`M50 45 Q70 ${30 - flameIntensity * 10} ${90 + flameIntensity * 8} ${20 - flameIntensity * 15} Q75 35 50 50 Z`} fill="url(#phoenixWing)" opacity="0.9" filter="url(#phoenixGlow)">
+            <animate attributeName="d" values={`M50 45 Q70 ${30 - flameIntensity * 10} ${90 + flameIntensity * 8} ${20 - flameIntensity * 15} Q75 35 50 50 Z;M50 45 Q72 ${25 - flameIntensity * 10} ${95 + flameIntensity * 8} ${15 - flameIntensity * 15} Q77 33 50 50 Z;M50 45 Q70 ${30 - flameIntensity * 10} ${90 + flameIntensity * 8} ${20 - flameIntensity * 15} Q75 35 50 50 Z`} dur="2s" repeatCount="indefinite" />
+          </path>
           {/* Body */}
-          <rect x="20" y="35" width="20" height="45" rx="2" fill="url(#rocketBody)" />
-          {/* Window */}
-          <circle cx="30" cy="52" r="6" fill="#0c4a6e" stroke="#00ffff" strokeWidth="1.5" />
-          <circle cx="30" cy="52" r="3" fill="#00ffff" opacity="0.5" />
-          {/* Logo */}
-          <text x="30" y="70" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#00ffff">FF</text>
-          {/* Fins */}
-          <path d="M20 65 L10 85 L20 80 Z" fill="#00ffff" opacity="0.8" />
-          <path d="M40 65 L50 85 L40 80 Z" fill="#00ffff" opacity="0.8" />
-          {/* Flame */}
-          <ellipse cx="30" cy="92" rx={6 * flameIntensity + 3} ry={15 * flameIntensity + 5} fill="url(#flame)" opacity={isRising ? 0.9 : 0.3}>
-            <animate attributeName="ry" values={`${15 * flameIntensity + 3};${15 * flameIntensity + 8};${15 * flameIntensity + 3}`} dur="0.3s" repeatCount="indefinite" />
-            <animate attributeName="rx" values={`${6 * flameIntensity + 2};${6 * flameIntensity + 5};${6 * flameIntensity + 2}`} dur="0.4s" repeatCount="indefinite" />
+          <ellipse cx="50" cy="48" rx="8" ry="18" fill="url(#phoenixBody)" filter="url(#phoenixGlow)" />
+          {/* Head */}
+          <circle cx="50" cy="28" r="6" fill="#f5c542" />
+          <circle cx="48" cy="27" r="1.2" fill="#1a0533" />
+          <circle cx="52" cy="27" r="1.2" fill="#1a0533" />
+          {/* Crown crest */}
+          <path d="M47 22 L50 16 L53 22" stroke="#d4a017" strokeWidth="1.5" fill="none" />
+          <circle cx="50" cy="15" r="1.5" fill="#f5c542" opacity="0.9">
+            <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
+          </circle>
+          {/* Tail flames */}
+          <ellipse cx="50" cy="75" rx={8 * flameIntensity + 3} ry={18 * flameIntensity + 6} fill="url(#phoenixTail)" opacity={isRising ? 0.9 : 0.3}>
+            <animate attributeName="ry" values={`${18 * flameIntensity + 4};${18 * flameIntensity + 10};${18 * flameIntensity + 4}`} dur="0.3s" repeatCount="indefinite" />
+            <animate attributeName="rx" values={`${8 * flameIntensity + 2};${8 * flameIntensity + 5};${8 * flameIntensity + 2}`} dur="0.4s" repeatCount="indefinite" />
           </ellipse>
-          <ellipse cx="30" cy="90" rx={3 * flameIntensity + 1} ry={8 * flameIntensity + 2} fill="#67e8f9" opacity={isRising ? 0.8 : 0.2}>
-            <animate attributeName="ry" values={`${8 * flameIntensity + 1};${8 * flameIntensity + 4};${8 * flameIntensity + 1}`} dur="0.25s" repeatCount="indefinite" />
+          <ellipse cx="50" cy="73" rx={4 * flameIntensity + 1} ry={10 * flameIntensity + 3} fill="#f5c542" opacity={isRising ? 0.7 : 0.15}>
+            <animate attributeName="ry" values={`${10 * flameIntensity + 2};${10 * flameIntensity + 6};${10 * flameIntensity + 2}`} dur="0.25s" repeatCount="indefinite" />
           </ellipse>
         </svg>
       </div>
 
       {/* Altitude trail */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 bg-gradient-to-t from-cyan-500/20 to-transparent" style={{ height: `${altitude}%` }} />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 bg-gradient-to-t from-purple-500/20 to-transparent" style={{ height: `${altitude}%` }} />
 
       {/* HUD overlay - top left */}
       <div className="absolute top-4 left-4 text-left">
-        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-teal-500/40">FREEDOMFORGE NET WORTH</div>
-        <div className="text-4xl font-black text-white mt-1" style={{ textShadow: '0 0 16px rgba(45,212,191,0.2)' }}>
+        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-purple-500/40">FREEDOMFORGE NET WORTH</div>
+        <div className="text-4xl font-black text-white mt-1" style={{ textShadow: '0 0 16px rgba(147,51,234,0.2)' }}>
           <AnimatedNumber value={portfolioUsd} />
         </div>
         <div className={`text-lg font-bold mt-1 flex items-center gap-2 ${roi >= 0 ? 'neon-text-green' : 'neon-text-red'}`}>
@@ -366,13 +374,13 @@ function RocketShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number }
 
       {/* HUD overlay - top right */}
       <div className="absolute top-4 right-4 text-right">
-        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-teal-500/40">ALTITUDE</div>
-        <div className="text-2xl font-mono neon-text-cyan mt-1">{altitude.toFixed(0)}%</div>
+        <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-purple-500/40">ALTITUDE</div>
+        <div className="text-2xl font-mono neon-text-purple mt-1">{altitude.toFixed(0)}%</div>
         <div className="text-[10px] font-mono text-amber-400/40 mt-1">PHASE: {altitude < 30 ? 'LAUNCH' : altitude < 60 ? 'ASCENT' : altitude < 85 ? 'ORBIT' : 'STRATOSPHERE'}</div>
       </div>
 
       {/* Bottom HUD bar */}
-      <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between text-[9px] font-mono text-teal-500/30 uppercase tracking-widest">
+      <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between text-[9px] font-mono text-purple-500/30 uppercase tracking-widest">
         <span>SYS:NOMINAL</span>
         <span>ENGINES:{isRising ? 'FULL-BURN' : 'STANDBY'}</span>
         <span>FUEL:{(flameIntensity * 100).toFixed(0)}%</span>
@@ -388,10 +396,10 @@ function StatCard({ label, value, sub, color = 'text-white', icon, trend }: {
   return (
     <div className="holo-card relative rounded-xl p-5 hud-corner overflow-hidden group">
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-400/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-400/30 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-400/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-400/30 to-transparent" />
       </div>
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-teal-400/50 font-mono">
+      <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] text-purple-400/50 font-mono">
         {icon && <span className="text-sm">{icon}</span>}
         {label}
       </div>
@@ -413,8 +421,8 @@ function CyberGauge({ value, max, label, warn, danger }: {
   value: number; max: number; label: string; warn?: number; danger?: number;
 }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
-  let barClass = 'from-teal-500 to-teal-400';
-  let glowColor = 'rgba(45,212,191,0.25)';
+  let barClass = 'from-purple-500 to-violet-400';
+  let glowColor = 'rgba(147,51,234,0.25)';
   if (danger && pct >= danger) { barClass = 'from-red-500 to-red-400'; glowColor = 'rgba(248,113,113,0.3)'; }
   else if (warn && pct >= warn) { barClass = 'from-amber-500 to-amber-400'; glowColor = 'rgba(251,191,36,0.25)'; }
 
@@ -422,7 +430,7 @@ function CyberGauge({ value, max, label, warn, danger }: {
     <div className="space-y-1.5">
       <div className="flex justify-between text-[10px] font-mono">
         <span className="text-slate-500 uppercase tracking-wider">{label}</span>
-        <span className="text-teal-300">{fmtPct(pct)}</span>
+        <span className="text-purple-300">{fmtPct(pct)}</span>
       </div>
       <div className="h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
         <div
@@ -439,12 +447,12 @@ function VenueChip({ name, healthy }: { name: string; healthy: boolean }) {
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider border ${
       healthy
-        ? 'bg-teal-500/5 text-teal-300 border-teal-500/15'
+        ? 'bg-purple-500/5 text-purple-300 border-purple-500/15'
         : 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse'
     }`}>
       <span className="relative flex h-2 w-2">
-        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${healthy ? 'bg-teal-400' : 'bg-red-400'}`} />
-        <span className={`relative inline-flex rounded-full h-2 w-2 ${healthy ? 'bg-teal-400' : 'bg-red-500'}`} />
+        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${healthy ? 'bg-purple-400' : 'bg-red-400'}`} />
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${healthy ? 'bg-purple-400' : 'bg-red-500'}`} />
       </span>
       {name}
     </span>
@@ -458,10 +466,10 @@ const chartDefaults = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: 'rgba(11, 26, 43, 0.95)',
-      borderColor: 'rgba(45, 212, 191, 0.15)',
+      backgroundColor: 'rgba(13, 6, 25, 0.95)',
+      borderColor: 'rgba(147, 51, 234, 0.15)',
       borderWidth: 1,
-      titleColor: '#2dd4bf',
+      titleColor: '#a855f7',
       bodyColor: '#94a3b8',
       padding: 12,
       cornerRadius: 10,
@@ -470,8 +478,8 @@ const chartDefaults = {
     },
   },
   scales: {
-    x: { grid: { color: 'rgba(56,189,248,0.03)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
-    y: { grid: { color: 'rgba(56,189,248,0.03)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
+    x: { grid: { color: 'rgba(168,85,247,0.03)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
+    y: { grid: { color: 'rgba(168,85,247,0.03)' }, ticks: { color: '#475569', font: { size: 9, family: 'monospace' } } },
   },
 };
 
@@ -529,19 +537,19 @@ export default function CommandCenter() {
   /* ─── Loading State ─────────────────────────────────────────────────── */
   if (loading || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0b1a2b 0%, #0f2235 50%, #0d1f30 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #030108 0%, #050110 50%, #0d1f30 100%)' }}>
         <div className="text-center animate-fadeIn">
           <div className="relative w-20 h-20 mx-auto">
-            <div className="absolute inset-0 border-2 border-teal-500/30 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
+            <div className="absolute inset-0 border-2 border-purple-500/30 rounded-full animate-spin" style={{ animationDuration: '3s' }} />
             <div className="absolute inset-2 border-2 border-amber-500/20 rounded-full animate-spin" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
-            <div className="absolute inset-4 border-2 border-teal-400/40 rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
+            <div className="absolute inset-4 border-2 border-purple-400/40 rounded-full animate-spin" style={{ animationDuration: '1.5s' }} />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-3 h-3 bg-teal-400 rounded-full animate-pulse" />
+              <div className="w-3 h-3 bg-purple-400 rounded-full animate-pulse" />
             </div>
           </div>
-          <p className="mt-6 text-teal-300/60 text-sm font-mono uppercase tracking-[0.3em]">Initializing Command Center</p>
+          <p className="mt-6 text-purple-300/60 text-sm font-mono uppercase tracking-[0.3em]">Initializing Command Center</p>
           <div className="mt-2 w-48 h-1 bg-slate-800/60 rounded-full mx-auto overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-teal-500 to-amber-400 rounded-full" style={{ animation: 'shimmer 1.5s linear infinite', width: '40%' }} />
+            <div className="h-full bg-gradient-to-r from-purple-500 to-amber-400 rounded-full" style={{ animation: 'shimmer 1.5s linear infinite', width: '40%' }} />
           </div>
         </div>
       </div>
@@ -557,7 +565,7 @@ export default function CommandCenter() {
   const modeConfig: Record<string, { gradient: string; borderColor: string; icon: string; label: string }> = {
     capital_halt: { gradient: 'from-red-950/60 to-red-900/30', borderColor: 'border-red-500/30', icon: '🚨', label: 'CAPITAL HALT' },
     survival: { gradient: 'from-amber-950/40 to-orange-900/20', borderColor: 'border-amber-500/20', icon: '⚠️', label: 'SURVIVAL' },
-    normal: { gradient: 'from-teal-950/30 to-sky-900/15', borderColor: 'border-teal-500/15', icon: '🔷', label: 'NORMAL OPS' },
+    normal: { gradient: 'from-purple-950/30 to-violet-900/15', borderColor: 'border-purple-500/15', icon: '🔷', label: 'NORMAL OPS' },
     growth: { gradient: 'from-emerald-950/30 to-green-900/15', borderColor: 'border-emerald-500/15', icon: '⚡', label: 'GROWTH' },
   };
   const modeStyle = modeConfig[mandateMode] || modeConfig.normal;
@@ -568,8 +576,8 @@ export default function CommandCenter() {
     datasets: [{
       label: 'Cumulative P&L',
       data: data.pnlHistory.map(p => p.cumPnl),
-      borderColor: '#2dd4bf',
-      backgroundColor: 'rgba(45, 212, 191, 0.05)',
+      borderColor: '#a855f7',
+      backgroundColor: 'rgba(147, 51, 234, 0.05)',
       fill: true,
       tension: 0.4,
       pointRadius: 2,
@@ -595,9 +603,9 @@ export default function CommandCenter() {
     labels: data.confidenceDistribution.labels,
     datasets: [{
       data: data.confidenceDistribution.values,
-      backgroundColor: ['#1e293b', '#38bdf8', '#a78bfa', '#fbbf24', '#2dd4bf'],
+      backgroundColor: ['#1e293b', '#38bdf8', '#a78bfa', '#fbbf24', '#a855f7'],
       borderWidth: 1,
-      borderColor: ['#334155', '#0ea5e9', '#8b5cf6', '#f59e0b', '#14b8a6'],
+      borderColor: ['#334155', '#9333ea', '#a855f7', '#d4a017', '#7c3aed'],
     }],
   };
 
@@ -606,9 +614,9 @@ export default function CommandCenter() {
     labels: venueNames,
     datasets: [{
       data: venueNames.map(v => data.venueStats[v].volume),
-      backgroundColor: ['rgba(45,212,191,0.15)', 'rgba(139,92,246,0.15)', 'rgba(248,113,113,0.15)', 'rgba(52,211,153,0.15)', 'rgba(251,191,36,0.15)'],
+      backgroundColor: ['rgba(147,51,234,0.15)', 'rgba(139,92,246,0.15)', 'rgba(248,113,113,0.15)', 'rgba(52,211,153,0.15)', 'rgba(251,191,36,0.15)'],
       borderWidth: 1,
-      borderColor: ['#2dd4bf', '#a78bfa', '#f87171', '#34d399', '#fbbf24'],
+      borderColor: ['#a855f7', '#a78bfa', '#f87171', '#34d399', '#fbbf24'],
     }],
   };
 
@@ -635,23 +643,23 @@ export default function CommandCenter() {
 
   /* ─── Render ────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen relative" style={{ background: 'linear-gradient(160deg, #0b1a2b 0%, #0f2235 40%, #0d1f30 70%, #0b1a2b 100%)' }}>
+    <div className="min-h-screen relative" style={{ background: 'linear-gradient(160deg, #030108 0%, #050110 40%, #0d1f30 70%, #030108 100%)' }}>
       {/* Ambient glow effects */}
-      <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-teal-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
-      <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-sky-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
+      <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-purple-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-amber-500/[0.02] rounded-full blur-[100px] pointer-events-none" />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-amber-500/[0.008] rounded-full blur-[120px] pointer-events-none" />
 
       {/* ─── Header ───────────────────────────────────────────────────── */}
-      <header className={`sticky top-0 z-50 backdrop-blur-2xl border-b transition-all duration-300 ${pulseHeader ? 'border-teal-400/30' : 'border-slate-700/30'}`} style={{ background: 'rgba(11, 26, 43, 0.85)' }}>
+      <header className={`sticky top-0 z-50 backdrop-blur-2xl border-b transition-all duration-300 ${pulseHeader ? 'border-purple-400/30' : 'border-slate-700/30'}`} style={{ background: 'rgba(13, 6, 25, 0.85)' }}>
         <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative w-10 h-10 flex items-center justify-center">
-              <div className="absolute inset-0 border border-teal-500/25 rotate-45 rounded-sm" />
-              <span className="text-lg font-black cyber-text">FF</span>
+              <div className="absolute inset-0 border border-purple-500/25 rotate-45 rounded-sm" />
+              <span className="text-lg font-black phoenix-title">FF</span>
             </div>
             <div>
-              <h1 className="text-lg font-black cyber-text tracking-wide">FREEDOMFORGE</h1>
-              <div className="text-[9px] font-mono text-teal-500/40 uppercase tracking-[0.3em] -mt-0.5">Autonomous Command Center</div>
+              <h1 className="text-lg font-black phoenix-title tracking-wide">FREEDOMFORGE</h1>
+              <div className="text-[9px] font-mono text-purple-500/40 uppercase tracking-[0.3em] -mt-0.5">Autonomous Command Center</div>
             </div>
           </div>
 
@@ -669,7 +677,7 @@ export default function CommandCenter() {
               <LiveClock />
               <span className="text-[9px] font-mono text-slate-600 mt-0.5">Refreshed {timeAgo(lastRefresh)}</span>
             </div>
-            <button onClick={fetchData} className="w-8 h-8 rounded-lg border border-teal-500/15 flex items-center justify-center text-teal-400/50 hover:text-teal-300 hover:border-teal-400/30 hover:bg-teal-500/5 transition-all text-sm">⟳</button>
+            <button onClick={fetchData} className="w-8 h-8 rounded-lg border border-purple-500/15 flex items-center justify-center text-purple-400/50 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/5 transition-all text-sm">⟳</button>
             <button onClick={handleLogout} className="text-[10px] font-mono text-slate-600 hover:text-red-400 transition-colors uppercase tracking-wider">Logout</button>
           </div>
         </div>
@@ -677,7 +685,7 @@ export default function CommandCenter() {
 
       <main className="max-w-[1600px] mx-auto px-6 py-6 space-y-5">
         {/* ─── Rocket Ship ──────────────────────────────────────────────── */}
-        <RocketShip portfolioUsd={data.portfolio.totalUsd} roi={roi} />
+        <PhoenixShip portfolioUsd={data.portfolio.totalUsd} roi={roi} />
 
         {/* ─── Capital Mandate Banner ───────────────────────────────────── */}
         {data.mandate && (
@@ -688,12 +696,12 @@ export default function CommandCenter() {
                 <span className="text-xl">{modeStyle.icon}</span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-300/60">Zero Injection Protocol</span>
+                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-300/60">Zero Injection Protocol</span>
                     <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${
                       mandateMode === 'capital_halt' ? 'bg-red-500/15 text-red-400 border border-red-500/20' :
                       mandateMode === 'survival' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' :
                       mandateMode === 'growth' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
-                      'bg-teal-500/15 text-teal-400 border border-teal-500/20'
+                      'bg-purple-500/15 text-purple-400 border border-purple-500/20'
                     }`}>
                       {modeStyle.label}
                     </span>
@@ -716,7 +724,7 @@ export default function CommandCenter() {
 
         {/* ─── Top KPI Row ──────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard icon="◈" label="Net Worth" color="neon-text-cyan" value={fmt$(data.portfolio.totalUsd)}
+          <StatCard icon="◈" label="Net Worth" color="neon-text-purple" value={fmt$(data.portfolio.totalUsd)}
             sub={`Deployed:${fmt$(data.portfolio.totalDeployed)} · Standby:${fmt$(data.portfolio.totalStandby)}`}
             trend={data.portfolio.netPnl > 0 ? 'up' : data.portfolio.netPnl < 0 ? 'down' : 'neutral'} />
           <StatCard icon="◉" label="Net P&L" value={fmt$(data.portfolio.netPnl)}
@@ -725,7 +733,7 @@ export default function CommandCenter() {
             trend={data.portfolio.netPnl >= 0 ? 'up' : 'down'} />
           <StatCard icon="◎" label="Win Rate" color="neon-text-purple" value={fmtPct(data.trades.winRate * 100)}
             sub={`${data.trades.wins}W / ${data.trades.losses}L`} />
-          <StatCard icon="◆" label="Total Ops" color="text-cyan-300" value={String(data.trades.total)}
+          <StatCard icon="◆" label="Total Ops" color="text-purple-300" value={String(data.trades.total)}
             sub={`Live:${data.trades.liveCount} · Open:${data.portfolio.openPositionCount}`} />
           <StatCard icon="⬡" label="Volume" color="neon-text-gold" value={fmtCompact(data.trades.totalVolume)}
             sub={`Avg: ${fmtCompact(data.trades.totalVolume / Math.max(1, data.trades.total))}/op`} />
@@ -734,14 +742,14 @@ export default function CommandCenter() {
         </div>
 
         {/* ─── Tab Navigation ───────────────────────────────────────────── */}
-        <div className="flex gap-1.5 rounded-2xl p-1.5 border border-slate-700/30" style={{ background: 'rgba(11, 26, 43, 0.6)', backdropFilter: 'blur(12px)' }}>
+        <div className="flex gap-1.5 rounded-2xl p-1.5 border border-slate-700/30" style={{ background: 'rgba(13, 6, 25, 0.6)', backdropFilter: 'blur(12px)' }}>
           {tabItems.map(t => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
               className={`flex-1 py-2.5 rounded-xl text-xs font-mono uppercase tracking-wider transition-all duration-300 ${
                 tab === t.key
-                  ? 'bg-gradient-to-r from-teal-500/15 to-sky-500/10 text-teal-300 border border-teal-500/20 shadow-[0_0_12px_rgba(45,212,191,0.08)]'
+                  ? 'bg-gradient-to-r from-purple-500/15 to-violet-500/10 text-purple-300 border border-purple-500/20 shadow-[0_0_12px_rgba(147,51,234,0.08)]'
                   : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.02] border border-transparent'
               }`}
             >
@@ -755,8 +763,8 @@ export default function CommandCenter() {
           <div className="space-y-5">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <div className="holo-card rounded-2xl p-5 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-500/20 to-transparent" />
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◈ Cumulative P&L Trajectory</h3>
+                <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">◈ Cumulative P&L Trajectory</h3>
                 <div className="h-56"><Line data={pnlChartData} options={{ ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } } } as any} /></div>
               </div>
               <div className="holo-card rounded-2xl p-5 relative overflow-hidden">
@@ -777,10 +785,10 @@ export default function CommandCenter() {
               {/* Exchange Breakdown */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                 {/* Coinbase */}
-                <div className="rounded-xl p-4 border border-teal-500/10 bg-teal-500/[0.02]">
+                <div className="rounded-xl p-4 border border-purple-500/10 bg-purple-500/[0.02]">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-teal-400/70">◈ Coinbase</span>
-                    <span className="text-sm font-mono font-bold neon-text-cyan">{fmt$(data.portfolio.coinbaseUsd)}</span>
+                    <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-purple-400/70">◈ Coinbase</span>
+                    <span className="text-sm font-mono font-bold neon-text-purple">{fmt$(data.portfolio.coinbaseUsd)}</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-[10px] font-mono">
@@ -794,13 +802,13 @@ export default function CommandCenter() {
                             width: `${data.portfolio.coinbaseUsd > 0 ? (data.portfolio.coinbaseDeployed / data.portfolio.coinbaseUsd) * 100 : 0}%`,
                             boxShadow: '0 0 6px rgba(251,191,36,0.25)',
                           }} />
-                        <div className="h-full bg-gradient-to-r from-teal-500 to-teal-400 flex-1"
-                          style={{ boxShadow: '0 0 6px rgba(45,212,191,0.15)' }} />
+                        <div className="h-full bg-gradient-to-r from-purple-500 to-violet-400 flex-1"
+                          style={{ boxShadow: '0 0 6px rgba(147,51,234,0.15)' }} />
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-[10px] font-mono">
                       <span className="text-slate-500">On Standby</span>
-                      <span className="text-teal-300 font-bold">{fmt$(data.portfolio.coinbaseStandby)}</span>
+                      <span className="text-purple-300 font-bold">{fmt$(data.portfolio.coinbaseStandby)}</span>
                     </div>
                   </div>
                 </div>
@@ -839,7 +847,7 @@ export default function CommandCenter() {
               <div className="rounded-xl p-3 border border-slate-700/20 bg-slate-800/20">
                 <div className="flex items-center justify-between text-[10px] font-mono mb-2">
                   <span className="text-slate-500 uppercase tracking-wider">Total Capital</span>
-                  <span className="text-lg font-bold neon-text-cyan">{fmt$(data.portfolio.totalUsd)}</span>
+                  <span className="text-lg font-bold neon-text-purple">{fmt$(data.portfolio.totalUsd)}</span>
                 </div>
                 <div className="h-3 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
                   <div className="h-full rounded-full flex transition-all duration-1000">
@@ -848,8 +856,8 @@ export default function CommandCenter() {
                         width: `${data.portfolio.totalUsd > 0 ? (data.portfolio.totalDeployed / data.portfolio.totalUsd) * 100 : 0}%`,
                         boxShadow: '0 0 8px rgba(251,191,36,0.3)',
                       }} />
-                    <div className="h-full bg-gradient-to-r from-teal-500 to-emerald-400 rounded-r-full flex-1"
-                      style={{ boxShadow: '0 0 8px rgba(45,212,191,0.2)' }} />
+                    <div className="h-full bg-gradient-to-r from-purple-500 to-emerald-400 rounded-r-full flex-1"
+                      style={{ boxShadow: '0 0 8px rgba(147,51,234,0.2)' }} />
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-2 text-[9px] font-mono">
@@ -859,8 +867,8 @@ export default function CommandCenter() {
                     <span className="text-slate-600">({data.portfolio.totalUsd > 0 ? fmtPct((data.portfolio.totalDeployed / data.portfolio.totalUsd) * 100) : '0%'})</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-sm bg-teal-500/60" />
-                    <span className="text-teal-300">Standby: {fmt$(data.portfolio.totalStandby)}</span>
+                    <span className="w-2 h-2 rounded-sm bg-purple-500/60" />
+                    <span className="text-purple-300">Standby: {fmt$(data.portfolio.totalStandby)}</span>
                     <span className="text-slate-600">({data.portfolio.totalUsd > 0 ? fmtPct((data.portfolio.totalStandby / data.portfolio.totalUsd) * 100) : '0%'})</span>
                   </span>
                 </div>
@@ -886,7 +894,7 @@ export default function CommandCenter() {
                       <tbody>
                         {data.portfolio.openPositions.sort((a, b) => b.usdSize - a.usdSize).map((p, i) => (
                           <tr key={i} className="border-b border-white/[0.02] hover:bg-amber-500/[0.03] transition-colors">
-                            <td className="py-1.5 text-teal-300 font-semibold">{p.asset}</td>
+                            <td className="py-1.5 text-purple-300 font-semibold">{p.asset}</td>
                             <td className="py-1.5 text-slate-500">{p.venue}</td>
                             <td className="py-1.5 text-center">
                               <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${
@@ -900,7 +908,7 @@ export default function CommandCenter() {
                               {p.dryRun ? (
                                 <span className="px-1.5 py-0.5 rounded text-[7px] bg-slate-500/10 text-slate-500 border border-slate-500/15">SIM</span>
                               ) : (
-                                <span className="px-1.5 py-0.5 rounded text-[7px] bg-teal-500/10 text-teal-400 border border-teal-500/15 animate-pulse">LIVE</span>
+                                <span className="px-1.5 py-0.5 rounded text-[7px] bg-purple-500/10 text-purple-400 border border-purple-500/15 animate-pulse">LIVE</span>
                               )}
                             </td>
                           </tr>
@@ -914,31 +922,31 @@ export default function CommandCenter() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               <div className="holo-card rounded-2xl p-5">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◎ Confidence Spectrum</h3>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">◎ Confidence Spectrum</h3>
                 <div className="h-48 flex items-center justify-center">
                   <Doughnut data={confChartData} options={{ ...chartDefaults, scales: undefined, cutout: '65%' } as any} />
                 </div>
               </div>
               <div className="holo-card rounded-2xl p-5">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◆ Venue Allocation</h3>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">◆ Venue Allocation</h3>
                 <div className="h-48 flex items-center justify-center">
                   <Doughnut data={venueChartData} options={{ ...chartDefaults, scales: undefined, cutout: '65%' } as any} />
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3 justify-center">
                   {venueNames.map((v, i) => (
                     <span key={v} className="text-[9px] font-mono text-slate-500 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ['#2dd4bf', '#a78bfa', '#f87171', '#34d399', '#fbbf24'][i], boxShadow: `0 0 4px ${['#2dd4bf', '#a78bfa', '#f87171', '#34d399', '#fbbf24'][i]}` }} />
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ['#a855f7', '#a78bfa', '#f87171', '#34d399', '#fbbf24'][i], boxShadow: `0 0 4px ${['#a855f7', '#a78bfa', '#f87171', '#34d399', '#fbbf24'][i]}` }} />
                       {v}
                     </span>
                   ))}
                 </div>
               </div>
               <div className="holo-card rounded-2xl p-5">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">⬡ Asset Performance Matrix</h3>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">⬡ Asset Performance Matrix</h3>
                 <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                   {Object.entries(data.assetStats).sort((a, b) => b[1].volume - a[1].volume).map(([asset, stats]) => (
                     <div key={asset} className="flex items-center justify-between text-xs group">
-                      <span className="text-slate-400 font-mono group-hover:text-teal-300 transition-colors">{asset}</span>
+                      <span className="text-slate-400 font-mono group-hover:text-purple-300 transition-colors">{asset}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-[9px] text-slate-600 font-mono">{stats.trades}ops</span>
                         <span className="text-[10px] font-mono text-slate-500">{fmtCompact(stats.volume)}</span>
@@ -951,11 +959,11 @@ export default function CommandCenter() {
             </div>
 
             <div className="holo-card rounded-2xl p-5">
-              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50 mb-4">◈ Venue Performance Matrix</h3>
+              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">◈ Venue Performance Matrix</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs font-mono">
                   <thead>
-                    <tr className="text-teal-500/30 text-[9px] uppercase tracking-wider border-b border-teal-500/8">
+                    <tr className="text-purple-500/30 text-[9px] uppercase tracking-wider border-b border-purple-500/8">
                       <th className="text-left pb-3">Venue</th>
                       <th className="text-right pb-3">Ops</th>
                       <th className="text-right pb-3">Volume</th>
@@ -965,7 +973,7 @@ export default function CommandCenter() {
                   </thead>
                   <tbody>
                     {Object.entries(data.venueStats).map(([venue, stats]) => (
-                      <tr key={venue} className="border-b border-white/[0.02] hover:bg-teal-500/[0.03] transition-colors">
+                      <tr key={venue} className="border-b border-white/[0.02] hover:bg-purple-500/[0.03] transition-colors">
                         <td className="py-2.5 text-slate-300">{venue}</td>
                         <td className="py-2.5 text-right text-slate-500">{stats.trades}</td>
                         <td className="py-2.5 text-right text-slate-300">{fmtCompact(stats.volume)}</td>
@@ -1010,11 +1018,11 @@ export default function CommandCenter() {
                   {data.agents.roles.map(role => {
                     const roleActive = role.agents.filter(a => a.status === 'active').length;
                     return (
-                      <div key={role.role} className="bg-white/[0.02] rounded-xl p-4 border border-slate-700/20 hover:border-teal-500/15 transition-all group">
+                      <div key={role.role} className="bg-white/[0.02] rounded-xl p-4 border border-slate-700/20 hover:border-purple-500/15 transition-all group">
                         <div className="flex items-center gap-2 mb-3">
                           <span className="text-base">{role.icon}</span>
                           <div>
-                            <div className="text-[10px] font-mono uppercase tracking-wider text-teal-300/60">{role.role}</div>
+                            <div className="text-[10px] font-mono uppercase tracking-wider text-purple-300/60">{role.role}</div>
                             <div className="text-[9px] font-mono text-slate-600">{roleActive}/{role.agents.length} active</div>
                           </div>
                         </div>
@@ -1050,13 +1058,13 @@ export default function CommandCenter() {
           <div className="space-y-5">
             <div className="holo-card rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50">◉ Operation Log</h3>
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50">◉ Operation Log</h3>
                 <span className="text-[9px] font-mono text-slate-600">{data.trades.total} total operations</span>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full text-[10px] font-mono">
-                  <thead className="sticky top-0 backdrop-blur" style={{ background: 'rgba(11, 26, 43, 0.95)' }}>
-                    <tr className="text-teal-500/30 text-[9px] uppercase tracking-wider border-b border-teal-500/8">
+                  <thead className="sticky top-0 backdrop-blur" style={{ background: 'rgba(13, 6, 25, 0.95)' }}>
+                    <tr className="text-purple-500/30 text-[9px] uppercase tracking-wider border-b border-purple-500/8">
                       <th className="text-left pb-2 pl-2">Time</th>
                       <th className="text-left pb-2">Asset</th>
                       <th className="text-left pb-2">Venue</th>
@@ -1070,9 +1078,9 @@ export default function CommandCenter() {
                   </thead>
                   <tbody>
                     {[...data.tradeTimeline].reverse().map((t, i) => (
-                      <tr key={i} className="border-b border-white/[0.02] hover:bg-teal-500/[0.03] transition-colors">
+                      <tr key={i} className="border-b border-white/[0.02] hover:bg-purple-500/[0.03] transition-colors">
                         <td className="py-2 pl-2 text-slate-600">{t.time ? new Date(t.time).toLocaleString() : '—'}</td>
-                        <td className="py-2 text-teal-300 font-semibold">{t.asset}</td>
+                        <td className="py-2 text-purple-300 font-semibold">{t.asset}</td>
                         <td className="py-2 text-slate-500">{t.venue}</td>
                         <td className="py-2 text-center">
                           <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${
@@ -1081,7 +1089,7 @@ export default function CommandCenter() {
                         </td>
                         <td className="py-2 text-right text-slate-300">{fmt$(t.usdSize || 0)}</td>
                         <td className="py-2 text-right text-purple-400">{((t.confidence || 0) * 100).toFixed(0)}%</td>
-                        <td className="py-2 text-right text-teal-400">{((t.edge || 0) * 100).toFixed(1)}%</td>
+                        <td className="py-2 text-right text-purple-400">{((t.edge || 0) * 100).toFixed(1)}%</td>
                         <td className={`py-2 text-right font-bold ${(t.pnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {t.pnl != null ? fmt$(t.pnl) : '—'}
                         </td>
@@ -1093,7 +1101,7 @@ export default function CommandCenter() {
                               t.outcome === 'win' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/15' : 'bg-red-500/10 text-red-400 border-red-500/15'
                             }`}>{t.outcome.toUpperCase()}</span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded text-[8px] bg-teal-500/10 text-teal-400 border border-teal-500/15 animate-pulse">LIVE</span>
+                            <span className="px-2 py-0.5 rounded text-[8px] bg-purple-500/10 text-purple-400 border border-purple-500/15 animate-pulse">LIVE</span>
                           )}
                         </td>
                       </tr>
@@ -1114,26 +1122,26 @@ export default function CommandCenter() {
                 {!data.guardian.coinbase.healthy && <div className="absolute inset-0 bg-red-500/[0.02]" />}
                 <div className="relative">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/50">◈ Coinbase Margin Status</h3>
+                    <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50">◈ Coinbase Margin Status</h3>
                     <HexStatus active={data.guardian.coinbase.healthy} label={data.guardian.coinbase.healthy ? 'NOMINAL' : 'AT RISK'} pulse />
                   </div>
                   <div className="space-y-3">
                     <CyberGauge value={data.guardian.coinbase.marginPct} max={100} label="Margin Utilization" warn={70} danger={85} />
                     <CyberGauge value={data.guardian.coinbase.liquidationBuffer} max={200} label={`Liquidation Buffer (${fmt$(data.guardian.coinbase.liquidationBuffer)})`} />
-                    <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-teal-500/5">
-                      <div className="text-[10px] font-mono"><span className="text-slate-600">BALANCE:</span> <span className="text-teal-300">{fmt$(data.guardian.coinbase.totalBalance)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-slate-600">MARGIN:</span> <span className="text-teal-300">{fmt$(data.guardian.coinbase.initialMargin)}</span></div>
+                    <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-purple-500/5">
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">BALANCE:</span> <span className="text-purple-300">{fmt$(data.guardian.coinbase.totalBalance)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">MARGIN:</span> <span className="text-purple-300">{fmt$(data.guardian.coinbase.initialMargin)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">DEPLOYED:</span> <span className="text-amber-300">{fmt$(data.portfolio.coinbaseDeployed)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-slate-600">STANDBY:</span> <span className="text-teal-300">{fmt$(data.portfolio.coinbaseStandby)}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">STANDBY:</span> <span className="text-purple-300">{fmt$(data.portfolio.coinbaseStandby)}</span></div>
                       <div className="text-[10px] font-mono"><span className="text-slate-600">UNREAL:</span> <span className={data.guardian.coinbase.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(data.guardian.coinbase.unrealizedPnl)}</span></div>
-                      <div className="text-[10px] font-mono"><span className="text-slate-600">POSITIONS:</span> <span className="text-teal-300">{data.guardian.coinbase.positions.length}</span></div>
+                      <div className="text-[10px] font-mono"><span className="text-slate-600">POSITIONS:</span> <span className="text-purple-300">{data.guardian.coinbase.positions.length}</span></div>
                     </div>
                     {data.guardian.coinbase.positions.length > 0 && (
                       <div className="mt-3 space-y-1.5">
-                        <div className="text-[9px] font-mono text-teal-500/30 uppercase tracking-wider">Open Positions</div>
+                        <div className="text-[9px] font-mono text-purple-500/30 uppercase tracking-wider">Open Positions</div>
                         {data.guardian.coinbase.positions.map((p: any, i: number) => (
-                          <div key={i} className="flex items-center justify-between text-[10px] font-mono bg-white/[0.02] rounded-lg px-3 py-2 border border-teal-500/5">
-                            <span className="text-teal-300">{p.productId}</span>
+                          <div key={i} className="flex items-center justify-between text-[10px] font-mono bg-white/[0.02] rounded-lg px-3 py-2 border border-purple-500/5">
+                            <span className="text-purple-300">{p.productId}</span>
                             <span className={`font-bold ${p.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>{p.side}</span>
                             <span className="text-slate-500">{p.contracts}x</span>
                             <span className={p.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{fmt$(p.unrealizedPnl)}</span>
@@ -1271,16 +1279,16 @@ export default function CommandCenter() {
               </div>
 
               {/* Orchestrator */}
-              <div className="holo-card rounded-2xl p-5 border-teal-500/15">
+              <div className="holo-card rounded-2xl p-5 border-purple-500/15">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-full border border-teal-500/25 flex items-center justify-center">
-                    <div className="w-2 h-2 bg-teal-400 rotate-45" />
+                  <div className="w-6 h-6 rounded-full border border-purple-500/25 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-purple-400 rotate-45" />
                   </div>
-                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-teal-400/60">Orchestrator</h3>
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/60">Orchestrator</h3>
                 </div>
                   <div className="space-y-3 text-[10px] font-mono">
-                  <div><span className="text-slate-600">CYCLES:</span> <span className="text-2xl neon-text-cyan">{data.orchestrator.cycleCount}</span></div>
-                  <div><span className="text-slate-600">OPS EXECUTED:</span> <span className="text-teal-300">{data.orchestrator.totalTrades}</span></div>
+                  <div><span className="text-slate-600">CYCLES:</span> <span className="text-2xl neon-text-purple">{data.orchestrator.cycleCount}</span></div>
+                  <div><span className="text-slate-600">OPS EXECUTED:</span> <span className="text-purple-300">{data.orchestrator.totalTrades}</span></div>
                   <div><span className="text-slate-600">LAST CYCLE:</span> <span className="text-slate-500">{data.orchestrator.lastRun ? timeAgo(new Date(data.orchestrator.lastRun).getTime()) : 'never'}</span></div>
                   {data.orchestrator.errors.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-red-500/10">
@@ -1348,7 +1356,7 @@ export default function CommandCenter() {
                     </div>
                     <div className="text-center p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
                       <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Win Rate</div>
-                      <div className="text-lg font-mono font-bold text-teal-400">{data.treasury.winRate}%</div>
+                      <div className="text-lg font-mono font-bold text-purple-400">{data.treasury.winRate}%</div>
                     </div>
                     <div className="text-center p-3 rounded-xl bg-slate-800/30 border border-slate-700/30">
                       <div className="text-[9px] text-slate-600 uppercase tracking-wider mb-1">Profit Factor</div>
@@ -1424,7 +1432,7 @@ export default function CommandCenter() {
                             <span className="text-slate-500">{w.weekStart}</span>
                             <span className={w.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>{w.pnl >= 0 ? '+' : ''}{fmt$(w.pnl)}</span>
                             <span className="text-slate-600">{w.trades} trades</span>
-                            <span className="text-teal-400/50">{w.winRate}% WR</span>
+                            <span className="text-purple-400/50">{w.winRate}% WR</span>
                           </div>
                         ))}
                       </div>
@@ -1447,7 +1455,7 @@ export default function CommandCenter() {
 
         {/* ─── Footer ──────────────────────────────────────────────────── */}
         <div className="text-center py-8 space-y-1">
-          <div className="text-[10px] font-mono tracking-[0.3em] text-teal-500/15 uppercase">FreedomForge Max · Autonomous Trading Empire</div>
+          <div className="text-[10px] font-mono tracking-[0.3em] text-purple-500/15 uppercase">FreedomForge Max · Autonomous Trading Empire</div>
           <div className="text-[9px] font-mono text-slate-700">All systems monitored 24/7 · Zero human intervention required</div>
         </div>
       </main>

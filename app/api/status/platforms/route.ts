@@ -118,18 +118,8 @@ export async function GET(req: Request) {
     platforms.augur = { status: 'error', error: err.message };
   }
 
-  // ─── Plaid (Fiat) ──────────────────────────────────────────────
-  try {
-    const plaid = await safeImport<any>('@/lib/fiat/plaid-client');
-    if (plaid) {
-      const client = plaid.getPlaidClient();
-      platforms.plaid = await client.getHealth();
-    } else {
-      platforms.plaid = { status: 'module_unavailable' };
-    }
-  } catch (err: any) {
-    platforms.plaid = { status: 'error', error: err.message };
-  }
+  // ─── Plaid (Fiat) — disabled for now, no team account ─────────
+  platforms.plaid = { status: 'disabled', note: 'Plaid integration paused — personal tier only' };
 
   // ─── Alpaca ─────────────────────────────────────────────────────
   platforms.alpaca = {

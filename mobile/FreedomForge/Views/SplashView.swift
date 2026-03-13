@@ -67,11 +67,11 @@ struct SplashView: View {
     /// Shield icon + wordmark.
     private var logoGroup: some View {
         VStack(spacing: 16) {
-            Image(systemName: "shield.checkered")
+            Image(systemName: "flame.fill")
                 .font(.system(size: 56, weight: .thin))
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [FFDesign.accent, FFDesign.accent.opacity(0.6)],
+                        colors: [FFDesign.gold, FFDesign.accent],
                         startPoint: .top,
                         endPoint: .bottom
                     )

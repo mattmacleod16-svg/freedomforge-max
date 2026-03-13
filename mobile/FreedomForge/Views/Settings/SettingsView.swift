@@ -12,7 +12,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.04, green: 0.04, blue: 0.06).ignoresSafeArea()
+                FFDesign.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
