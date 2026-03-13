@@ -4,7 +4,7 @@
  */
 
 import { getAvailableModels, getMultiModelResponse, initializeModels } from '../models/modelOrchestrator';
-import { enhancePromptWithWebSearch } from '../search/webSearch';
+import { enhancePromptWithWebSearch, perplexityDeepResearch } from '../search/webSearch';
 import { enhancePromptWithKnowledgeBase, initializeRAG } from '../rag/vectorStore';
 import { getLatestBlock, getBalance } from '../alchemy/connector';
 import { initializeAdaptiveIntelligence, runAdaptiveDecisionLoop } from '@/lib/intelligence/adaptiveCortex';
@@ -549,7 +549,28 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     }
     sources.push('vendor://strategy-stack');
 
-    // Step 2: Enhance with knowledge base
+    // Step 2a: Perplexity deep research for high-stakes or data-hungry queries
+    const needsDeepResearch = isBottomLineCriticalQuery(userQuery) ||
+      /research|current.*price|latest|real.?time|regulation|news.*about|market.*update|what.*happening/i.test(userQuery);
+    let perplexityResearch: { answer: string; citations: string[]; confidence: number } | null = null;
+
+    if (needsDeepResearch && (process.env.PERPLEXITY_API_KEY || process.env.PPLX_API_KEY)) {
+      try {
+        perplexityResearch = await perplexityDeepResearch(userQuery);
+        if (perplexityResearch.answer && perplexityResearch.confidence > 0.4) {
+          enhancedPrompt += `\n\n[perplexity deep research — real-time search-grounded intelligence]\n${perplexityResearch.answer.slice(0, 1500)}`;
+          if (perplexityResearch.citations.length > 0) {
+            enhancedPrompt += `\n[citations: ${perplexityResearch.citations.slice(0, 5).join(', ')}]`;
+          }
+          sources.push('perplexity://deep-research');
+          perplexityResearch.citations.slice(0, 3).forEach((c) => sources.push(`citation://${c}`));
+        }
+      } catch (err) {
+        console.error('Perplexity deep research error:', err);
+      }
+    }
+
+    // Step 2b: Enhance with knowledge base
     console.log('📚 Checking knowledge base...');
     const kbEnhancedPrompt = await enhancePromptWithKnowledgeBase(enhancedPrompt);
     const kbMatches = kbEnhancedPrompt.split('knowledge base context').length - 1;

@@ -87,6 +87,7 @@ export async function GET(req: Request) {
         xGrowthAutomation: true,
         autonomousFunding: true,
         modelSynergy: true,
+        perplexitySearch: !!(process.env.PERPLEXITY_API_KEY || process.env.PPLX_API_KEY),
         zoraProtocol: protocolStatus.protocols.some((item) => item.protocol === 'zora' && item.enabled),
         vvvProtocol: protocolStatus.protocols.some((item) => item.protocol === 'vvv' && item.enabled),
       },

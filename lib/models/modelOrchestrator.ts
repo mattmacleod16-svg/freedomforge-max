@@ -6,7 +6,7 @@
 interface ModelConfig {
   name: string;
   apiKey: string;
-  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface' | 'openai-compatible' | 'gemini' | 'clawd';
+  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface' | 'openai-compatible' | 'gemini' | 'clawd' | 'perplexity';
   endpoint?: string;
   model?: string;
   extraHeaders?: Record<string, string>;
@@ -90,6 +90,19 @@ export async function initializeModels() {
     });
   }
 
+  // Perplexity — search-grounded AI with real-time web knowledge
+  const perplexityKey = firstEnv('PERPLEXITY_API_KEY', 'PPLX_API_KEY');
+  if (perplexityKey) {
+    upsertModel({
+      name: 'perplexity',
+      apiKey: perplexityKey,
+      type: 'perplexity',
+      endpoint: firstEnv('PERPLEXITY_ENDPOINT') || 'https://api.perplexity.ai/chat/completions',
+      model: firstEnv('PERPLEXITY_MODEL') || 'sonar-pro',
+      priority: 4,
+    });
+  }
+
   const openRouterKey = firstEnv('OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY');
   if (openRouterKey) {
     upsertModel({
@@ -102,7 +115,7 @@ export async function initializeModels() {
         'HTTP-Referer': firstEnv('APP_BASE_URL') || 'https://freedomforge-max.vercel.app',
         'X-Title': 'FreedomForge Max',
       },
-      priority: 4,
+      priority: 5,
     });
   }
 
@@ -114,7 +127,7 @@ export async function initializeModels() {
       type: 'openai-compatible',
       endpoint: firstEnv('GROQ_ENDPOINT', 'GROC_ENDPOINT') || 'https://api.groq.com/openai/v1/chat/completions',
       model: firstEnv('GROQ_MODEL', 'GROC_MODEL') || 'llama-3.3-70b-versatile',
-      priority: 5,
+      priority: 6,
     });
   }
 
@@ -126,7 +139,7 @@ export async function initializeModels() {
       type: 'gemini',
       endpoint: firstEnv('GEMINI_ENDPOINT') || 'https://generativelanguage.googleapis.com/v1beta/models',
       model: firstEnv('GEMINI_MODEL') || 'gemini-2.0-flash',
-      priority: 6,
+      priority: 7,
     });
   }
 
@@ -138,7 +151,7 @@ export async function initializeModels() {
       type: 'openai-compatible',
       endpoint: firstEnv('MISTRAL_ENDPOINT') || 'https://api.mistral.ai/v1/chat/completions',
       model: firstEnv('MISTRAL_MODEL', 'MISTRALAI_MODEL') || 'mistral-large-latest',
-      priority: 7,
+      priority: 8,
     });
   }
 
@@ -150,7 +163,7 @@ export async function initializeModels() {
       type: 'openai-compatible',
       endpoint: firstEnv('CEREBRAS_ENDPOINT') || 'https://api.cerebras.ai/v1/chat/completions',
       model: firstEnv('CEREBRAS_MODEL') || 'llama-3.3-70b',
-      priority: 8,
+      priority: 9,
     });
   }
 
@@ -162,7 +175,7 @@ export async function initializeModels() {
       type: 'openai-compatible',
       endpoint: firstEnv('NVIDIA_ENDPOINT', 'NIM_ENDPOINT') || 'https://integrate.api.nvidia.com/v1/chat/completions',
       model: firstEnv('NVIDIA_MODEL', 'NIM_MODEL') || 'meta/llama-3.1-70b-instruct',
-      priority: 9,
+      priority: 10,
     });
   }
 
@@ -175,7 +188,7 @@ export async function initializeModels() {
       type: 'openai-compatible',
       endpoint: llamaEndpoint,
       model: firstEnv('LLAMA_MODEL') || 'llama-3.1-70b-instruct',
-      priority: 10,
+      priority: 11,
     });
   }
 
@@ -188,7 +201,7 @@ export async function initializeModels() {
       type: 'local',
       endpoint: ollamaEndpoint,
       model: firstEnv('OLLAMA_MODEL') || 'mistral',
-      priority: 11,
+      priority: 12,
     });
   }
 
@@ -201,7 +214,7 @@ export async function initializeModels() {
       type: 'huggingface',
       endpoint: firstEnv('HUGGINGFACE_ENDPOINT') || 'https://api-inference.huggingface.co/models/',
       model: firstEnv('HUGGINGFACE_MODEL') || 'mistralai/Mistral-7B-Instruct-v0.2',
-      priority: 12,
+      priority: 14,
     });
   }
 
@@ -213,7 +226,7 @@ export async function initializeModels() {
         apiKey: firstEnv('CLAWD_API_SECRET'),
         type: 'clawd',
         endpoint,
-        priority: 13,
+        priority: 15,
       });
     }
   }
@@ -454,6 +467,50 @@ async function queryClawd(prompt: string, config: ModelConfig): Promise<string> 
   }
 }
 
+async function queryPerplexity(prompt: string, config: ModelConfig): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45_000); // Perplexity can be slower due to live search
+  try {
+    const response = await fetch(config.endpoint || 'https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model || 'sonar-pro',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a financial research assistant for FreedomForge Max, an autonomous trading system. Provide precise, data-rich answers with current market data, prices, and actionable intelligence. Always cite sources.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.2, // Low temp for factual accuracy
+        max_tokens: 1500,
+        return_citations: true,
+        search_recency_filter: 'day', // Prioritize recent results
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return 'No response';
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || '';
+
+    // Append citation sources if available
+    const citations = data.citations || [];
+    if (citations.length > 0 && text) {
+      const sourceList = citations.slice(0, 5).map((c: string, i: number) => `[${i + 1}] ${c}`).join('\n');
+      return `${text}\n\nSources:\n${sourceList}`;
+    }
+
+    return text || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function queryAnthropic(prompt: string, config: ModelConfig): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
@@ -535,6 +592,8 @@ export async function getMultiModelResponse(
           response = await queryOpenAI(prompt, model);
         } else if (model.type === 'anthropic') {
           response = await queryAnthropic(prompt, model);
+        } else if (model.type === 'perplexity') {
+          response = await queryPerplexity(prompt, model);
         } else if (model.type === 'openai-compatible') {
           response = await queryOpenAICompatible(prompt, model);
         } else if (model.type === 'gemini') {

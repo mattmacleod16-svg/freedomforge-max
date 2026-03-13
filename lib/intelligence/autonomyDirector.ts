@@ -314,6 +314,7 @@ function updateApiAdapters() {
     { id: 'openai', available: Boolean(process.env.OPENAI_API_KEY) },
     { id: 'anthropic', available: Boolean(process.env.ANTHROPIC_API_KEY) },
     { id: 'xai', available: Boolean(process.env.GROK_API_KEY) },
+    { id: 'perplexity', available: Boolean(process.env.PERPLEXITY_API_KEY || process.env.PPLX_API_KEY) },
     { id: 'ollama', available: Boolean(process.env.OLLAMA_ENDPOINT) },
     { id: 'tavily', available: Boolean(process.env.TAVILY_API_KEY) },
   ];
@@ -655,6 +656,74 @@ export async function ingestExternalGroundTruth() {
     });
   } catch (error) {
     errors.push(`polymarket:${error instanceof Error ? error.message : 'unknown'}`);
+  }
+
+  // Perplexity-powered market intelligence (search-grounded, cited)
+  const perplexityKey = process.env.PERPLEXITY_API_KEY || process.env.PPLX_API_KEY;
+  if (perplexityKey) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 25000);
+      try {
+        const pplxResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${perplexityKey}`,
+          },
+          body: JSON.stringify({
+            model: process.env.PERPLEXITY_SEARCH_MODEL || 'sonar',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a market data extractor. Return ONLY a JSON object with these fields: btc_trend (up/down/flat), eth_trend (up/down/flat), sp500_trend (up/down/flat), macro_risk (low/medium/high), top_narrative (string, max 80 chars). No explanation, just valid JSON.',
+              },
+              { role: 'user', content: 'What are the current crypto and equity market conditions right now? BTC, ETH, S&P 500 trends and macro risk level.' },
+            ],
+            temperature: 0,
+            max_tokens: 200,
+            search_recency_filter: 'hour',
+          }),
+          signal: controller.signal,
+        });
+
+        if (pplxResponse.ok) {
+          const pplxData = await pplxResponse.json();
+          const content = pplxData.choices?.[0]?.message?.content || '';
+          // Try to parse JSON from response
+          try {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              ingested.push({
+                source: 'perplexity/market-intel',
+                signal: `btc=${parsed.btc_trend || 'unknown'};eth=${parsed.eth_trend || 'unknown'};sp500=${parsed.sp500_trend || 'unknown'};macro_risk=${parsed.macro_risk || 'unknown'};narrative=${(parsed.top_narrative || '').slice(0, 80)}`,
+                confidence: 0.85,
+                ts: now,
+              });
+            }
+          } catch {
+            // If JSON parse fails, still capture the raw signal
+            ingested.push({
+              source: 'perplexity/market-intel',
+              signal: content.slice(0, 200),
+              confidence: 0.65,
+              ts: now,
+            });
+          }
+
+          // Track cost
+          try {
+            const costTracker = require('../funding/api-cost-tracker');
+            costTracker.recordApiCall('perplexity', 0.2, { type: 'ground_truth' });
+          } catch { /* funding not available */ }
+        }
+      } finally {
+        clearTimeout(timeout);
+      }
+    } catch (error) {
+      errors.push(`perplexity:${error instanceof Error ? error.message : 'unknown'}`);
+    }
   }
 
   if (ingested.length > 0) {
