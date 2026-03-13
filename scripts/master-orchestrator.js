@@ -53,8 +53,9 @@ const PRED_ENABLED = String(process.env.PRED_MARKET_ENABLED || 'false').toLowerC
 const ALPACA_ENABLED = String(process.env.ALPACA_ENABLED || 'false').toLowerCase() === 'true';
 const IBKR_ENABLED = String(process.env.IBKR_ENABLED || 'false').toLowerCase() === 'true';
 
-// Base order sizing
-const BASE_ORDER_USD = Math.min(10000, Math.max(5, Number(process.env.ORCH_BASE_ORDER_USD || process.env.KRAKEN_ORDER_USD || 15)));
+// Base order sizing (FIX C-3: NaN guard — malformed env var no longer propagates NaN through all sizing)
+const _parsedBaseOrder = Number(process.env.ORCH_BASE_ORDER_USD || process.env.KRAKEN_ORDER_USD || 15);
+const BASE_ORDER_USD = Number.isFinite(_parsedBaseOrder) ? Math.min(10000, Math.max(5, _parsedBaseOrder)) : 15;
 
 // ─── Module Loading ──────────────────────────────────────────────────────────
 
@@ -90,6 +91,18 @@ let exitManager;
 try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null; }
 let _exitLoopHandle = null; // Handle for exit-manager background loop (used in graceful shutdown)
 let _reducedSizeActive = false; // Set by brain.shouldTradeNow() time-of-day filter
+
+// FIX C-2: Restore trailing stop state from disk on startup
+if (exitManager && typeof exitManager.restoreTrailingState === 'function') {
+  try {
+    const asyncExec = require('../lib/async-executor');
+    const savedTrailState = asyncExec.loadTrailingStopState();
+    if (savedTrailState && savedTrailState.positions) {
+      const restored = exitManager.restoreTrailingState(savedTrailState);
+      if (restored > 0) log('info', `Restored trailing stop state for ${restored} positions`);
+    }
+  } catch (err) { /* best-effort restore */ }
+}
 
 // ─── Enhanced Agent Mesh Modules ─────────────────────────────────────────────
 let eventMesh;
@@ -575,6 +588,9 @@ async function phaseSignalGeneration(assets) {
     return [];
   }
 
+  // FIX H-5: Reset _reducedSizeActive at start to prevent stale state leaking from prior cycles
+  _reducedSizeActive = false;
+
   // ═══ BRAIN TIME-OF-DAY GATE ═══
   // Respect the same time-based filter that individual venue engines use
   if (brain && typeof brain.shouldTradeNow === 'function') {
@@ -732,7 +748,7 @@ async function phaseTradeExecution(signals) {
   let tradesPlaced = 0;
   const tradedAssetsThisCycle = new Set();
 
-  for (const signal of signals.slice(0, MAX_TRADES_PER_CYCLE * 2)) {
+  for (const signal of signals.slice(0, MAX_TRADES_PER_CYCLE * 3)) {
     if (tradesPlaced >= MAX_TRADES_PER_CYCLE) break;
 
     // Same-asset duplicate prevention within a single cycle
@@ -862,6 +878,12 @@ async function phaseTradeExecution(signals) {
         continue;
       }
 
+      // FIX H-2: Use kill-switch-adjusted size if risk manager reduced it
+      if (check.adjustedUsdSize && Number.isFinite(check.adjustedUsdSize) && check.adjustedUsdSize < orderUsd) {
+        log('info', `  Kill-switch recovery sizing: $${orderUsd.toFixed(2)} → $${check.adjustedUsdSize.toFixed(2)}`);
+        orderUsd = check.adjustedUsdSize;
+      }
+
       // ═══ ORDER DEDUP GUARD — prevent duplicate orders within short window ═══
       if (edgeCaseMitigations) {
         try {
@@ -929,6 +951,7 @@ async function phaseTradeExecution(signals) {
       }
 
       // ═══ CONSENSUS GATE — Multi-agent vote before execution ═══
+      let _consensusVotes = null;
       if (consensusEngine && !DRY_RUN) {
         try {
           const proposal = await consensusEngine.propose({
@@ -942,17 +965,23 @@ async function phaseTradeExecution(signals) {
             meta: signal.meta || {},
           });
           if (!proposal.approved) {
-            log('info', `  Consensus rejected ${signal.asset} ${signal.side}: score=${(proposal.approvalScore * 100).toFixed(1)}% (need ${(proposal.threshold * 100).toFixed(0)}%)`);
+            log('info', `  Consensus rejected ${signal.asset} ${signal.side}: score=${(proposal.approvalScore * 100).toFixed(1)}% (need ${((proposal.threshold || 0) * 100).toFixed(0)}%)`);
             executions.push({
               asset: signal.asset, side: signal.side, status: 'consensus_rejected',
-              reasons: [`approval ${(proposal.approvalScore * 100).toFixed(1)}% < ${(proposal.threshold * 100).toFixed(0)}%`],
+              reasons: [`approval ${(proposal.approvalScore * 100).toFixed(1)}% < ${((proposal.threshold || 0) * 100).toFixed(0)}%`],
               consensusScore: proposal.approvalScore,
               voters: Object.keys(proposal.votes || {}),
             });
             continue;
           }
+          _consensusVotes = proposal.votes || null;
           log('info', `  Consensus approved ${signal.asset}: ${(proposal.approvalScore * 100).toFixed(1)}% (${Object.keys(proposal.votes || {}).length} voters)`);
-        } catch (err) { log('warn', `Consensus vote error: ${err?.message || err}`); }
+        } catch (err) {
+          // FIX H-1: Consensus errors MUST block trade, not silently pass through
+          log('error', `  Consensus vote error — treating as rejection: ${err?.message || err}`);
+          executions.push({ asset: signal.asset, side: signal.side, status: 'consensus_error', reasons: [err?.message || 'consensus engine error'] });
+          continue;
+        }
       }
 
       // ═══ WAL: Write pending entry BEFORE attempting any venue ═══
@@ -967,6 +996,7 @@ async function phaseTradeExecution(signals) {
             usdSize: orderUsd,
             signal: { side: signal.side, confidence: signal.confidence, edge: signal.edge, compositeScore: signal.compositeScore },
             signalComponents: signal.components || {},
+            consensusVotes: _consensusVotes,
             dryRun: DRY_RUN,
             expectedPrice: signal.meta?.lastPrice || 0,
             signalSources: Object.keys(signal.components || {}),
@@ -1011,7 +1041,14 @@ async function phaseTradeExecution(signals) {
           }
         }
 
-        const result = await executeVenueTrade(venue, signal, orderUsd);
+        // FIX H-3: Wrap executeVenueTrade in try/catch to prevent unhandled throw from leaving WAL in pending
+        let result;
+        try {
+          result = await executeVenueTrade(venue, signal, orderUsd);
+        } catch (execErr) {
+          log('error', `  executeVenueTrade threw for ${venue}/${signal.asset}: ${execErr?.message || execErr}`);
+          result = { success: false, skipped: false, venue, asset: signal.asset, side: signal.side, error: execErr?.message };
+        }
         executions.push(result);
 
         // Record execution quality for smart router learning
@@ -1132,6 +1169,19 @@ async function phaseTradeExecution(signals) {
 
 function phasePredictionMarkets() {
   if (!PRED_ENABLED) return { status: 'disabled' };
+
+  // FIX M-6: Prediction markets must respect kill switch and capital mandate
+  if (riskManager && typeof riskManager.isKillSwitchActive === 'function' && riskManager.isKillSwitchActive()) {
+    log('warn', 'Prediction markets skipped: kill switch active');
+    return { status: 'kill_switch' };
+  }
+  if (capitalMandate && typeof capitalMandate.getMandateSummary === 'function') {
+    const mandate = capitalMandate.getMandateSummary();
+    if (mandate.mode === 'capital_halt') {
+      log('warn', 'Prediction markets skipped: capital halt');
+      return { status: 'mandate_halt' };
+    }
+  }
 
   log('info', '═══ Phase 6: Prediction Markets ═══');
 
@@ -1489,8 +1539,8 @@ async function runCycle(startMs) {
   }
 
   // Start exit-manager background loop (timer is .unref()'d so it won't block process exit)
-  // This ensures exits are continuously monitored if the orchestrator runs as a long-lived process
-  if (exitManager && typeof exitManager.runExitLoop === 'function') {
+  // FIX H-6: Guard against duplicate loop handles
+  if (exitManager && typeof exitManager.runExitLoop === 'function' && !_exitLoopHandle) {
     try {
       _exitLoopHandle = exitManager.runExitLoop();
       log('info', '  Exit manager background loop started');
@@ -1530,7 +1580,7 @@ async function runCycle(startMs) {
       if (regimeSizer && reconcileResult.closed) {
         for (const c of reconcileResult.closed) {
           regimeSizer.recordTradeOutcome((c.pnl || 0) > 0);
-          hedgeEngine.closeExposure(c.asset, c.side, Math.abs(c.usdSize || c.pnl || 0));
+          hedgeEngine.closeExposure(c.asset, c.side, Math.abs(c.usdSize != null ? c.usdSize : (c.pnl || 0)));
         }
       }
 
@@ -1745,7 +1795,7 @@ function gracefulShutdown(signal) {
   if (memoryBridge) { try { memoryBridge.stop(); } catch { /* ignore */ } }
   if (arbDetector) { try { arbDetector.stop(); } catch { /* ignore */ } }
 
-  // Save trailing stop state to disk (previously lost on restart)
+  // Save trailing stop state to disk (restored on next startup via exit-manager.restoreTrailingState)
   if (asyncExecutor && exitManager) {
     try {
       const openPositions = typeof exitManager.getOpenPositions === 'function'
@@ -1753,9 +1803,12 @@ function gracefulShutdown(signal) {
       if (openPositions.length > 0) {
         asyncExecutor.saveTrailingStopState({
           positions: openPositions.map(p => ({
-            asset: p.asset, venue: p.venue, side: p.side,
+            tradeId: p.id, asset: p.asset, venue: p.venue, side: p.side,
+            entryPrice: p.entryPrice,
             trailingStopPrice: p.trailingStopPrice,
-            highWaterMark: p.highWaterMark,
+            highWaterMark: p.highWaterMark || p.highestSinceEntry,
+            lowestSinceEntry: p.lowestSinceEntry,
+            highestSinceEntry: p.highestSinceEntry,
           })),
         });
         log('info', `Saved trailing stop state for ${openPositions.length} positions`);
