@@ -1061,17 +1061,19 @@ async function phaseTradeExecution(signals) {
           traded = true;
           tradedAssetsThisCycle.add(signal.asset);
 
-          // Update risk exposure
+          // Update risk exposure — use actual fill size if available (partial fill safety)
+          const actualFillUsd = (result.fill?.fillUsd && Number.isFinite(result.fill.fillUsd))
+            ? result.fill.fillUsd : orderUsd;
           riskManager.updateExposure({
             asset: signal.asset,
             side: signal.side,
-            usdSize: orderUsd,
+            usdSize: actualFillUsd,
             venue,
           });
 
           // Update hedge engine exposure tracking
           if (hedgeEngine) {
-            try { hedgeEngine.updateExposure(signal.asset, signal.side, orderUsd, venue); } catch { /* best-effort */ }
+            try { hedgeEngine.updateExposure(signal.asset, signal.side, actualFillUsd, venue); } catch { /* best-effort */ }
           }
 
           // ═══ WAL: Update pending entry → placed ═══
