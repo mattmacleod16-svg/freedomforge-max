@@ -130,6 +130,32 @@ try { circuitBreaker = require('../lib/circuit-breaker'); } catch { circuitBreak
 let smartOrderRouter;
 try { smartOrderRouter = require('../lib/smart-order-router'); } catch { smartOrderRouter = null; }
 
+// ─── Wave 7: Hardening & Intelligence Modules ───────────────────────────────
+let venueFailover;
+try { venueFailover = require('../lib/venue-failover'); } catch { venueFailover = null; }
+let slippageTracker;
+try { slippageTracker = require('../lib/slippage-tracker'); } catch { slippageTracker = null; }
+let orderbookImbalance;
+try { orderbookImbalance = require('../lib/orderbook-imbalance'); } catch { orderbookImbalance = null; }
+let portfolioVaR;
+try { portfolioVaR = require('../lib/portfolio-var'); } catch { portfolioVaR = null; }
+let deadMansSwitch;
+try { deadMansSwitch = require('../lib/dead-mans-switch'); } catch { deadMansSwitch = null; }
+let drawdownBreaker;
+try { drawdownBreaker = require('../lib/drawdown-circuit-breaker'); } catch { drawdownBreaker = null; }
+let regimeDetector;
+try { regimeDetector = require('../lib/regime-detector'); } catch { regimeDetector = null; }
+let perfAttribution;
+try { perfAttribution = require('../lib/performance-attribution'); } catch { perfAttribution = null; }
+let anomalyDetector;
+try { anomalyDetector = require('../lib/anomaly-detector'); } catch { anomalyDetector = null; }
+let alertBus;
+try { alertBus = require('../lib/alerting-bus'); } catch { alertBus = null; }
+let strategyLifecycle;
+try { strategyLifecycle = require('../lib/strategy-lifecycle'); } catch { strategyLifecycle = null; }
+let configHotReload;
+try { configHotReload = require('../lib/config-hot-reload'); } catch { configHotReload = null; }
+
 // ─── State Management ────────────────────────────────────────────────────────
 
 // Resilient I/O — atomic writes, backup recovery, file locking
@@ -248,6 +274,40 @@ async function phaseHealthCheck() {
     if (mandate.mode === 'survival') {
       log('warn', '⚠️ SURVIVAL MODE — ultra-conservative trading only. Preserve capital at all costs.');
     }
+  }
+
+  // ═══ WAVE 7: Drawdown Circuit Breaker ═══
+  if (drawdownBreaker) {
+    try {
+      const ddCheck = drawdownBreaker.checkDrawdown();
+      health.drawdownBreakerLevel = ddCheck.level;
+      health.drawdownBreakerName = ddCheck.levelName;
+      if (ddCheck.changed) {
+        log('warn', `📊 Drawdown breaker level changed → L${ddCheck.level} ${ddCheck.levelName}: ${ddCheck.reason}`);
+        if (alertBus) alertBus.warning('risk', `Drawdown breaker: L${ddCheck.level} ${ddCheck.levelName}`, { reason: ddCheck.reason });
+      }
+      if (!ddCheck.tradingAllowed) {
+        log('error', `🚨 DRAWDOWN BREAKER L${ddCheck.level}: Trading halted (DD: ${ddCheck.drawdownPct.toFixed(1)}%)`);
+        return { ...health, abort: true, reason: `drawdown_breaker_L${ddCheck.level}` };
+      }
+    } catch (e) { log('warn', `Drawdown breaker check failed: ${e?.message || e}`); }
+  }
+
+  // ═══ WAVE 7: Dead Man's Switch ═══
+  if (deadMansSwitch) {
+    try {
+      await deadMansSwitch.check();
+    } catch (e) { log('warn', `Dead man's switch check failed: ${e?.message || e}`); }
+  }
+
+  // ═══ WAVE 7: Config Hot-Reload ═══
+  if (configHotReload) {
+    try {
+      const reloadResult = configHotReload.reloadIfChanged();
+      if (reloadResult.reloaded.length > 0) {
+        log('info', `♻️ Hot-reloaded: ${reloadResult.reloaded.join(', ')}`);
+      }
+    } catch (e) { log('warn', `Config hot-reload failed: ${e?.message || e}`); }
   }
 
   // Check kill switch
@@ -884,6 +944,80 @@ async function phaseTradeExecution(signals) {
         orderUsd = check.adjustedUsdSize;
       }
 
+      // ═══ WAVE 7: ANOMALY GUARD — pause trading on anomalous assets ═══
+      if (anomalyDetector) {
+        try {
+          const anomalyPause = anomalyDetector.isTradingPaused(signal.asset);
+          if (anomalyPause.paused) {
+            log('warn', `  Anomaly pause active for ${signal.asset}: ${anomalyPause.reason} (resumes ${anomalyPause.resumesAt})`);
+            executions.push({ asset: signal.asset, side: signal.side, status: 'anomaly_paused', reasons: [anomalyPause.reason] });
+            continue;
+          }
+        } catch (err) { log('warn', `Anomaly check error: ${err?.message || err}`); }
+      }
+
+      // ═══ WAVE 7: DRAWDOWN BREAKER CONSTRAINTS ═══
+      if (drawdownBreaker) {
+        try {
+          const ddConstraints = drawdownBreaker.getConstraints ? drawdownBreaker.getConstraints() : null;
+          if (ddConstraints && ddConstraints.sizeMultiplier < 1 && ddConstraints.sizeMultiplier > 0) {
+            const preDd = orderUsd;
+            orderUsd = Math.round(orderUsd * ddConstraints.sizeMultiplier * 100) / 100;
+            log('info', `  Drawdown breaker L${ddConstraints.level}: $${preDd.toFixed(2)} → $${orderUsd.toFixed(2)} (${ddConstraints.sizeMultiplier}x)`);
+          }
+        } catch { /* best effort */ }
+      }
+
+      // ═══ WAVE 7: PORTFOLIO VaR BUDGET CHECK ═══
+      if (portfolioVaR && typeof portfolioVaR.checkVaRBudget === 'function') {
+        try {
+          const varBudget = await portfolioVaR.checkVaRBudget(signal.asset, orderUsd, signal.side);
+          if (varBudget && varBudget.breachesLimit) {
+            log('warn', `  Portfolio VaR budget exceeded for ${signal.asset}: ${varBudget.currentVaRPct?.toFixed(1)}% > limit`);
+            executions.push({ asset: signal.asset, side: signal.side, status: 'portfolio_var_blocked', reasons: ['portfolio VaR budget exceeded'] });
+            continue;
+          }
+        } catch (err) { log('warn', `Portfolio VaR check error: ${err?.message || err}`); }
+      }
+
+      // ═══ WAVE 7: ORDERBOOK IMBALANCE ADJUSTMENT ═══
+      if (orderbookImbalance) {
+        try {
+          const flow = orderbookImbalance.getFlowAlignment(signal.asset, signal.side);
+          if (flow && flow.multiplier !== 1) {
+            const preFlow = orderUsd;
+            orderUsd = Math.round(orderUsd * flow.multiplier * 100) / 100;
+            if (preFlow !== orderUsd) {
+              log('info', `  Flow alignment ${signal.asset}: $${preFlow.toFixed(2)} → $${orderUsd.toFixed(2)} (${flow.alignment})`);
+            }
+          }
+          const imbalance = orderbookImbalance.getImbalance(signal.asset);
+          if (imbalance && imbalance.shouldDelay) {
+            log('info', `  Order flow adverse for ${signal.asset}: ${imbalance.delayReason} — skipping`);
+            executions.push({ asset: signal.asset, side: signal.side, status: 'flow_adverse', reasons: [imbalance.delayReason] });
+            continue;
+          }
+        } catch (err) { log('warn', `Orderbook imbalance error: ${err?.message || err}`); }
+      }
+
+      // ═══ WAVE 7: STRATEGY LIFECYCLE GATE ═══
+      if (strategyLifecycle) {
+        try {
+          const stratName = signal.strategy || signal.signalSource || 'default';
+          const lifecycleCheck = strategyLifecycle.isLiveTradeAllowed(stratName);
+          if (!lifecycleCheck.allowed && lifecycleCheck.state !== 'unregistered') {
+            log('info', `  Strategy lifecycle blocked ${signal.asset}: '${stratName}' is ${lifecycleCheck.state}`);
+            executions.push({ asset: signal.asset, side: signal.side, status: 'lifecycle_blocked', reasons: [`strategy '${stratName}' in ${lifecycleCheck.state} state`] });
+            continue;
+          }
+          if (lifecycleCheck.sizeMultiplier > 0 && lifecycleCheck.sizeMultiplier < 1) {
+            const preLifecycle = orderUsd;
+            orderUsd = Math.round(orderUsd * lifecycleCheck.sizeMultiplier * 100) / 100;
+            log('info', `  Lifecycle sizing ${signal.asset}: $${preLifecycle.toFixed(2)} → $${orderUsd.toFixed(2)} (${lifecycleCheck.state})`);
+          }
+        } catch (err) { log('warn', `Strategy lifecycle error: ${err?.message || err}`); }
+      }
+
       // ═══ ORDER DEDUP GUARD — prevent duplicate orders within short window ═══
       if (edgeCaseMitigations) {
         try {
@@ -1005,8 +1139,19 @@ async function phaseTradeExecution(signals) {
         } catch (err) { log('warn', 'WAL pending write failed: ' + (err?.message || err)); }
       }
 
-      // ═══ SMART ORDER ROUTING — data-driven venue selection ═══
+      // ═══ WAVE 7: VENUE FAILOVER — healthiest venues first ═══
       let venueOrder = VENUE_PRIORITY;
+      if (venueFailover) {
+        try {
+          const healthyVenues = venueFailover.getHealthyVenues({ enabledOnly: true });
+          if (healthyVenues.length > 0) {
+            venueOrder = healthyVenues.map(v => v.venue).filter(v => VENUE_PRIORITY.includes(v));
+            if (venueOrder.length === 0) venueOrder = VENUE_PRIORITY;
+          }
+        } catch (err) { log('warn', `Venue failover error: ${err?.message || err}`); }
+      }
+
+      // ═══ SMART ORDER ROUTING — data-driven venue selection ═══
       if (smartOrderRouter) {
         try {
           const enabledVenues = VENUE_PRIORITY.filter(v => isVenueEnabled(v) && v !== 'prediction');
@@ -1054,6 +1199,29 @@ async function phaseTradeExecution(signals) {
         // Record execution quality for smart router learning
         if (smartOrderRouter) {
           try { smartOrderRouter.recordExecution(venue, result); } catch { /* best-effort */ }
+        }
+
+        // ═══ WAVE 7: Record venue fill & slippage for failover + tracker ═══
+        if (venueFailover) {
+          try {
+            const latency = result.durationMs || 0;
+            const slip = result.fill?.slippagePct ? Math.abs(result.fill.slippagePct) * 100 : 0;
+            venueFailover.recordFillResult(venue, result.success, latency, slip);
+          } catch { /* best-effort */ }
+        }
+        if (slippageTracker && result.fill?.fillPrice && signal.meta?.lastPrice) {
+          try {
+            slippageTracker.recordSlippage({
+              expectedPrice: signal.meta.lastPrice,
+              actualPrice: result.fill.fillPrice,
+              venue,
+              asset: signal.asset,
+              side: signal.side,
+              usdSize: orderUsd,
+              orderId: result.fill?.orderId,
+              method: 'limit',
+            });
+          } catch { /* best-effort */ }
         }
 
         if (result.success) {
@@ -1637,7 +1805,47 @@ async function runCycle(startMs) {
     }
   }
 
-  // Phase 8c: ML Pipeline — periodic retraining trigger
+  // Phase 8c: Wave 7 Intelligence — Regime Detection, Attribution, Anomaly Scan
+  if (regimeDetector) {
+    try {
+      const regimeScan = await regimeDetector.scanRegimes();
+      log('info', `Regime scan: market=${regimeScan.marketRegime} | ${JSON.stringify(regimeScan.regimeDistribution)}`);
+    } catch (e) { log('warn', `Regime scan failed: ${e?.message || e}`); }
+  }
+
+  if (anomalyDetector) {
+    try {
+      const anomalyScan = anomalyDetector.scanAll();
+      if (anomalyScan.anomalies.length > 0) {
+        log('warn', `Anomaly scan: ${anomalyScan.anomalies.length} anomalies detected`);
+        if (alertBus) alertBus.warning('anomaly', `${anomalyScan.anomalies.length} anomalies detected`, { types: anomalyScan.anomalies.map(a => a.type) });
+      }
+    } catch (e) { log('warn', `Anomaly scan failed: ${e?.message || e}`); }
+  }
+
+  // Run performance attribution every 10th cycle
+  if (perfAttribution && (state.cycleCount + 1) % 10 === 0) {
+    try {
+      const attribution = await perfAttribution.runAttribution();
+      if (attribution.insights?.length > 0) {
+        log('info', `Attribution insights: ${attribution.insights.map(i => i.reason).join(' | ')}`);
+      }
+    } catch (e) { log('warn', `Performance attribution failed: ${e?.message || e}`); }
+  }
+
+  // Record trade outcomes in strategy lifecycle
+  if (strategyLifecycle && reconcileResult.closed) {
+    for (const c of reconcileResult.closed) {
+      try {
+        strategyLifecycle.recordTradeResult(c.strategy || c.signalSource || 'default', {
+          pnl: c.pnl || 0,
+          isPaper: DRY_RUN,
+        });
+      } catch { /* best-effort */ }
+    }
+  }
+
+  // Phase 8d: ML Pipeline — periodic retraining trigger
   if (mlPipeline && typeof mlPipeline.trainModel === 'function') {
     try {
       // Retrain every 10 cycles if feature store has enough new samples
