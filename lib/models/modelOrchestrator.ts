@@ -486,6 +486,8 @@ export async function getMultiModelResponse(
   count: number = 2,
   options?: {
     preferredModels?: string[];
+    taskType?: string;
+    budgetMode?: 'aggressive' | 'balanced' | 'conservative';
   }
 ): Promise<ModelResponse[]> {
   if (!initialized || models.length === 0 || (Date.now() - lastInitializedAt) > MODEL_REFRESH_MS) {
@@ -496,7 +498,21 @@ export async function getMultiModelResponse(
     throw new Error('No AI models configured');
   }
 
-  const preferred = (options?.preferredModels || []).map((item) => item.toLowerCase());
+  // Synergy-aware routing: use model-synergy-engine if available
+  let synergyRoute: string[] | null = null;
+  try {
+    const synergyEngine = require('../funding/model-synergy-engine');
+    const availableNames = models.map((m) => m.name);
+    const routing = synergyEngine.getOptimalRoute(prompt, availableNames, {
+      taskType: options?.taskType,
+      budgetMode: options?.budgetMode,
+    });
+    if (routing.route.length > 0) {
+      synergyRoute = routing.route;
+    }
+  } catch { /* synergy engine not available, use default routing */ }
+
+  const preferred = synergyRoute || (options?.preferredModels || []).map((item) => item.toLowerCase());
   const sortedModels = [...models].sort((a, b) => {
     const aPref = preferred.indexOf(a.name.toLowerCase());
     const bPref = preferred.indexOf(b.name.toLowerCase());
@@ -531,14 +547,33 @@ export async function getMultiModelResponse(
           response = await queryClawd(prompt, model);
         }
 
+        const normalizedResponse = normalizeResponseText(response);
+        const confidence = scoreResponseConfidence(response);
+
+        // Track cost and performance via funding system
+        try {
+          const costTracker = require('../funding/api-cost-tracker');
+          const synergyEngine = require('../funding/model-synergy-engine');
+          const tokensApprox = Math.ceil((prompt.length + normalizedResponse.length) / 4);
+          costTracker.recordApiCall(model.name, tokensApprox / 1000, { endpoint: model.endpoint });
+          synergyEngine.recordModelPerformance(model.name, 'query', Date.now() - (model as any)._startMs || 0, confidence, confidence > 0);
+        } catch { /* funding system not available */ }
+
         return {
           model: model.name,
-          response: normalizeResponseText(response),
-          confidence: scoreResponseConfidence(response),
+          response: normalizedResponse,
+          confidence,
           timestamp: Date.now(),
         };
       } catch (error) {
         console.error(`Error querying ${model.name}:`, error);
+
+        // Track failure in funding system
+        try {
+          const synergyEngine = require('../funding/model-synergy-engine');
+          synergyEngine.recordModelPerformance(model.name, 'query', 0, 0, false);
+        } catch { /* funding system not available */ }
+
         return {
           model: model.name,
           response: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,

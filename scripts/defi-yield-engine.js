@@ -318,8 +318,15 @@ async function main() {
   // Estimate yield earned
   const depositedForProtocol = state.data.positions[PROTOCOL]?.deposited || 0;
   if (currentPositionUsd > depositedForProtocol && depositedForProtocol > 0) {
-    state.data.estimatedYield = (state.data.estimatedYield || 0) + (currentPositionUsd - depositedForProtocol);
+    const yieldEarned = currentPositionUsd - depositedForProtocol;
+    state.data.estimatedYield = (state.data.estimatedYield || 0) + yieldEarned;
     state.data.positions[PROTOCOL].deposited = currentPositionUsd;
+
+    // Route yield through autonomous funding pipeline
+    try {
+      const fundingCoordinator = require('../lib/funding/autonomous-funding-coordinator');
+      fundingCoordinator.processDeFiYield(yieldEarned, PROTOCOL);
+    } catch { /* funding system not available */ }
   }
 
   // 10. Calculate limits

@@ -37,6 +37,27 @@ export async function GET(req: Request) {
       await resolveDueForecasts();
     }
     
+    // Autonomous funding status
+    let fundingStatus = null;
+    try {
+      const fundingCoordinator = require('@/lib/funding/autonomous-funding-coordinator');
+      fundingStatus = {
+        selfFundingActive: false,
+        synergyScore: 0,
+        ...(() => {
+          const full = fundingCoordinator.getFundingStatus(detectedModels);
+          return {
+            selfFundingActive: full.selfFundingActive,
+            selfFundingRatio: full.selfFundingRatio,
+            budgetMode: full.budgetMode,
+            apiReserveDays: full.reserves?.apiOpsDaysCovered || 0,
+            synergyScore: full.synergy?.synergyScore || 0,
+            modelCount: full.synergy?.modelCount || 0,
+          };
+        })(),
+      };
+    } catch { /* funding system not loaded */ }
+
     const status = {
       ready: isReady,
       models: detectedModels,
@@ -50,6 +71,7 @@ export async function GET(req: Request) {
       protocols: protocolStatus,
       vendorStack,
       xAutomation,
+      funding: fundingStatus,
       capabilities: {
         multiModel: true,
         webSearch: !!process.env.TAVILY_API_KEY,
@@ -63,11 +85,13 @@ export async function GET(req: Request) {
         adaptiveOpportunities: true,
         textFirstInteraction: true,
         xGrowthAutomation: true,
+        autonomousFunding: true,
+        modelSynergy: true,
         zoraProtocol: protocolStatus.protocols.some((item) => item.protocol === 'zora' && item.enabled),
         vvvProtocol: protocolStatus.protocols.some((item) => item.protocol === 'vvv' && item.enabled),
       },
-      message: isReady 
-        ? '🚀 FreedomForge Max is online and ready!' 
+      message: isReady
+        ? '🚀 FreedomForge Max is online and ready!'
         : '⏳ System initializing...',
     };
 

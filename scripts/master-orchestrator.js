@@ -89,6 +89,8 @@ let mlPipeline;
 try { mlPipeline = require('../lib/ml-pipeline'); } catch { mlPipeline = null; }
 let exitManager;
 try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null; }
+let fundingCoordinator;
+try { fundingCoordinator = require('../lib/funding/autonomous-funding-coordinator'); } catch { fundingCoordinator = null; }
 let _exitLoopHandle = null; // Handle for exit-manager background loop (used in graceful shutdown)
 let _reducedSizeActive = false; // Set by brain.shouldTradeNow() time-of-day filter
 
@@ -1691,6 +1693,19 @@ async function runCycle(startMs) {
     }
   }
 
+  // Phase 5c+: Autonomous Funding — route profits through self-funding pipeline
+  if (fundingCoordinator && reconcileResult.totalPnl > 0) {
+    try {
+      const venue = VENUE_PRIORITY[0] || 'unknown';
+      const fundingResult = fundingCoordinator.processTradeRevenue(reconcileResult.totalPnl, venue);
+      if (fundingResult) {
+        log('info', `  Funding: $${reconcileResult.totalPnl.toFixed(2)} routed through self-funding pipeline`);
+      }
+    } catch (e) {
+      log('error', `Funding coordinator error: ${e.message}`);
+    }
+  }
+
   // Phase 5d: Exit Manager — check open positions for trailing stop / take-profit exits
   let exitResult = { checked: 0, exited: 0, errors: 0, exits: [] };
   if (exitManager) {
@@ -1887,6 +1902,17 @@ async function runCycle(startMs) {
     predStatus: predResult?.status || 'disabled',
   };
   saveState(state);
+
+  // Autonomous Funding Cycle — keep the self-funding engine in sync
+  let fundingCycleResult = null;
+  if (fundingCoordinator) {
+    try {
+      fundingCycleResult = fundingCoordinator.runFundingCycle();
+      log('info', `  Funding cycle #${fundingCycleResult.cycle}: self-funding=${fundingCycleResult.selfFundingActive}, reserve=${fundingCycleResult.apiReserveDaysCovered}d, mode=${fundingCycleResult.budgetMode}`);
+    } catch (e) {
+      log('error', `Funding cycle error: ${e.message}`);
+    }
+  }
 
   // Final report
   const report = {
