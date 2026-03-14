@@ -41,20 +41,14 @@ export async function GET(req: Request) {
     let fundingStatus = null;
     try {
       const fundingCoordinator = require('@/lib/funding/autonomous-funding-coordinator');
+      const full = fundingCoordinator.getFundingStatus(detectedModels);
       fundingStatus = {
-        selfFundingActive: false,
-        synergyScore: 0,
-        ...(() => {
-          const full = fundingCoordinator.getFundingStatus(detectedModels);
-          return {
-            selfFundingActive: full.selfFundingActive,
-            selfFundingRatio: full.selfFundingRatio,
-            budgetMode: full.budgetMode,
-            apiReserveDays: full.reserves?.apiOpsDaysCovered || 0,
-            synergyScore: full.synergy?.synergyScore || 0,
-            modelCount: full.synergy?.modelCount || 0,
-          };
-        })(),
+        selfFundingActive: full.selfFundingActive ?? false,
+        selfFundingRatio: full.selfFundingRatio,
+        budgetMode: full.budgetMode,
+        apiReserveDays: full.reserves?.apiOpsDaysCovered || 0,
+        synergyScore: full.synergy?.synergyScore || 0,
+        modelCount: full.synergy?.modelCount || 0,
       };
     } catch { /* funding system not loaded */ }
 
