@@ -21,5 +21,5 @@ Lookback window: last 720 hours
 
 ## Proposed Env Patch File
 - See `ops/recommended-env-overrides.env` for suggested parameter values.
-- Apply these to deployment environment variables (Vercel/GitHub), then monitor weekly summary deltas.
+- Apply these to deployment environment variables (Railway/GitHub), then monitor weekly summary deltas.
 

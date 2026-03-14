@@ -25,7 +25,7 @@ try { rio = require('../lib/resilient-io'); } catch { rio = null; }
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const PAYOUT_STATE_FILE = path.join(DATA_DIR, 'payout-state.json');
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL || '';
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 

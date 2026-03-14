@@ -16,10 +16,10 @@ If `PASS`, no action needed.
 ## 1) Service/API sanity
 
 ```bash
-curl -sS https://freedomforge-max.vercel.app/api/alchemy/health
-curl -sS https://freedomforge-max.vercel.app/api/status
-curl -sS https://freedomforge-max.vercel.app/api/alchemy/wallet
-curl -sS "https://freedomforge-max.vercel.app/api/alchemy/wallet/logs?limit=80"
+curl -sS https://freedomforge-max.up.railway.app/api/alchemy/health
+curl -sS https://freedomforge-max.up.railway.app/api/status
+curl -sS https://freedomforge-max.up.railway.app/api/alchemy/wallet
+curl -sS "https://freedomforge-max.up.railway.app/api/alchemy/wallet/logs?limit=80"
 ```
 
 Expected:
@@ -31,13 +31,13 @@ Expected:
 ## 2) Force one manual distribution run
 
 ```bash
-curl -sS "https://freedomforge-max.vercel.app/api/alchemy/wallet/distribute?shard=0&shards=1&botId=break-glass-$(date +%s)"
+curl -sS "https://freedomforge-max.up.railway.app/api/alchemy/wallet/distribute?shard=0&shards=1&botId=break-glass-$(date +%s)"
 ```
 
 If HTTP is not 200, check latest alert:
 
 ```bash
-curl -sS https://freedomforge-max.vercel.app/api/alchemy/wallet/alerts
+curl -sS https://freedomforge-max.up.railway.app/api/alchemy/wallet/alerts
 ```
 
 ---
@@ -51,7 +51,7 @@ Symptoms:
 
 Fix:
 - Refill funding wallet and rerun manual distribution.
-- Confirm `FUNDING_PRIVATE_KEY` exists in Vercel Production env.
+- Confirm `FUNDING_PRIVATE_KEY` exists in Railway environment variables.
 
 ### B) Repeated `results: null`
 Symptoms:
@@ -65,7 +65,7 @@ Fix:
 Fix:
 
 ```bash
-curl -sS -X POST https://freedomforge-max.vercel.app/api/status
+curl -sS -X POST https://freedomforge-max.up.railway.app/api/status
 ```
 
 Wait 10–20 seconds and recheck `/api/status` and `/api/alchemy/health`.
@@ -93,7 +93,7 @@ If disabled/failing, manually trigger workflow dispatch from Actions UI.
 
 ```bash
 cd /Users/mattyice/Desktop/freedomforge-max
-vercel --prod --yes
+railway up
 npm run smoke:prod
 ```
 

@@ -6,7 +6,7 @@ USER_NAME="opc"
 KEY_PATH="$HOME/Downloads/ssh-key-2026-03-05.key"
 REPO_URL="https://github.com/mattmacleod16-svg/freedomforge-max.git"
 REMOTE_DIR="/home/opc/freedomforge-max"
-APP_BASE_URL="https://freedomforge-max.vercel.app"
+APP_BASE_URL="https://freedomforge-max.up.railway.app"
 RETRIES="30"
 SLEEP_SEC="15"
 
