@@ -90,7 +90,7 @@
     "@polymarket/clob-client": "^5.7.0",
     "chart.js": "^4.5.1",
     "chartjs-adapter-date-fns": "^3.0.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.3.1",
     "ethers5": "npm:ethers@5.8.0",
     "ethers": "^6.16.0",
     "framer-motion": "^12.34.3",
