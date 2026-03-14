@@ -82,7 +82,7 @@ if [ "$deploy_ok" = "true" ]; then
   # ─── Post-deploy verification (non-blocking) ─────────────────────────
   sleep 30 # Wait for Vercel build
   for i in $(seq 1 3); do
-    resp=$(curl -sf --max-time 15 -H "x-api-secret: ${ALERT_SECRET:-}" "https://freedomforge-max.vercel.app/api/status/empire" 2>/dev/null || echo "FAIL")
+    resp=$(curl -sf --max-time 15 -H "x-api-secret: ${ALERT_SECRET:-}" "https://freedomforge-max.up.railway.app/api/status/empire" 2>/dev/null || echo "FAIL")
     if echo "$resp" | grep -q '"totalUsd"'; then
       log "Post-deploy verification PASSED"
       break

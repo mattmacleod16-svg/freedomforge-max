@@ -7,7 +7,7 @@ KEY_PATH=""
 REPO_URL=""
 REMOTE_DIR="/opt/freedomforge-max"
 LOCAL_ENV_FILE=".env.local"
-APP_BASE_URL="https://freedomforge-max.vercel.app"
+APP_BASE_URL="https://freedomforge-max.up.railway.app"
 LIVE_ONCE="true"
 RETRIES="120"
 SLEEP_SEC="20"
@@ -24,7 +24,7 @@ Usage:
     [--repo <GIT_REPO_URL>] \
     [--remote-dir /opt/freedomforge-max] \
     [--env-file .env.local] \
-    [--app-base-url https://freedomforge-max.vercel.app] \
+    [--app-base-url https://freedomforge-max.up.railway.app] \
     [--live-once true|false] \
     [--retries 120] \
     [--sleep-sec 20]

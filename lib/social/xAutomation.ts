@@ -363,7 +363,7 @@ async function getAuthToken() {
 }
 
 function getBaseUrl() {
-  return (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+  return (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 }
 
 function getHandle() {

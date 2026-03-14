@@ -112,7 +112,7 @@ export async function initializeModels() {
       endpoint: firstEnv('OPENROUTER_ENDPOINT') || 'https://openrouter.ai/api/v1/chat/completions',
       model: firstEnv('OPENROUTER_MODEL') || 'openai/gpt-4o-mini',
       extraHeaders: {
-        'HTTP-Referer': firstEnv('APP_BASE_URL') || 'https://freedomforge-max.vercel.app',
+        'HTTP-Referer': firstEnv('APP_BASE_URL') || 'https://freedomforge-max.up.railway.app',
         'X-Title': 'FreedomForge Max',
       },
       priority: 5,

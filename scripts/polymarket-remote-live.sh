@@ -6,7 +6,7 @@ USER_NAME="ubuntu"
 KEY_PATH=""
 REMOTE_DIR="/opt/freedomforge-max"
 REPO_URL=""
-APP_BASE_URL="https://freedomforge-max.vercel.app"
+APP_BASE_URL="https://freedomforge-max.up.railway.app"
 LOCAL_ENV_FILE=".env.local"
 LIVE_ONCE="true"
 
@@ -22,7 +22,7 @@ Usage:
     [--repo <GIT_REPO_URL>] \
     [--remote-dir /opt/freedomforge-max] \
     [--env-file .env.local] \
-    [--app-base-url https://freedomforge-max.vercel.app] \
+    [--app-base-url https://freedomforge-max.up.railway.app] \
     [--live-once true|false]
 EOF
       exit 0

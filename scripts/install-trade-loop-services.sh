@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_DIR="${PWD}"
-APP_BASE_URL="https://freedomforge-max.vercel.app"
+APP_BASE_URL="https://freedomforge-max.up.railway.app"
 SERVICE_USER="${SUDO_USER:-$USER}"
 INTERVAL_MS="1000"
 SUCCESS_COOLDOWN_MS="8000"

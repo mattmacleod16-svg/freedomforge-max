@@ -7,7 +7,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 const LOOKBACK_HOURS = Math.max(6, Number(process.env.CASHFLOW_TUNE_LOOKBACK_HOURS || 24));
 const LOG_LIMIT = Math.max(500, Number(process.env.CASHFLOW_TUNE_LOG_LIMIT || 4000));
 const AUTO_REDEPLOY = String(process.env.CASHFLOW_TUNE_AUTO_REDEPLOY || 'false').toLowerCase() === 'true';
