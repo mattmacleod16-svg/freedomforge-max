@@ -232,7 +232,7 @@ export async function perplexityDeepResearch(query: string): Promise<{
       try {
         const costTracker = require('../funding/api-cost-tracker');
         const tokensApprox = Math.ceil((query.length + answer.length) / 4);
-        costTracker.recordApiCall('perplexity', tokensApprox / 1000, { type: 'deep_research', model: 'sonar-pro' });
+        costTracker.recordApiCall('perplexity_sonar_pro', tokensApprox / 1000, { type: 'deep_research', model: 'sonar-pro' });
       } catch { /* funding not available */ }
 
       // Confidence based on citation count and answer length

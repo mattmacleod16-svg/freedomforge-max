@@ -467,36 +467,65 @@ async function queryClawd(prompt: string, config: ModelConfig): Promise<string> 
   }
 }
 
+/**
+ * Perplexity model variants and their optimal configurations:
+ *   sonar              — Lightweight search, fast, cheap ($1/$1 per M tokens)
+ *   sonar-pro          — Advanced search, complex queries, 2x citations ($3/$15 per M)
+ *   sonar-reasoning-pro — Chain-of-thought reasoning with search ($3/$15 per M)
+ *   sonar-deep-research — Multi-step autonomous research ($2/$8 per M + search fees)
+ */
+const PERPLEXITY_MODEL_CONFIGS: Record<string, { timeout: number; maxTokens: number; temperature: number; costKey: string }> = {
+  'sonar':                { timeout: 30_000, maxTokens: 1000, temperature: 0.2, costKey: 'perplexity' },
+  'sonar-pro':            { timeout: 45_000, maxTokens: 1500, temperature: 0.2, costKey: 'perplexity_sonar_pro' },
+  'sonar-reasoning-pro':  { timeout: 60_000, maxTokens: 2000, temperature: 0.1, costKey: 'perplexity_reasoning' },
+  'sonar-deep-research':  { timeout: 120_000, maxTokens: 4000, temperature: 0.1, costKey: 'perplexity_deep_research' },
+};
+
 async function queryPerplexity(prompt: string, config: ModelConfig): Promise<string> {
+  const modelId = config.model || 'sonar-pro';
+  const modelCfg = PERPLEXITY_MODEL_CONFIGS[modelId] || PERPLEXITY_MODEL_CONFIGS['sonar-pro'];
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45_000); // Perplexity can be slower due to live search
+  const timer = setTimeout(() => controller.abort(), modelCfg.timeout);
   try {
+    const body: Record<string, any> = {
+      model: modelId,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a financial research assistant for FreedomForge Max, an autonomous trading system. Provide precise, data-rich answers with current market data, prices, and actionable intelligence. Always cite sources.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      temperature: modelCfg.temperature,
+      max_tokens: modelCfg.maxTokens,
+      return_citations: true,
+    };
+
+    // Only add search_recency_filter for search models (not deep-research)
+    if (!modelId.includes('deep-research')) {
+      body.search_recency_filter = 'day';
+    }
+
     const response = await fetch(config.endpoint || 'https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.model || 'sonar-pro',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a financial research assistant for FreedomForge Max, an autonomous trading system. Provide precise, data-rich answers with current market data, prices, and actionable intelligence. Always cite sources.',
-          },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.2, // Low temp for factual accuracy
-        max_tokens: 1500,
-        return_citations: true,
-        search_recency_filter: 'day', // Prioritize recent results
-      }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
 
     if (!response.ok) return 'No response';
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || '';
+
+    // Track cost with model-specific pricing
+    try {
+      const costTracker = require('../funding/api-cost-tracker');
+      const tokensApprox = Math.ceil((prompt.length + (text?.length || 0)) / 4);
+      costTracker.recordApiCall(modelCfg.costKey, tokensApprox / 1000, { model: modelId });
+    } catch { /* funding not available */ }
 
     // Append citation sources if available
     const citations = data.citations || [];
