@@ -8,7 +8,7 @@ This repo now includes a Capacitor iOS wrapper project at `ios/`.
 
 ## Current wrapper mode
 The iOS app is configured to load your live production URL:
-- `https://freedomforge-max.vercel.app`
+- `https://freedomforge-max.up.railway.app`
 
 This means updates to the web app are reflected in the iOS app without rebuilding the binary for every UI/content change.
 

@@ -2,13 +2,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
 const dotenv = require('dotenv');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 const ENABLED = String(process.env.RECOVERY_CONTROLLER_ENABLED || 'true').toLowerCase() !== 'false';
 const WINDOW_HOURS = Math.max(1, Number(process.env.RECOVERY_WINDOW_HOURS || 2));
 const LOG_LIMIT = Math.max(200, Number(process.env.RECOVERY_LOG_LIMIT || 3000));
@@ -28,10 +27,12 @@ const MODE_COOLDOWN_HOURS = Math.max(1, Number(process.env.RECOVERY_MODE_COOLDOW
 const DRAWDOWN_DEMOTE_PCT = Number(process.env.RECOVERY_DRAWDOWN_DEMOTE_PCT || 5); // 5% drawdown → emergency demote
 const NEGATIVE_STREAK_EMERGENCY = Math.max(1, Number(process.env.RECOVERY_NEGATIVE_STREAK_EMERGENCY || 3)); // 3 negative → drop to safe
 
-const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
-const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || '';
-const VERCEL_PROJECT_SLUG = process.env.VERCEL_PROJECT_SLUG || 'freedomforge-max';
-const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || '';
+const RAILWAY_TOKEN = process.env.RAILWAY_TOKEN || '';
+const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || '';
+const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || '';
+const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || '';
+
+const RAILWAY_GQL = 'https://backboard.railway.app/graphql/v2';
 
 function parseBigIntSafe(value) {
   try {
@@ -131,124 +132,74 @@ function summarizeWindow(logs) {
   };
 }
 
-function hasVercelCli() {
-  const result = spawnSync('vercel', ['--version'], { stdio: 'pipe', encoding: 'utf8' });
-  return result.status === 0;
-}
-
-function runVercel(args) {
-  const result = spawnSync('vercel', args, { stdio: 'pipe', encoding: 'utf8' });
-  if (result.status !== 0) {
-    const stderr = (result.stderr || '').trim();
-    const stdout = (result.stdout || '').trim();
-    throw new Error(`vercel ${args.join(' ')} failed: ${stderr || stdout || 'unknown error'}`);
-  }
-}
-
-function vercelApiUrl(pathname) {
-  const base = `https://api.vercel.com${pathname}`;
-  if (!VERCEL_TEAM_ID) return base;
-  const joiner = pathname.includes('?') ? '&' : '?';
-  return `${base}${joiner}teamId=${encodeURIComponent(VERCEL_TEAM_ID)}`;
-}
-
-function candidateProjectRefs() {
-  const refs = [VERCEL_PROJECT_ID, VERCEL_PROJECT_SLUG]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean);
-  return [...new Set(refs)];
-}
-
 async function upsertEnvVar(key, value) {
-  if (!VERCEL_TOKEN && hasVercelCli()) {
-    const args = ['env', 'add', key, 'production', '--value', value, '--force', '--yes'];
-    if (VERCEL_TEAM_ID) args.push('--scope', VERCEL_TEAM_ID);
-    runVercel(args);
-    return;
-  }
-
-  let lastError = null;
-  for (const projectRef of candidateProjectRefs()) {
-    const url = vercelApiUrl(`/v10/projects/${encodeURIComponent(projectRef)}/env?upsert=true`);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-    let response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${VERCEL_TOKEN}`,
-          'Content-Type': 'application/json',
+  if (!RAILWAY_TOKEN) throw new Error('Missing RAILWAY_TOKEN');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(RAILWAY_GQL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RAILWAY_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: 'mutation UpsertVariable($input: VariableUpsertInput!) { variableUpsert(input: $input) }',
+        variables: {
+          input: {
+            projectId: RAILWAY_PROJECT_ID,
+            environmentId: RAILWAY_ENVIRONMENT_ID,
+            serviceId: RAILWAY_SERVICE_ID,
+            name: key,
+            value: String(value),
+          },
         },
-        body: JSON.stringify({
-          key,
-          value,
-          type: 'encrypted',
-          target: ['production'],
-        }),
-        signal: controller.signal,
-      });
-    } finally { clearTimeout(timer); }
+      }),
+      signal: controller.signal,
+    });
+  } finally { clearTimeout(timer); }
 
-    if (response.ok) return;
+  if (!response.ok) {
     const body = await response.text().catch(() => '');
-    lastError = `project=${projectRef} status=${response.status} body=${body}`;
-    if (response.status !== 404) break;
+    throw new Error(`Railway env upsert failed for ${key}: HTTP ${response.status} ${body}`);
   }
-
-  throw new Error(`Vercel env upsert failed for ${key}: ${lastError || 'unknown error'}`);
+  const json = await response.json().catch(() => null);
+  if (json?.errors?.length) {
+    throw new Error(`Railway env upsert failed for ${key}: ${json.errors[0]?.message}`);
+  }
 }
 
 async function tryRedeployLatestProduction() {
-  if (!VERCEL_TOKEN && hasVercelCli()) {
-    const args = ['--prod', '--yes'];
-    if (VERCEL_TEAM_ID) args.push('--scope', VERCEL_TEAM_ID);
-    runVercel(args);
-    return;
-  }
-
-  let deployment = null;
-  for (const projectRef of candidateProjectRefs()) {
-    const listUrl = vercelApiUrl(`/v6/deployments?projectId=${encodeURIComponent(projectRef)}&target=production&limit=1`);
-    const listController = new AbortController();
-    const listTimer = setTimeout(() => listController.abort(), 15000);
-    let listResponse;
-    try {
-      listResponse = await fetch(listUrl, {
-        headers: {
-          Authorization: `Bearer ${VERCEL_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        signal: listController.signal,
-      });
-    } finally { clearTimeout(listTimer); }
-    if (!listResponse.ok) continue;
-    const listPayload = await listResponse.json();
-    deployment = (listPayload.deployments || [])[0] || null;
-    if (deployment?.uid) break;
-  }
-
-  if (!deployment?.uid) throw new Error('No production deployment found to redeploy');
-
-  const redeployUrl = vercelApiUrl(`/v13/deployments/${deployment.uid}/redeploy`);
-  const redeployController = new AbortController();
-  const redeployTimer = setTimeout(() => redeployController.abort(), 15000);
-  let redeployResponse;
+  if (!RAILWAY_TOKEN) throw new Error('Missing RAILWAY_TOKEN');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let response;
   try {
-    redeployResponse = await fetch(redeployUrl, {
+    response = await fetch(RAILWAY_GQL, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
+        Authorization: `Bearer ${RAILWAY_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ target: 'production' }),
-      signal: redeployController.signal,
+      body: JSON.stringify({
+        query: 'mutation ServiceInstanceDeploy($serviceId: String!, $environmentId: String!) { serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId) }',
+        variables: {
+          serviceId: RAILWAY_SERVICE_ID,
+          environmentId: RAILWAY_ENVIRONMENT_ID,
+        },
+      }),
+      signal: controller.signal,
     });
-  } finally { clearTimeout(redeployTimer); }
+  } finally { clearTimeout(timer); }
 
-  if (!redeployResponse.ok) {
-    const body = await redeployResponse.text().catch(() => '');
-    throw new Error(`Redeploy failed: HTTP ${redeployResponse.status} ${body}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Railway redeploy failed: HTTP ${response.status} ${body}`);
+  }
+  const json = await response.json().catch(() => null);
+  if (json?.errors?.length) {
+    throw new Error(`Railway redeploy failed: ${json.errors[0]?.message}`);
   }
 }
 

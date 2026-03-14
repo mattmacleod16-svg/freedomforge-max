@@ -27,18 +27,18 @@ Use this checklist to keep gas top-up and payout automation stable after env or 
 
 1. Deploy to production.
 2. Check health endpoint:
-   - `curl -sS https://freedomforge-max.vercel.app/api/alchemy/health`
+   - `curl -sS https://freedomforge-max.up.railway.app/api/alchemy/health`
 3. Trigger distribution with unique bot id:
-   - `curl -sS "https://freedomforge-max.vercel.app/api/alchemy/wallet/distribute?shard=0&shards=1&botId=manual-$(date +%s)"`
+   - `curl -sS "https://freedomforge-max.up.railway.app/api/alchemy/wallet/distribute?shard=0&shards=1&botId=manual-$(date +%s)"`
 4. Verify wallet state/logs:
-   - `curl -sS https://freedomforge-max.vercel.app/api/alchemy/wallet`
-   - `curl -sS "https://freedomforge-max.vercel.app/api/alchemy/wallet/logs?limit=100"`
+   - `curl -sS https://freedomforge-max.up.railway.app/api/alchemy/wallet`
+   - `curl -sS "https://freedomforge-max.up.railway.app/api/alchemy/wallet/logs?limit=100"`
 5. Optional live terminal watch:
-   - `APP_BASE_URL=https://freedomforge-max.vercel.app WATCH_INTERVAL_MS=15000 npm run watch:live`
-   - In-app ops view: `https://freedomforge-max.vercel.app/dashboard/ops`
+   - `APP_BASE_URL=https://freedomforge-max.up.railway.app WATCH_INTERVAL_MS=15000 npm run watch:live`
+   - In-app ops view: `https://freedomforge-max.up.railway.app/dashboard/ops`
 6. Metrics scrape endpoint (Prometheus format):
-   - `curl -sS https://freedomforge-max.vercel.app/api/status/metrics`
-   - JSON mode: `curl -sS "https://freedomforge-max.vercel.app/api/status/metrics?format=json"`
+   - `curl -sS https://freedomforge-max.up.railway.app/api/status/metrics`
+   - JSON mode: `curl -sS "https://freedomforge-max.up.railway.app/api/status/metrics?format=json"`
 
 ## Grafana Quick Start
 

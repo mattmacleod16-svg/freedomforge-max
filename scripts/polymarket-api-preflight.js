@@ -19,7 +19,7 @@ const args = parseArgs(process.argv.slice(2));
 dotenv.config({ path: path.resolve(process.cwd(), args.envFile) });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 
 const requiredEnv = [
   'WALLET_PRIVATE_KEY',

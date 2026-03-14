@@ -8,7 +8,7 @@ const logger = createLogger('daily-kpi');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL || '';
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 const LOOKBACK_HOURS = Math.max(1, parseInt(process.env.KPI_LOOKBACK_HOURS || '24', 10));

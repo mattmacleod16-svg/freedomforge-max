@@ -1,16 +1,16 @@
 /*
- * Apply recommended env overrides to Vercel
+ * Apply recommended env overrides to Railway
  *
  * Reads key/value pairs from ops/recommended-env-overrides.env and upserts them
- * to a Vercel project via API.
+ * to a Railway service via GraphQL API.
  *
  * Required env:
- *   VERCEL_TOKEN
- *   VERCEL_PROJECT_ID
+ *   RAILWAY_TOKEN
+ *   RAILWAY_PROJECT_ID
+ *   RAILWAY_SERVICE_ID
+ *   RAILWAY_ENVIRONMENT_ID
  *
  * Optional env:
- *   VERCEL_TEAM_ID
- *   VERCEL_TARGET=production|preview|development|all (default: production)
  *   APPLY_KEYS=KEY1,KEY2 (default: all keys from file)
  *   OPS_PATCH_FILE=ops/recommended-env-overrides.env
  *   DRY_RUN=true|false (default: false)
@@ -23,13 +23,15 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const token = process.env.VERCEL_TOKEN || '';
-const projectId = process.env.VERCEL_PROJECT_ID || '';
-const teamId = process.env.VERCEL_TEAM_ID || '';
-const targetInput = (process.env.VERCEL_TARGET || 'production').trim();
+const token = process.env.RAILWAY_TOKEN || '';
+const projectId = process.env.RAILWAY_PROJECT_ID || '';
+const serviceId = process.env.RAILWAY_SERVICE_ID || '';
+const environmentId = process.env.RAILWAY_ENVIRONMENT_ID || '';
 const applyKeysRaw = (process.env.APPLY_KEYS || '').trim();
 const patchFile = process.env.OPS_PATCH_FILE || 'ops/recommended-env-overrides.env';
 const dryRun = String(process.env.DRY_RUN || 'false').toLowerCase() === 'true';
+
+const RAILWAY_GQL = 'https://backboard.railway.app/graphql/v2';
 
 function parsePatchFile(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -52,14 +54,6 @@ function parsePatchFile(filePath) {
   return out;
 }
 
-function resolveTargets(target) {
-  if (target === 'all') return ['production', 'preview', 'development'];
-  if (target === 'production' || target === 'preview' || target === 'development') {
-    return [target];
-  }
-  throw new Error(`invalid VERCEL_TARGET: ${target}`);
-}
-
 function pickKeys(allEntries) {
   const keys = Object.keys(allEntries);
   if (!applyKeysRaw) return keys;
@@ -74,43 +68,50 @@ function pickKeys(allEntries) {
   return keys.filter((k) => wanted.has(k));
 }
 
-function buildUrl() {
-  const base = `https://api.vercel.com/v10/projects/${encodeURIComponent(projectId)}/env?upsert=true`;
-  if (!teamId) return base;
-  return `${base}&teamId=${encodeURIComponent(teamId)}`;
-}
-
-async function upsertOne(url, key, value, targets) {
-  const payload = {
-    key,
-    value,
-    type: 'encrypted',
-    target: targets,
-  };
-
+async function upsertOne(key, value) {
   if (dryRun) {
-    console.log(`[dry-run] upsert ${key} -> ${targets.join(',')} value=${value}`);
+    console.log(`[dry-run] upsert ${key} value=${value}`);
     return;
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(RAILWAY_GQL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: 'mutation UpsertVariable($input: VariableUpsertInput!) { variableUpsert(input: $input) }',
+        variables: {
+          input: {
+            projectId,
+            environmentId,
+            serviceId,
+            name: key,
+            value: String(value),
+          },
+        },
+      }),
+      signal: controller.signal,
+    });
+  } finally { clearTimeout(timer); }
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    throw new Error(`failed upsert for ${key}: status ${response.status} body ${body}`);
+    throw new Error(`failed upsert for ${key}: HTTP ${response.status} ${body}`);
+  }
+  const json = await response.json().catch(() => null);
+  if (json?.errors?.length) {
+    throw new Error(`failed upsert for ${key}: ${json.errors[0]?.message}`);
   }
 }
 
 async function main() {
   const entries = parsePatchFile(path.resolve(process.cwd(), patchFile));
-  const targets = resolveTargets(targetInput);
   const keys = pickKeys(entries);
 
   if (keys.length === 0) {
@@ -119,19 +120,20 @@ async function main() {
   }
 
   if (!dryRun) {
-    if (!token) throw new Error('missing VERCEL_TOKEN');
-    if (!projectId) throw new Error('missing VERCEL_PROJECT_ID');
+    if (!token) throw new Error('missing RAILWAY_TOKEN');
+    if (!projectId) throw new Error('missing RAILWAY_PROJECT_ID');
+    if (!serviceId) throw new Error('missing RAILWAY_SERVICE_ID');
+    if (!environmentId) throw new Error('missing RAILWAY_ENVIRONMENT_ID');
   }
 
-  const url = buildUrl();
-  console.log(`Applying ${keys.length} env key(s) to Vercel target(s): ${targets.join(', ')}`);
+  console.log(`Applying ${keys.length} env key(s) to Railway service`);
   for (const key of keys) {
-    await upsertOne(url, key, entries[key], targets);
+    await upsertOne(key, entries[key]);
   }
-  console.log('apply-vercel-env: done');
+  console.log('apply-railway-env: done');
 }
 
 main().catch((error) => {
-  console.error('apply-vercel-env failed:', error?.message || String(error));
+  console.error('apply-railway-env failed:', error?.message || String(error));
   process.exit(1);
 });

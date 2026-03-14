@@ -40,7 +40,7 @@ In Xcode (`ios/App/App.xcodeproj`):
 
 ## 6) Ongoing updates
 For web UI/API updates only (same wrapper app):
-- Deploy your web app normally to Vercel.
+- Deploy your web app normally to Railway.
 - The iOS wrapper points to production URL and reflects updates.
 
 For native wrapper changes:

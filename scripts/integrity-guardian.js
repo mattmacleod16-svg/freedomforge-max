@@ -736,11 +736,11 @@ function auditInfrastructure() {
   const tunnelUrl = run('cat /home/opc/freedomforge-max/data/tunnel-url.txt 2>/dev/null');
   const lastSynced = run('cat /home/opc/freedomforge-max/data/.last-synced-tunnel-url 2>/dev/null');
   if (tunnelUrl && lastSynced && tunnelUrl !== lastSynced) {
-    log('WARN', domain, `Tunnel URL out of sync: current=${tunnelUrl}, vercel=${lastSynced}`);
+    log('WARN', domain, `Tunnel URL out of sync: current=${tunnelUrl}, synced=${lastSynced}`);
     run('bash scripts/sync-tunnel-url.sh 2>/dev/null &');
-    log('INFO', domain, 'Triggered tunnel URL sync to Vercel', true);
+    log('INFO', domain, 'Triggered tunnel URL sync to Railway', true);
   } else if (tunnelUrl && lastSynced) {
-    pass(domain, 'Tunnel URL synced with Vercel');
+    pass(domain, 'Tunnel URL synced with Railway');
   }
 
   // 6h. Uptime check

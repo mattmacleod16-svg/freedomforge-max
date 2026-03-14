@@ -26,7 +26,7 @@ interface MemoryState {
   updatedAt: number;
 }
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
+const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'episodic-memory.json');
 const MAX_EPISODES = Math.max(500, Number(process.env.MEMORY_MAX_EPISODES || 6000));
 const VECTOR_DIM = 96;

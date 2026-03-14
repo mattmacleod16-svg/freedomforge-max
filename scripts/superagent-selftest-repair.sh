@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$PWD"
 SERVICE_USER="${SUDO_USER:-$USER}"
-APP_BASE_URL="https://freedomforge-max.vercel.app"
+APP_BASE_URL="https://freedomforge-max.up.railway.app"
 ALERT_WEBHOOK_URL="${ALERT_WEBHOOK_URL:-}"
 
 while [[ $# -gt 0 ]]; do

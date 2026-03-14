@@ -108,7 +108,7 @@ if [[ -n "$PUBLIC_IP" ]]; then
 fi
 echo "Next:"
 echo "1) Ensure DNS A record points ${DOMAIN} -> VM public IP"
-echo "2) Set Vercel env NEXT_PUBLIC_GRAFANA_EMBED_URL=https://${DOMAIN}/d/freedomforge-ops/freedomforge-revenue-bot-ops?orgId=1&refresh=15s"
+echo "2) Set Railway env NEXT_PUBLIC_GRAFANA_EMBED_URL=https://${DOMAIN}/d/freedomforge-ops/freedomforge-revenue-bot-ops?orgId=1&refresh=15s"
 echo "3) Redeploy app and open /dashboard/ops"
 echo
 echo "If docker permissions fail in current shell, re-login or run: newgrp docker"

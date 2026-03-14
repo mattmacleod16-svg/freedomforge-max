@@ -157,7 +157,7 @@ type FinanceAutonomyDecision = {
   };
 };
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
+const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'autonomy-state.json');
 const MAX_MEMORY = 500;
 const MAX_GROUND_TRUTH = 200;
