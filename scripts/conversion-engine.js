@@ -10,7 +10,7 @@ dotenv.config();
 
 const ENABLED = String(process.env.CONVERSION_ENGINE_ENABLED || 'false').toLowerCase() === 'true';
 const DRY_RUN = String(process.env.CONVERSION_ENGINE_DRY_RUN || 'true').toLowerCase() !== 'false';
-const APP_BASE_URL = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = Math.max(3000, Number(process.env.CONVERSION_ENGINE_TIMEOUT_MS || 20000));
 const MAX_TX_PER_CYCLE = Math.max(1, Number(process.env.CONVERSION_ENGINE_MAX_TX_PER_CYCLE || 1));
 const SLIPPAGE_BPS_GLOBAL = Math.max(10, Math.min(300, Number(process.env.CONVERSION_SLIPPAGE_BPS || 100)));

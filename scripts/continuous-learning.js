@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 const AUTONOMY_ADMIN_KEY = (process.env.AUTONOMY_ADMIN_KEY || '').trim();
 const FORECAST_HORIZONS = (process.env.CONTINUOUS_FORECAST_HORIZONS || '6,24,72')
   .split(',')

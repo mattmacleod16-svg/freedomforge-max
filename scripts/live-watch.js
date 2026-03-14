@@ -20,7 +20,7 @@ const { parseEther } = require('ethers');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 const WATCH_INTERVAL_MS = Math.max(5000, parseInt(process.env.WATCH_INTERVAL_MS || '15000', 10));
 const WATCH_LOOKBACK_HOURS = Math.max(1, parseInt(process.env.WATCH_LOOKBACK_HOURS || '168', 10));
 const WATCH_LOG_LIMIT = Math.max(100, parseInt(process.env.WATCH_LOG_LIMIT || '2000', 10));

@@ -5,7 +5,7 @@
  *   APP_BASE_URL=https://freedomforge-max.up.railway.app npm run daily-agent-proof
  */
 
-const baseUrl = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
+const baseUrl = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 
 async function getJson(url, init) {
   const controller = new AbortController();

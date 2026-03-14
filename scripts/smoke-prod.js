@@ -5,7 +5,7 @@
  *   APP_BASE_URL=https://freedomforge-max.up.railway.app npm run smoke:prod
  */
 
-const baseUrl = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
+const baseUrl = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 const shard = process.env.SMOKE_SHARD || '0';
 const shards = process.env.SMOKE_SHARDS || '1';
 const botId = process.env.SMOKE_BOT_ID || `smoke-${Date.now()}`;

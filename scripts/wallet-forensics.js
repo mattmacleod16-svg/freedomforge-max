@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 const LOG_LIMIT = Math.max(200, parseInt(process.env.FORENSICS_LOG_LIMIT || '1500', 10));
 const HOURS = Math.max(1, parseInt(process.env.FORENSICS_LOOKBACK_HOURS || '24', 10));
 const NETWORKS = ['eth-mainnet', 'opt-mainnet', 'arb-mainnet', 'polygon-mainnet'];

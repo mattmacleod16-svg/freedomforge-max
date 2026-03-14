@@ -23,7 +23,7 @@ const logger = createLogger('weekly-summary');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL || '';
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 const LOOKBACK_HOURS = Math.max(1, parseInt(process.env.SUMMARY_LOOKBACK_HOURS || '168', 10));
