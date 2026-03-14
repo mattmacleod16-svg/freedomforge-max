@@ -48,7 +48,7 @@ fi
 
 env_updated=false
 for i in $(seq 1 $MAX_RETRIES); do
-  if railway variables --set "ORACLE_API_URL=$URL" 2>>"$LOG"; then
+  if railway variables set ORACLE_API_URL "$URL" 2>>"$LOG"; then
     env_updated=true
     log "Railway ORACLE_API_URL updated (attempt $i)"
     break
@@ -65,7 +65,7 @@ fi
 # ─── Trigger production redeploy with retry ───────────────────────────────
 deploy_ok=false
 for i in $(seq 1 $MAX_RETRIES); do
-  if railway up 2>>"$LOG"; then
+  if railway redeploy --yes 2>>"$LOG"; then
     deploy_ok=true
     log "Railway redeploy completed (attempt $i)"
     break

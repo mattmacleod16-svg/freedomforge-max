@@ -35,7 +35,7 @@
     "wallet:forensics": "node scripts/wallet-forensics.js",
     "api:preflight": "node scripts/polymarket-api-preflight.js",
     "api:preflight:prod": "node scripts/polymarket-api-preflight.js --env-file .env.railway.production",
-    "api:sync:prod": "railway variables --json > .env.railway.production",
+    "api:sync:prod": "railway variables",
     "polymarket:clob": "node scripts/polymarket-clob-engine.js",
     "kraken:spot": "node scripts/kraken-spot-engine.js",
     "coinbase:spot": "node scripts/coinbase-spot-engine.js",
