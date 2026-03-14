@@ -8,7 +8,7 @@
 ## 1. Executive Summary
 
 FreedomForge is a multi-agent automated trading system built on Next.js, deployed
-across Vercel (dashboard + APIs) and an Oracle Cloud VM (trade execution loops).
+across Railway (dashboard + APIs) and an Oracle Cloud VM (trade execution loops).
 It trades crypto across Coinbase, Kraken, and Polymarket using a composite signal
 engine backed by technical indicators, sentiment analysis, and a self-evolving
 parameter optimizer. The system started with ~$805 in seed capital under a strict
@@ -129,7 +129,7 @@ market risk. All trading involves potential loss of capital.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                         VERCEL (Next.js 16)                         │
+│                         RAILWAY (Next.js 16)                         │
 │                                                                      │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────────┐    │
 │  │ Dashboard UI │  │ API Routes   │  │ Intelligence Layer (TS)  │    │
@@ -140,7 +140,7 @@ market risk. All trading involves potential loss of capital.
 │  │              │  │ x/*          │  │ memoryEngine             │    │
 │  └─────────────┘  └──────────────┘  └──────────────────────────┘    │
 │                                                                      │
-│  Env: Vercel env vars (synced via scripts/apply-vercel-env.js)      │
+│  Env: Railway env vars (synced via scripts/apply-railway-env.js)      │
 └──────────────────────────────────────────────────────────────────────┘
           │                        │
           │ HTTPS                  │ SSH deploy
@@ -200,7 +200,7 @@ State files: ~20 JSON files in `data/` (orchestrator, risk, brain, journal, bus,
 ### 3.3 Env Configuration
 
 - `.env.local` — local secrets (API keys, wallet keys)
-- Vercel env vars — production secrets (synced via `scripts/apply-vercel-env.js`)
+- Railway env vars — production secrets (synced via `scripts/apply-railway-env.js`)
 - Environment-driven feature flags for every agent (e.g., `KRAKEN_ENABLED`, `DRY_RUN`)
 
 ---
@@ -216,7 +216,7 @@ State files: ~20 JSON files in `data/` (orchestrator, risk, brain, journal, bus,
 - [x] Capital mandate with survival/normal/growth modes
 - [x] Multi-layer risk management (portfolio, drawdown, liquidation, kill switch)
 - [x] Oracle Cloud VM with systemd timers
-- [x] Dashboard + status APIs on Vercel
+- [x] Dashboard + status APIs on Railway
 - [x] Alerting via Discord webhooks
 - [x] iOS app shell via Capacitor
 - [x] Monitoring via Grafana + Prometheus
@@ -382,7 +382,7 @@ Treasury ledger tracks:
 
 **Current protection:**
 - Keys in env vars, not in code
-- Vercel encrypted environment variables
+- Railway environment variables
 
 **Gap:** No key rotation automation, no IP whitelisting documented.
 **Recommendation:** Implement automated key rotation alerts, set up exchange IP allowlists.

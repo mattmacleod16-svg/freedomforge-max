@@ -7,7 +7,7 @@ while true; do
     if [ "$URL" != "$SAVED" ]; then
       echo "$URL" > /home/opc/freedomforge-max/data/tunnel-url.txt
       echo "$(date): URL updated to $URL" >> /home/opc/freedomforge-max/logs/tunnel-url.log
-      # Sync new tunnel URL to Vercel env var (log errors instead of swallowing)
+      # Sync new tunnel URL to Railway env var (log errors instead of swallowing)
       bash /home/opc/freedomforge-max/scripts/sync-tunnel-url.sh >> "$SYNC_LOG" 2>&1 &
     fi
   fi

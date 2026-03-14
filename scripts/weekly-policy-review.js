@@ -2,9 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 const LOOKBACK_HOURS = Math.min(8760, Math.max(1, Number(process.env.POLICY_LOOKBACK_HOURS || 168)));
 const AUTO_REDEPLOY = String(process.env.POLICY_AUTO_REDEPLOY || 'true').toLowerCase() === 'true';
 const SELF_FUNDING_MODE = String(process.env.SELF_FUNDING_MODE || 'true').toLowerCase() !== 'false';
@@ -22,27 +21,42 @@ const DISTRIBUTION_MIN_OVERFLOW_ETH_SAFE = String(process.env.DISTRIBUTION_MIN_O
 const SELF_FUNDING_BALANCE_TARGET_ETH_SAFE = String(process.env.SELF_FUNDING_BALANCE_TARGET_ETH_SAFE || '0.08').trim();
 const SELF_FUNDING_CRITICAL_BALANCE_ETH_SAFE = String(process.env.SELF_FUNDING_CRITICAL_BALANCE_ETH_SAFE || '0.04').trim();
 
-const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
-const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || '';
-const VERCEL_PROJECT_SLUG = process.env.VERCEL_PROJECT_SLUG || 'freedomforge-max';
-const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || '';
+const RAILWAY_TOKEN = process.env.RAILWAY_TOKEN || '';
+const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || '';
+const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || '';
+const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || '';
+
+const RAILWAY_GQL = 'https://backboard.railway.app/graphql/v2';
 
 function required(name, value) {
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
 }
 
-function hasVercelCli() {
-  const result = spawnSync('vercel', ['--version'], { stdio: 'pipe', encoding: 'utf8' });
-  return result.status === 0;
-}
-
-function runVercel(args) {
-  const result = spawnSync('vercel', args, { stdio: 'pipe', encoding: 'utf8' });
-  if (result.status !== 0) {
-    const stderr = (result.stderr || '').trim();
-    const stdout = (result.stdout || '').trim();
-    throw new Error(`vercel ${args.join(' ')} failed: ${stderr || stdout || 'unknown error'}`);
+async function railwayGql(query, variables) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(RAILWAY_GQL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RAILWAY_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Railway GraphQL HTTP ${response.status}: ${body}`);
+    }
+    const payload = await response.json();
+    if (payload.errors && payload.errors.length > 0) {
+      throw new Error(`Railway GraphQL error: ${payload.errors.map((e) => e.message).join(', ')}`);
+    }
+    return payload.data;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -133,123 +147,34 @@ function computePolicy({ balanceEth, transferredEth, marketRegime, geopoliticalR
   };
 }
 
-function vercelApiUrl(path) {
-  const base = `https://api.vercel.com${path}`;
-  if (!VERCEL_TEAM_ID) return base;
-  const joiner = path.includes('?') ? '&' : '?';
-  return `${base}${joiner}teamId=${encodeURIComponent(VERCEL_TEAM_ID)}`;
-}
-
-function candidateProjectRefs() {
-  const refs = [VERCEL_PROJECT_ID, VERCEL_PROJECT_SLUG]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean);
-  return [...new Set(refs)];
-}
-
 async function upsertEnvVar(key, value) {
-  if (!VERCEL_TOKEN && hasVercelCli()) {
-    const args = ['env', 'add', key, 'production', '--value', value, '--force', '--yes'];
-    if (VERCEL_TEAM_ID) {
-      args.push('--scope', VERCEL_TEAM_ID);
+  const mutation = `
+    mutation VariableUpsert($input: VariableUpsertInput!) {
+      variableUpsert(input: $input)
     }
-    runVercel(args);
-    return;
-  }
-
-  let lastError = null;
-  for (const projectRef of candidateProjectRefs()) {
-    const url = vercelApiUrl(`/v10/projects/${encodeURIComponent(projectRef)}/env?upsert=true`);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        key,
-        value,
-        type: 'encrypted',
-        target: ['production'],
-      }),
-    });
-
-    if (response.ok) {
-      return;
-    }
-
-    const body = await response.text().catch(() => '');
-    lastError = `project=${projectRef} status=${response.status} body=${body}`;
-    if (response.status !== 404) {
-      break;
-    }
-  }
-
-  throw new Error(`Vercel env upsert failed for ${key}: ${lastError || 'unknown error'}`);
+  `;
+  await railwayGql(mutation, {
+    input: {
+      projectId: RAILWAY_PROJECT_ID,
+      serviceId: RAILWAY_SERVICE_ID,
+      environmentId: RAILWAY_ENVIRONMENT_ID,
+      name: key,
+      value,
+    },
+  });
 }
 
 async function tryRedeployLatestProduction() {
-  if (!VERCEL_TOKEN && hasVercelCli()) {
-    const args = ['--prod', '--yes'];
-    if (VERCEL_TEAM_ID) {
-      args.push('--scope', VERCEL_TEAM_ID);
+  const mutation = `
+    mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
+      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
     }
-    runVercel(args);
-    console.log('Redeploy requested via Vercel CLI.');
-    return;
-  }
-
-  let deployment = null;
-  let lastError = null;
-
-  for (const projectRef of candidateProjectRefs()) {
-    const listUrl = vercelApiUrl(`/v6/deployments?projectId=${encodeURIComponent(projectRef)}&target=production&limit=1`);
-    const listResponse = await fetch(listUrl, {
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!listResponse.ok) {
-      const body = await listResponse.text().catch(() => '');
-      lastError = `project=${projectRef} status=${listResponse.status} body=${body}`;
-      if (listResponse.status === 404) {
-        continue;
-      }
-      break;
-    }
-
-    const listPayload = await listResponse.json();
-    deployment = (listPayload.deployments || [])[0] || null;
-    if (deployment?.uid) {
-      break;
-    }
-    lastError = `project=${projectRef} had no production deployment`; 
-  }
-
-  if (!deployment?.uid) {
-    throw new Error(`No production deployment found to redeploy (${lastError || 'unknown'})`);
-  }
-
-  const redeployUrl = vercelApiUrl(`/v13/deployments/${deployment.uid}/redeploy`);
-  const redeployResponse = await fetch(redeployUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ target: 'production' }),
+  `;
+  await railwayGql(mutation, {
+    serviceId: RAILWAY_SERVICE_ID,
+    environmentId: RAILWAY_ENVIRONMENT_ID,
   });
-
-  if (!redeployResponse.ok) {
-    const body = await redeployResponse.text().catch(() => '');
-    throw new Error(`Redeploy failed: HTTP ${redeployResponse.status} ${body}`);
-  }
-
-  const payload = await redeployResponse.json();
-  const url = payload?.url ? `https://${payload.url}` : 'n/a';
-  console.log(`Redeploy requested: ${url}`);
+  console.log('Redeploy requested via Railway API.');
 }
 
 function sumTransfersWithinLookback(logs, lookbackHours) {
@@ -352,15 +277,11 @@ function deriveVenuePolicy() {
 }
 
 async function main() {
-  const canUseTokenApi = Boolean(VERCEL_TOKEN);
-  const canUseCli = hasVercelCli();
-
-  if (!canUseTokenApi && !canUseCli) {
-    throw new Error('Missing VERCEL_TOKEN and Vercel CLI is not available/authenticated');
+  if (!RAILWAY_TOKEN) {
+    throw new Error('Missing RAILWAY_TOKEN');
   }
-
-  if (canUseTokenApi && candidateProjectRefs().length === 0) {
-    throw new Error('Missing both VERCEL_PROJECT_ID and VERCEL_PROJECT_SLUG');
+  if (!RAILWAY_PROJECT_ID || !RAILWAY_SERVICE_ID || !RAILWAY_ENVIRONMENT_ID) {
+    throw new Error('Missing RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, or RAILWAY_ENVIRONMENT_ID');
   }
 
   const [wallet, walletLogs, autonomyStatus] = await Promise.all([
@@ -430,7 +351,7 @@ async function main() {
     await upsertEnvVar('TRADE_VENUE_AUTO_FALLBACK_ON_SKIP', 'true');
   }
 
-  console.log('Vercel production env updated for weekly policy tuning.');
+  console.log('Railway production env updated for weekly policy tuning.');
 
   if (AUTO_REDEPLOY) {
     try {

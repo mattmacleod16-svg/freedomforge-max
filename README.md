@@ -18,7 +18,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a font family by Vercel.
 
 ## Custom AI Sidekick Features
 
@@ -144,8 +144,8 @@ server, etc.):
 ```bash
 ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/… \
 ALERT_MENTION=<@&ROLE_ID> \
-DISTRIBUTION_URL=https://yourapp.vercel.app/api/alchemy/wallet/distribute \
-HEALTH_URL=https://yourapp.vercel.app/api/alchemy/health \
+DISTRIBUTION_URL=https://freedomforge-max.up.railway.app/api/alchemy/wallet/distribute \
+HEALTH_URL=https://freedomforge-max.up.railway.app/api/alchemy/health \
 node scripts/monitor.js
 ```
 
@@ -158,7 +158,7 @@ fails for any reason.
 Use this endpoint to send a real test message through the same alert pipeline:
 
 ```bash
-curl -sS "https://yourapp.vercel.app/api/status/ping-discord?source=manual&note=smoke-test&secret=$ALERT_SECRET"
+curl -sS "https://freedomforge-max.up.railway.app/api/status/ping-discord?source=manual&note=smoke-test&secret=$ALERT_SECRET"
 ```
 
 Requirements:
@@ -214,9 +214,9 @@ Weekly revenue policy review:
 - Workflow: `.github/workflows/weekly-policy-review.yml` (runs Mondays at 15:45 UTC + manual trigger)
 - Reviews wallet balance, last 7 days of transfer logs, and market context (`/api/status/autonomy`) including geopolitical risk signals
 - Auto-selects a compounding policy between 85% and 90% reinvest; in elevated risk-off / geopolitical stress it shifts to stronger preservation (up to 90% reinvest)
-- Upserts production Vercel env keys: `SELF_SUSTAIN_REINVEST_BPS`, `TREASURY_MAX_REINVEST_BPS`, `TREASURY_TARGET_ETH`, `MIN_PAYOUT_ETH`
+- Upserts production Railway environment variables: `SELF_SUSTAIN_REINVEST_BPS`, `TREASURY_MAX_REINVEST_BPS`, `TREASURY_TARGET_ETH`, `MIN_PAYOUT_ETH`
 - Attempts production auto-redeploy after applying policy (can be disabled with `POLICY_AUTO_REDEPLOY=false`)
-- Required secrets: `VERCEL_TOKEN`, `VERCEL_PROJECT_ID` (optional `VERCEL_TEAM_ID`)
+- Required secrets: `RAILWAY_TOKEN`, `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT_ID`
 - Optional vars: `POLICY_LOOKBACK_HOURS` (default `168`)
 
 Geopolitical awareness in market intelligence:
@@ -298,40 +298,27 @@ Self-heal watchdog hardening:
 - Workflow: `.github/workflows/self-heal.yml` now runs every 5 minutes
 - `scripts/self-heal.js` treats payout threshold/reserve skips as expected behavior (not an outage)
 
-One-click apply to Vercel envs:
-- Script: `npm run apply-vercel-env`
-- Workflow: `.github/workflows/apply-vercel-env.yml`
+One-click apply to Railway env vars:
+- Script: `npm run apply-railway-env`
 - Inputs:
-	- `target`: `production`, `preview`, `development`, or `all`
 	- `apply_keys`: optional comma-separated subset (blank = apply all recommended keys)
 	- `dry_run`: `true` to preview, `false` to write changes
 - Required GitHub secrets for write mode:
-	- `VERCEL_TOKEN`
-	- `VERCEL_PROJECT_ID`
-	- Optional `VERCEL_TEAM_ID` (for team-owned projects)
+	- `RAILWAY_TOKEN`
+	- `RAILWAY_PROJECT_ID`
+	- `RAILWAY_SERVICE_ID`
+	- `RAILWAY_ENVIRONMENT_ID`
 
 Chained post-merge preview notification:
-- Workflow: `.github/workflows/ops-patch-preview-notify.yml`
-- Trigger: when PR `automation/monthly-ops-patch` is merged (or manual run)
-- Runs `npm run apply-vercel-env` in `DRY_RUN=true` mode against production target
+- Workflow: removed (was tied to Vercel env apply)
 - Posts success/failure + dry-run preview output to Discord using `ALERT_WEBHOOK_URL`
-- Optional guarded auto-apply after successful preview:
-	- Set repo variable `AUTO_APPLY_ENABLED=true`
-	- Set repo variable `AUTO_APPLY_APPROVED_KEYS` to comma-separated allowlisted keys (example: `ALERT_ON_SUCCESS,DISTRIBUTION_MAX_RETRIES`)
-	- Set repo variable `AUTO_APPLY_REQUIRED_LABEL=autopatch-approved` (default) and add that label to the merged ops patch PR
-	- Workflow dispatches `.github/workflows/apply-vercel-env.yml` with `dry_run=false` only for matched allowlisted keys
-	- Max-change policy vars (defaults):
-		- `AUTO_APPLY_MAX_DISTRIBUTION_MAX_RETRIES=6`
-		- `AUTO_APPLY_MAX_DISTRIBUTION_RETRY_BASE_MS=5000`
-		- `AUTO_APPLY_MAX_GAS_TOPUP_THRESHOLD=0.1`
-		- `AUTO_APPLY_MAX_GAS_TOPUP_AMOUNT=0.2`
 
 Remote dashboard access:
-- Main app: `https://freedomforge-max.vercel.app`
-- Dashboard: `https://freedomforge-max.vercel.app/dashboard`
-- Logs view: `https://freedomforge-max.vercel.app/api/alchemy/wallet/logs?limit=50`
+- Main app: `https://freedomforge-max.up.railway.app`
+- Dashboard: `https://freedomforge-max.up.railway.app/dashboard`
+- Logs view: `https://freedomforge-max.up.railway.app/api/alchemy/wallet/logs?limit=50`
 - Dashboard is protected with session authentication via `DASHBOARD_USER` and `DASHBOARD_PASS` (signed with `DASHBOARD_SESSION_SECRET`)
-- Set strong production credentials in Vercel project environment variables to access it securely from anywhere
+- Set strong production credentials in Railway environment variables to access it securely from anywhere
 
 Revenue automation hardening:
 - Workflow `.github/workflows/distribute.yml` now supports manual trigger + scheduled runs
@@ -369,8 +356,8 @@ ignored by Git. Use the API endpoint `/api/alchemy/wallet/logs?limit=200` to
 fetch the most recent entries.
 
 
-## Deploy on Vercel
+## Deploy on Railway
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The easiest way to deploy this Next.js app is to use [Railway](https://railway.app). Connect your GitHub repository and Railway will automatically build and deploy using the included `railway.toml` configuration.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

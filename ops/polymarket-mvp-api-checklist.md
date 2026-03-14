@@ -39,7 +39,7 @@ This checklist is designed for your current stack and mission: continuous, small
 - Alert pipeline:
   - `ALERT_WEBHOOK_URL`
 - Cycle notifier + policy updater prerequisites:
-  - Vercel CLI authenticated on runtime host OR `VERCEL_TOKEN` + project refs
+  - Railway CLI authenticated on runtime host OR `RAILWAY_TOKEN` + project refs
 - Core guardrails:
   - `MIN_PAYOUT_ETH_<CHAIN>`
   - `MIN_PAYOUT_GAS_MULTIPLIER_<CHAIN>`
