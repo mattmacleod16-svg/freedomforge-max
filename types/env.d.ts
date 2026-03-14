@@ -102,7 +102,14 @@ declare namespace NodeJS {
     FORECAST_ENSEMBLE_HORIZONS?: string;
     POLICY_LOOKBACK_HOURS?: string;
     POLICY_AUTO_REDEPLOY?: string;
-    VERCEL_PROJECT_SLUG?: string;
+    RAILWAY_TOKEN?: string;
+    RAILWAY_PROJECT_ID?: string;
+    RAILWAY_SERVICE_ID?: string;
+    RAILWAY_SERVICE_NAME?: string;
+    RAILWAY_ENVIRONMENT?: string;
+    RAILWAY_ENVIRONMENT_ID?: string;
+    RAILWAY_PUBLIC_DOMAIN?: string;
+    CAPACITOR_SERVER_URL?: string;
     AUTONOMY_ADMIN_KEY?: string;
     CONTINUOUS_FORECAST_HORIZONS?: string;
     CONTINUOUS_POLICY_LIMIT?: string;
@@ -125,7 +132,7 @@ declare namespace NodeJS {
     AI_CRITICAL_MAX_MODEL_COUNT?: string;
     AI_ESCALATION_AGREEMENT_THRESHOLD?: string;
     AI_ESCALATION_CONFIDENCE_THRESHOLD?: string;
-    VERCEL?: string;
+    VERCEL?: string; // kept for backwards-compatibility filesystem checks
 
     // ─── MultiversX (xPortal) ─────────────────────────────────────────
     MVX_ENABLED?: string;

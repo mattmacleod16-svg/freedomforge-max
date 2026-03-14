@@ -17,7 +17,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const baseUrl = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const baseUrl = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 const endpoint = `${baseUrl}/api/x/automation`;
 const secret = process.env.X_AUTOMATION_SECRET || '';
 const dryRun = String(process.env.X_DRY_RUN || 'true').toLowerCase() !== 'false';

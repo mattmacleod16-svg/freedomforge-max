@@ -51,7 +51,7 @@ interface OutcomeInput {
   forecastBrierScore: number;
 }
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
+const DATA_DIR = (process.env.RAILWAY_ENVIRONMENT || process.env.VERCEL) ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'champion-policy.json');
 const MIN_USES_FOR_CHAMPION = Math.max(3, Number(process.env.CHAMPION_MIN_USES || 6));
 

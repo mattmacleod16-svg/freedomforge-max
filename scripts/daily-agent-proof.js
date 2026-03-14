@@ -2,10 +2,10 @@
  * Daily proof-of-operation check for agent intelligence loop.
  *
  * Usage:
- *   APP_BASE_URL=https://freedomforge-max.vercel.app npm run daily-agent-proof
+ *   APP_BASE_URL=https://freedomforge-max.up.railway.app npm run daily-agent-proof
  */
 
-const baseUrl = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const baseUrl = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 
 async function getJson(url, init) {
   const controller = new AbortController();

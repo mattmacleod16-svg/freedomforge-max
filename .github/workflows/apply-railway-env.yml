@@ -1,18 +1,8 @@
-name: Apply Recommended Vercel Env
+name: Apply Recommended Railway Env
 
 on:
   workflow_dispatch:
     inputs:
-      target:
-        description: Vercel environment target
-        required: true
-        default: production
-        type: choice
-        options:
-          - production
-          - preview
-          - development
-          - all
       apply_keys:
         description: Optional comma-separated keys to apply (blank = all from patch file)
         required: false
@@ -30,10 +20,10 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
-      VERCEL_TARGET: ${{ inputs.target }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
       APPLY_KEYS: ${{ inputs.apply_keys }}
       DRY_RUN: ${{ inputs.dry_run }}
       OPS_PATCH_FILE: ops/recommended-env-overrides.env
@@ -50,12 +40,12 @@ jobs:
       - name: Validate required secrets
         if: inputs.dry_run == false
         run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "Missing required secret: VERCEL_TOKEN"
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "Missing required secret: RAILWAY_TOKEN"
             exit 1
           fi
-          if [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "Missing required secret: VERCEL_PROJECT_ID"
+          if [ -z "$RAILWAY_PROJECT_ID" ]; then
+            echo "Missing required secret: RAILWAY_PROJECT_ID"
             exit 1
           fi
 
@@ -71,4 +61,4 @@ jobs:
         run: npm ci
 
       - name: Apply recommended env values
-        run: npm run apply-vercel-env
+        run: npm run apply-railway-env

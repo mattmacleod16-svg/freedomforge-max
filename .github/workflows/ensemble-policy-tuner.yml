@@ -22,7 +22,7 @@ jobs:
   tune:
     runs-on: ubuntu-latest
     env:
-      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.up.railway.app' }}
       TUNER_REGIME: ${{ github.event_name == 'workflow_dispatch' && inputs.regime || 'neutral' }}
       TUNER_LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || '1200' }}
     steps:

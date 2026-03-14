@@ -269,7 +269,7 @@ async function phaseKnowledgeIngest() {
     }
 
     // Fallback: Call ingestion API
-    const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+    const APP_BASE_URL = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
     const headers = { 'Content-Type': 'application/json' };
     if (process.env.ALERT_SECRET) headers['x-api-secret'] = process.env.ALERT_SECRET;
 
@@ -296,7 +296,7 @@ async function phaseKnowledgeIngest() {
 
 async function phaseForecastResolution() {
   try {
-    const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+    const APP_BASE_URL = (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
     const headers = { 'Content-Type': 'application/json' };
     if (process.env.ALERT_SECRET) headers['x-api-secret'] = process.env.ALERT_SECRET;
     if (process.env.AUTONOMY_ADMIN_KEY) headers['x-autonomy-key'] = process.env.AUTONOMY_ADMIN_KEY;

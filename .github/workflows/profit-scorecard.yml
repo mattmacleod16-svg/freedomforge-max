@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.up.railway.app' }}
       ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
       ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
       SCORECARD_LOOKBACK_HOURS: ${{ vars.SCORECARD_LOOKBACK_HOURS || '6' }}

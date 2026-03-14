@@ -43,7 +43,7 @@ interface MarketFeatureState {
   updatedAt: number;
 }
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
+const DATA_DIR = (process.env.RAILWAY_ENVIRONMENT || process.env.VERCEL) ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'market-features.json');
 const MAX_POINTS = Math.max(96, Number(process.env.MARKET_FEATURE_MAX_POINTS || 24 * 14));
 
