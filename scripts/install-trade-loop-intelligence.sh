@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$PWD"
 SERVICE_USER="${SUDO_USER:-$USER}"
-APP_BASE_URL="https://freedomforge-max.vercel.app"
+APP_BASE_URL="https://freedomforge-max.up.railway.app"
 ON_CALENDAR="*-*-* 00,06,12,18:45:00"
 RANDOM_DELAY_SEC="0"
 PERSISTENT="true"

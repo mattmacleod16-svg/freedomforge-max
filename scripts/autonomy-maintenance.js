@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const baseUrl = process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app';
+const baseUrl = process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app';
 const adminKey = process.env.AUTONOMY_ADMIN_KEY || '';
 
 async function call(path, method = 'POST', body) {

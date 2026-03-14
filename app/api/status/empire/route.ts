@@ -2,7 +2,7 @@
  * Empire Status API — Aggregates ALL trading data for the command center dashboard.
  * GET /api/status/empire
  *
- * When running on Vercel (no local data/), proxies to the Oracle VM via
+ * When running without local data/, proxies to the Oracle VM via
  * the ORACLE_API_URL env var (cloudflare tunnel URL).
  */
 
@@ -14,9 +14,9 @@ import { requireAuth } from '@/lib/auth/apiGuard';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/* ─── VM Proxy (Vercel → Oracle Cloud) — Hardened with retry + backoff ──── */
+/* ─── VM Proxy (Railway → Oracle Cloud) — Hardened with retry + backoff ──── */
 
-/** Simple in-memory circuit breaker for the Vercel → VM path */
+/** Simple in-memory circuit breaker for the Railway → VM path */
 let vmCircuit = { failures: 0, lastFailure: 0, status: 'CLOSED' as 'CLOSED' | 'OPEN' | 'HALF_OPEN' };
 const VM_CB_THRESHOLD = 3;
 const VM_CB_RESET_MS = 90_000; // 90s cooldown when circuit opens
@@ -123,7 +123,7 @@ function hasLocalData(): boolean {
       if (age > STALE_MS) return false;
     }
 
-    // Check guardian staleness if it exists (catches Vercel deploys with stale data/)
+    // Check guardian staleness if it exists (catches deploys with stale data/)
     if (guardianExists && !orchExists) {
       const guardian = JSON.parse(fs.readFileSync(guardianPath, 'utf8'));
       const age = Date.now() - (guardian.lastCheck || 0);
@@ -224,7 +224,7 @@ export async function GET(req: Request) {
   if (denied) return denied;
 
   try {
-    // ─── Proxy to VM if running on Vercel (no local data) ──────────────
+    // ─── Proxy to VM if no local data available ─────────────────────────
     if (!hasLocalData()) {
       const proxied = await proxyToVM();
       if (proxied) return proxied;

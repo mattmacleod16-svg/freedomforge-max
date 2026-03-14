@@ -41,7 +41,7 @@ export async function requireAuth(req: Request): Promise<Response | null> {
   if (xApiSecret && apiSecret && safeCompare(xApiSecret, apiSecret)) return null; // authorized
 
   // 4. Localhost bypass — ONLY in non-production environments
-  // FIX CRITICAL: X-Forwarded-For is spoofable on Vercel, so never trust it in production
+  // FIX CRITICAL: X-Forwarded-For is spoofable on Railway/proxies, so never trust it in production
   if (process.env.NODE_ENV !== 'production') {
     const url = new URL(req.url);
     if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return null;

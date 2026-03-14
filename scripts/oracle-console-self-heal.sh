@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="${1:-/home/opc/freedomforge-max}"
 SERVICE_USER="${2:-opc}"
-APP_BASE_URL="${APP_BASE_URL:-https://freedomforge-max.vercel.app}"
+APP_BASE_URL="${APP_BASE_URL:-https://freedomforge-max.up.railway.app}"
 
 echo "[oracle-self-heal] repo=$REPO_DIR user=$SERVICE_USER app=$APP_BASE_URL"
 

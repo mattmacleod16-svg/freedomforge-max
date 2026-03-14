@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'FreedomForge Max',
   webDir: '.next',
   server: {
-    url: 'https://freedomforge-max.vercel.app',
+    url: 'https://freedomforge-max.up.railway.app',
     cleartext: false,
   },
   ios: {

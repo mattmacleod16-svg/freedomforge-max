@@ -45,7 +45,7 @@ interface ForecastDecisionSignal {
   notes: string[];
 }
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
+const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'forecast-state.json');
 const MAX_RECORDS = Math.max(500, Number(process.env.FORECAST_MAX_RECORDS || 5000));
 const DEFAULT_HORIZON_HOURS = Math.max(1, Number(process.env.FORECAST_DEFAULT_HOURS || 24));

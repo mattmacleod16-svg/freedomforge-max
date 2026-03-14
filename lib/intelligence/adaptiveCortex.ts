@@ -53,7 +53,7 @@ interface AdaptiveDecisionResult {
   reasoning: string;
 }
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
+const DATA_DIR = path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'adaptive-intelligence-state.json');
 const MAX_MEMORY = 250;
 const SHORT_WINDOW = 25;

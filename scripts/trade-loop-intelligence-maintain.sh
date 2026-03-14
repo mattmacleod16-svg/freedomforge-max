@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_DIR="$PWD"
 DEFAULT_USER="${USER:-$(id -un)}"
 SERVICE_USER="${SUDO_USER:-$DEFAULT_USER}"
-APP_BASE_URL="https://freedomforge-max.vercel.app"
+APP_BASE_URL="https://freedomforge-max.up.railway.app"
 TIMEOUT_SEC="1800"
 ALERT_WEBHOOK_URL="${ALERT_WEBHOOK_URL:-}"
 INTELLIGENCE_ALERT_SUMMARY_MODE="${INTELLIGENCE_ALERT_SUMMARY_MODE:-failures-only}"
