@@ -20,10 +20,7 @@ const CIRCUIT_MIN_SUCCESS_RATE = clamp(Number(process.env.CASHFLOW_CIRCUIT_MIN_S
 const CIRCUIT_MIN_ATTEMPTS = Math.max(1, Number(process.env.CASHFLOW_CIRCUIT_MIN_ATTEMPTS || 4));
 const CIRCUIT_REINVEST_BPS = Math.round(clamp(Number(process.env.CASHFLOW_CIRCUIT_REINVEST_BPS || 7000), 2000, 8500));
 
-const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
-const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || '';
-const VERCEL_PROJECT_SLUG = process.env.VERCEL_PROJECT_SLUG || 'freedomforge-max';
-const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || '';
+const { upsertEnvVar: platformUpsertEnvVar, redeploy: platformRedeploy, platform: deployPlatform } = require('../lib/deploy-platform');
 
 const NETWORKS = ['ETH_MAINNET', 'OPT_MAINNET', 'ARB_MAINNET', 'POLYGON_MAINNET'];
 
@@ -141,107 +138,12 @@ async function fetchJson(path) {
   }
 }
 
-function vercelApiUrl(path) {
-  const base = `https://api.vercel.com${path}`;
-  if (!VERCEL_TEAM_ID) return base;
-  const joiner = path.includes('?') ? '&' : '?';
-  return `${base}${joiner}teamId=${encodeURIComponent(VERCEL_TEAM_ID)}`;
-}
-
-function candidateProjectRefs() {
-  const refs = [VERCEL_PROJECT_ID, VERCEL_PROJECT_SLUG]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean);
-  return [...new Set(refs)];
-}
-
 async function upsertEnvVar(key, value) {
-  if (DRY_RUN) {
-    console.log(`[dry-run] ${key}=${value}`);
-    return;
-  }
-
-  let lastError = null;
-  for (const projectRef of candidateProjectRefs()) {
-    const url = vercelApiUrl(`/v10/projects/${encodeURIComponent(projectRef)}/env?upsert=true`);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-    let response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${VERCEL_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          key,
-          value,
-          type: 'encrypted',
-          target: ['production'],
-        }),
-        signal: controller.signal,
-      });
-    } finally { clearTimeout(timer); }
-
-    if (response.ok) return;
-
-    const body = await response.text().catch(() => '');
-    lastError = `project=${projectRef} status=${response.status} body=${body}`;
-    if (response.status !== 404) break;
-  }
-
-  throw new Error(`Vercel env upsert failed for ${key}: ${lastError || 'unknown error'}`);
+  return platformUpsertEnvVar(key, value, { dryRun: DRY_RUN });
 }
 
 async function tryRedeployLatestProduction() {
-  let deployment = null;
-
-  for (const projectRef of candidateProjectRefs()) {
-    const listUrl = vercelApiUrl(`/v6/deployments?projectId=${encodeURIComponent(projectRef)}&target=production&limit=1`);
-    const listController = new AbortController();
-    const listTimer = setTimeout(() => listController.abort(), 15000);
-    let listResponse;
-    try {
-      listResponse = await fetch(listUrl, {
-        headers: {
-          Authorization: `Bearer ${VERCEL_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        signal: listController.signal,
-      });
-    } finally { clearTimeout(listTimer); }
-
-    if (!listResponse.ok) continue;
-    const listPayload = await listResponse.json();
-    deployment = (listPayload.deployments || [])[0] || null;
-    if (deployment?.uid) break;
-  }
-
-  if (!deployment?.uid) {
-    throw new Error('No production deployment found to redeploy');
-  }
-
-  const redeployUrl = vercelApiUrl(`/v13/deployments/${deployment.uid}/redeploy`);
-  const redeployController = new AbortController();
-  const redeployTimer = setTimeout(() => redeployController.abort(), 15000);
-  let redeployResponse;
-  try {
-    redeployResponse = await fetch(redeployUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ target: 'production' }),
-      signal: redeployController.signal,
-    });
-  } finally { clearTimeout(redeployTimer); }
-
-  if (!redeployResponse.ok) {
-    const body = await redeployResponse.text().catch(() => '');
-    throw new Error(`Redeploy failed: HTTP ${redeployResponse.status} ${body}`);
-  }
+  return platformRedeploy();
 }
 
 function decideTuning(networkSuffix, stats) {
@@ -362,11 +264,11 @@ async function main() {
   const patchPath = writePatchFile(updates);
   console.log(`Wrote tuning patch file: ${patchPath}`);
 
-  const hasVercelCreds = Boolean(VERCEL_TOKEN) && candidateProjectRefs().length > 0;
-  const effectiveDryRun = DRY_RUN || !hasVercelCreds;
+  const hasPlatformCreds = deployPlatform !== 'none';
+  const effectiveDryRun = DRY_RUN || !hasPlatformCreds;
 
-  if (!hasVercelCreds) {
-    console.warn('Vercel credentials missing; running in local-output mode (no remote env upsert).');
+  if (!hasPlatformCreds) {
+    console.warn('Platform credentials missing; running in local-output mode (no remote env upsert).');
   }
 
   for (const update of updates) {

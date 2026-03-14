@@ -45,7 +45,7 @@ npm run vm:remote:live:retry -- \
   --repo https://github.com/mattmacleod16-svg/freedomforge-max.git \
   --remote-dir /opt/freedomforge-max \
   --env-file .env.local \
-  --app-base-url https://freedomforge-max.vercel.app \
+  --app-base-url https://<YOUR_APP_URL> \
   --live-once true \
   --retries 180 \
   --sleep-sec 20
@@ -67,7 +67,7 @@ npm run vm:remote:bootstrap -- \
   --key ~/Downloads/<your-key>.pem \
   --repo https://github.com/mattmacleod16-svg/freedomforge-max.git \
   --remote-dir /home/ubuntu/freedomforge-max \
-  --app-base-url https://freedomforge-max.vercel.app
+  --app-base-url https://<YOUR_APP_URL>
 ```
 
 This installs the trade-loop systemd services/timers for persistent operation.

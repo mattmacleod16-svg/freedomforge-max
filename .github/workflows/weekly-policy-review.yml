@@ -20,6 +20,11 @@ jobs:
       APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
       POLICY_LOOKBACK_HOURS: ${{ vars.POLICY_LOOKBACK_HOURS || '168' }}
       POLICY_AUTO_REDEPLOY: ${{ vars.POLICY_AUTO_REDEPLOY || 'true' }}
+      # Railway (primary)
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+      # Vercel (legacy fallback)
       VERCEL_PROJECT_SLUG: ${{ vars.VERCEL_PROJECT_SLUG || 'freedomforge-max' }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID }}
@@ -33,14 +38,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Validate required secrets
+      - name: Validate platform credentials
         run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "Missing required secret: VERCEL_TOKEN"
+          if [ -z "$RAILWAY_TOKEN" ] && [ -z "$VERCEL_TOKEN" ]; then
+            echo "Missing deployment platform credentials. Set RAILWAY_TOKEN or VERCEL_TOKEN."
             exit 1
-          fi
-          if [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "VERCEL_PROJECT_ID not set; will fallback to VERCEL_PROJECT_SLUG=$VERCEL_PROJECT_SLUG"
           fi
 
       - name: Run weekly policy tuner

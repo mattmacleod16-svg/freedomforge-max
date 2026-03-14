@@ -71,7 +71,7 @@ From repo root on the VM:
 
 ```bash
 bash scripts/oracle-trade-loop-bootstrap.sh \
-  --app-base-url https://freedomforge-max.vercel.app \
+  --app-base-url https://<YOUR_APP_URL> \
   --user "$USER"
 ```
 
@@ -109,9 +109,9 @@ Open Prometheus UI: `http://<ORACLE_VM_PUBLIC_IP>:9090/targets`
 
 The `freedomforge-bot` target should be `UP`.
 
-## 5) Configure Embed URL in App (Vercel)
+## 5) Configure Embed URL in App
 
-Set production env var in Vercel:
+Set production env var in Railway (or Vercel):
 
 ```bash
 NEXT_PUBLIC_GRAFANA_EMBED_URL=https://<YOUR_CADDY_DOMAIN>/d/freedomforge-ops/freedomforge-revenue-bot-ops?orgId=1&refresh=15s
@@ -119,7 +119,7 @@ NEXT_PUBLIC_GRAFANA_EMBED_URL=https://<YOUR_CADDY_DOMAIN>/d/freedomforge-ops/fre
 
 Then redeploy app. Visit:
 
-- `https://freedomforge-max.vercel.app/dashboard/ops`
+- `https://<YOUR_APP_URL>/dashboard/ops`
 
 ## 6) Hardening (Recommended)
 

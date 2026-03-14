@@ -12,7 +12,7 @@ Use this when you want near-real-time trade/distribution attempts rather than cr
 
 ```bash
 cd /Users/mattyice/Desktop/freedomforge-max
-APP_BASE_URL=https://freedomforge-max.vercel.app \
+APP_BASE_URL=https://<YOUR_APP_URL> \
 TRADE_LOOP_INTERVAL_MS=1000 \
 BOT_SHARD_INDEX=0 \
 BOT_SHARDS=1 \
@@ -30,7 +30,7 @@ On a fresh Oracle Ubuntu VM:
 git clone <your-repo-url>
 cd freedomforge-max
 bash scripts/oracle-trade-loop-bootstrap.sh \
-  --app-base-url https://freedomforge-max.vercel.app \
+  --app-base-url https://<YOUR_APP_URL> \
   --user "$USER"
 ```
 
@@ -40,7 +40,7 @@ If repo is not cloned yet, run from anywhere:
 bash scripts/oracle-trade-loop-bootstrap.sh \
   --repo https://github.com/<owner>/<repo>.git \
   --dir /opt/freedomforge-max \
-  --app-base-url https://freedomforge-max.vercel.app \
+  --app-base-url https://<YOUR_APP_URL> \
   --user ubuntu
 ```
 
@@ -284,7 +284,7 @@ On your Ubuntu VM, from repo root:
 chmod +x scripts/install-trade-loop-services.sh
 sudo bash scripts/install-trade-loop-services.sh \
   --repo-dir "$PWD" \
-  --app-base-url https://freedomforge-max.vercel.app \
+  --app-base-url https://<YOUR_APP_URL> \
   --user "$USER"
 ```
 
@@ -430,7 +430,7 @@ Create `~/Library/LaunchAgents/com.freedomforge.trade-loop.plist`:
     <array>
       <string>/bin/bash</string>
       <string>-lc</string>
-      <string>cd /Users/mattyice/Desktop/freedomforge-max && APP_BASE_URL=https://freedomforge-max.vercel.app TRADE_LOOP_INTERVAL_MS=1000 BOT_SHARD_INDEX=0 BOT_SHARDS=1 BOT_ID=live-0 npm run trade:loop</string>
+      <string>cd /Users/mattyice/Desktop/freedomforge-max && APP_BASE_URL=https://<YOUR_APP_URL> TRADE_LOOP_INTERVAL_MS=1000 BOT_SHARD_INDEX=0 BOT_SHARDS=1 BOT_ID=live-0 npm run trade:loop</string>
     </array>
     <key>RunAtLoad</key><true/>
     <key>KeepAlive</key><true/>
