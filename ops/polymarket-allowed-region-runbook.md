@@ -39,7 +39,7 @@ npm run polymarket:remote-live -- \
   --repo <GIT_REPO_URL> \
   --remote-dir /opt/freedomforge-max \
   --env-file .env.local \
-  --app-base-url https://freedomforge-max.vercel.app \
+  --app-base-url https://freedomforge-max.up.railway.app \
   --live-once true
 ```
 

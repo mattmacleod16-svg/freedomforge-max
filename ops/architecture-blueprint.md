@@ -129,7 +129,7 @@ market risk. All trading involves potential loss of capital.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                         VERCEL (Next.js 16)                         │
+│                         RAILWAY (Next.js 16)                         │
 │                                                                      │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────────┐    │
 │  │ Dashboard UI │  │ API Routes   │  │ Intelligence Layer (TS)  │    │
@@ -140,7 +140,7 @@ market risk. All trading involves potential loss of capital.
 │  │              │  │ x/*          │  │ memoryEngine             │    │
 │  └─────────────┘  └──────────────┘  └──────────────────────────┘    │
 │                                                                      │
-│  Env: Vercel env vars (synced via scripts/apply-vercel-env.js)      │
+│  Env: Railway env vars (synced via scripts/apply-railway-env.js)      │
 └──────────────────────────────────────────────────────────────────────┘
           │                        │
           │ HTTPS                  │ SSH deploy
@@ -200,7 +200,7 @@ State files: ~20 JSON files in `data/` (orchestrator, risk, brain, journal, bus,
 ### 3.3 Env Configuration
 
 - `.env.local` — local secrets (API keys, wallet keys)
-- Vercel env vars — production secrets (synced via `scripts/apply-vercel-env.js`)
+- Railway env vars — production secrets (synced via `scripts/apply-railway-env.js`)
 - Environment-driven feature flags for every agent (e.g., `KRAKEN_ENABLED`, `DRY_RUN`)
 
 ---

@@ -71,7 +71,7 @@ From repo root on the VM:
 
 ```bash
 bash scripts/oracle-trade-loop-bootstrap.sh \
-  --app-base-url https://freedomforge-max.vercel.app \
+  --app-base-url https://freedomforge-max.up.railway.app \
   --user "$USER"
 ```
 
@@ -119,7 +119,7 @@ NEXT_PUBLIC_GRAFANA_EMBED_URL=https://<YOUR_CADDY_DOMAIN>/d/freedomforge-ops/fre
 
 Then redeploy app. Visit:
 
-- `https://freedomforge-max.vercel.app/dashboard/ops`
+- `https://freedomforge-max.up.railway.app/dashboard/ops`
 
 ## 6) Hardening (Recommended)
 

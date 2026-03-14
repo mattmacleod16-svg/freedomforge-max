@@ -26,7 +26,7 @@ jobs:
   post:
     runs-on: ubuntu-latest
     env:
-      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.up.railway.app' }}
       X_AUTOMATION_SECRET: ${{ secrets.X_AUTOMATION_SECRET }}
       X_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || (vars.X_SCHEDULED_LIVE == 'true' && 'false' || 'true') }}
       X_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || 'false' }}

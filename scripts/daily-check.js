@@ -2,14 +2,14 @@
  * Daily operational check (no extra infra required)
  *
  * Usage:
- *   APP_BASE_URL=https://freedomforge-max.vercel.app npm run daily-check
+ *   APP_BASE_URL=https://freedomforge-max.up.railway.app npm run daily-check
  *
  * Optional env:
  *   DAILY_MIN_TRANSFER_SUCCESS_RATE=0.80
  *   DAILY_MAX_TOPUP_ERRORS=0
  */
 
-const baseUrl = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const baseUrl = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 const minTransferSuccessRate = Math.min(1.0, Math.max(0.01, Number(process.env.DAILY_MIN_TRANSFER_SUCCESS_RATE || '0.80')));
 const maxTopupErrors = Math.min(100, Math.max(0, parseInt(process.env.DAILY_MAX_TOPUP_ERRORS || '0', 10)));
 const botId = `daily-${Date.now()}`;

@@ -5,7 +5,7 @@
  * then notifies when cleared (or unresolved).
  *
  * Usage:
- *   APP_BASE_URL=https://freedomforge-max.vercel.app node scripts/self-heal.js
+ *   APP_BASE_URL=https://freedomforge-max.up.railway.app node scripts/self-heal.js
  *
  * Optional env:
  *   ALERT_WEBHOOK_URL=https://discord.com/api/webhooks/...
@@ -28,7 +28,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+const APP_BASE_URL = (process.env.APP_BASE_URL || process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 const ALERT_URL = process.env.ALERT_WEBHOOK_URL || '';
 const ALERT_MENTION = (process.env.ALERT_MENTION || '').trim();
 const ALERT_MODE = String(process.env.SELF_HEAL_ALERT_MODE || 'critical').toLowerCase();

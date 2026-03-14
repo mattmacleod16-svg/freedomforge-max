@@ -37,7 +37,7 @@ type XState = {
   updatedAt: number;
 };
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
+const DATA_DIR = (process.env.RAILWAY_ENVIRONMENT || process.env.VERCEL) ? '/tmp/freedomforge-data' : path.resolve(process.cwd(), 'data');
 const STATE_FILE = path.join(DATA_DIR, 'x-automation.json');
 const MAX_HISTORY = 300;
 
@@ -363,7 +363,7 @@ async function getAuthToken() {
 }
 
 function getBaseUrl() {
-  return (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+  return (process.env.APP_BASE_URL || (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 'https://freedomforge-max.up.railway.app')).replace(/\/$/, '');
 }
 
 function getHandle() {

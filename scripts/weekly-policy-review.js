@@ -2,9 +2,13 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const dotenv = require('dotenv');
+const { upsertEnvVar, triggerRedeployment, hasRailwayCli } = require('../lib/railway-helpers');
 
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.vercel.app').replace(/\/$/, '');
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config();
+
+const APP_BASE_URL = (process.env.APP_BASE_URL || `https://${process.env.RAILWAY_PUBLIC_DOMAIN || 'freedomforge-max.up.railway.app'}`).replace(/\/$/, '');
 const LOOKBACK_HOURS = Math.min(8760, Math.max(1, Number(process.env.POLICY_LOOKBACK_HOURS || 168)));
 const AUTO_REDEPLOY = String(process.env.POLICY_AUTO_REDEPLOY || 'true').toLowerCase() === 'true';
 const SELF_FUNDING_MODE = String(process.env.SELF_FUNDING_MODE || 'true').toLowerCase() !== 'false';
@@ -22,28 +26,14 @@ const DISTRIBUTION_MIN_OVERFLOW_ETH_SAFE = String(process.env.DISTRIBUTION_MIN_O
 const SELF_FUNDING_BALANCE_TARGET_ETH_SAFE = String(process.env.SELF_FUNDING_BALANCE_TARGET_ETH_SAFE || '0.08').trim();
 const SELF_FUNDING_CRITICAL_BALANCE_ETH_SAFE = String(process.env.SELF_FUNDING_CRITICAL_BALANCE_ETH_SAFE || '0.04').trim();
 
-const VERCEL_TOKEN = process.env.VERCEL_TOKEN || '';
-const VERCEL_PROJECT_ID = process.env.VERCEL_PROJECT_ID || '';
-const VERCEL_PROJECT_SLUG = process.env.VERCEL_PROJECT_SLUG || 'freedomforge-max';
-const VERCEL_TEAM_ID = process.env.VERCEL_TEAM_ID || '';
+const RAILWAY_TOKEN = process.env.RAILWAY_TOKEN || '';
+const RAILWAY_PROJECT_ID = process.env.RAILWAY_PROJECT_ID || '';
+const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID || '';
+const RAILWAY_ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID || '';
 
 function required(name, value) {
   if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
-}
-
-function hasVercelCli() {
-  const result = spawnSync('vercel', ['--version'], { stdio: 'pipe', encoding: 'utf8' });
-  return result.status === 0;
-}
-
-function runVercel(args) {
-  const result = spawnSync('vercel', args, { stdio: 'pipe', encoding: 'utf8' });
-  if (result.status !== 0) {
-    const stderr = (result.stderr || '').trim();
-    const stdout = (result.stdout || '').trim();
-    throw new Error(`vercel ${args.join(' ')} failed: ${stderr || stdout || 'unknown error'}`);
-  }
 }
 
 function toEthString(weiLike) {
@@ -133,124 +123,6 @@ function computePolicy({ balanceEth, transferredEth, marketRegime, geopoliticalR
   };
 }
 
-function vercelApiUrl(path) {
-  const base = `https://api.vercel.com${path}`;
-  if (!VERCEL_TEAM_ID) return base;
-  const joiner = path.includes('?') ? '&' : '?';
-  return `${base}${joiner}teamId=${encodeURIComponent(VERCEL_TEAM_ID)}`;
-}
-
-function candidateProjectRefs() {
-  const refs = [VERCEL_PROJECT_ID, VERCEL_PROJECT_SLUG]
-    .map((value) => String(value || '').trim())
-    .filter(Boolean);
-  return [...new Set(refs)];
-}
-
-async function upsertEnvVar(key, value) {
-  if (!VERCEL_TOKEN && hasVercelCli()) {
-    const args = ['env', 'add', key, 'production', '--value', value, '--force', '--yes'];
-    if (VERCEL_TEAM_ID) {
-      args.push('--scope', VERCEL_TEAM_ID);
-    }
-    runVercel(args);
-    return;
-  }
-
-  let lastError = null;
-  for (const projectRef of candidateProjectRefs()) {
-    const url = vercelApiUrl(`/v10/projects/${encodeURIComponent(projectRef)}/env?upsert=true`);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        key,
-        value,
-        type: 'encrypted',
-        target: ['production'],
-      }),
-    });
-
-    if (response.ok) {
-      return;
-    }
-
-    const body = await response.text().catch(() => '');
-    lastError = `project=${projectRef} status=${response.status} body=${body}`;
-    if (response.status !== 404) {
-      break;
-    }
-  }
-
-  throw new Error(`Vercel env upsert failed for ${key}: ${lastError || 'unknown error'}`);
-}
-
-async function tryRedeployLatestProduction() {
-  if (!VERCEL_TOKEN && hasVercelCli()) {
-    const args = ['--prod', '--yes'];
-    if (VERCEL_TEAM_ID) {
-      args.push('--scope', VERCEL_TEAM_ID);
-    }
-    runVercel(args);
-    console.log('Redeploy requested via Vercel CLI.');
-    return;
-  }
-
-  let deployment = null;
-  let lastError = null;
-
-  for (const projectRef of candidateProjectRefs()) {
-    const listUrl = vercelApiUrl(`/v6/deployments?projectId=${encodeURIComponent(projectRef)}&target=production&limit=1`);
-    const listResponse = await fetch(listUrl, {
-      headers: {
-        Authorization: `Bearer ${VERCEL_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!listResponse.ok) {
-      const body = await listResponse.text().catch(() => '');
-      lastError = `project=${projectRef} status=${listResponse.status} body=${body}`;
-      if (listResponse.status === 404) {
-        continue;
-      }
-      break;
-    }
-
-    const listPayload = await listResponse.json();
-    deployment = (listPayload.deployments || [])[0] || null;
-    if (deployment?.uid) {
-      break;
-    }
-    lastError = `project=${projectRef} had no production deployment`; 
-  }
-
-  if (!deployment?.uid) {
-    throw new Error(`No production deployment found to redeploy (${lastError || 'unknown'})`);
-  }
-
-  const redeployUrl = vercelApiUrl(`/v13/deployments/${deployment.uid}/redeploy`);
-  const redeployResponse = await fetch(redeployUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${VERCEL_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ target: 'production' }),
-  });
-
-  if (!redeployResponse.ok) {
-    const body = await redeployResponse.text().catch(() => '');
-    throw new Error(`Redeploy failed: HTTP ${redeployResponse.status} ${body}`);
-  }
-
-  const payload = await redeployResponse.json();
-  const url = payload?.url ? `https://${payload.url}` : 'n/a';
-  console.log(`Redeploy requested: ${url}`);
-}
 
 function sumTransfersWithinLookback(logs, lookbackHours) {
   const cutoff = Date.now() - lookbackHours * 60 * 60 * 1000;
@@ -352,15 +224,16 @@ function deriveVenuePolicy() {
 }
 
 async function main() {
-  const canUseTokenApi = Boolean(VERCEL_TOKEN);
-  const canUseCli = hasVercelCli();
+  const railwayOpts = { token: RAILWAY_TOKEN, projectId: RAILWAY_PROJECT_ID, serviceId: RAILWAY_SERVICE_ID, environmentId: RAILWAY_ENVIRONMENT_ID };
+  const canUseTokenApi = Boolean(RAILWAY_TOKEN);
+  const canUseCli = hasRailwayCli();
 
   if (!canUseTokenApi && !canUseCli) {
-    throw new Error('Missing VERCEL_TOKEN and Vercel CLI is not available/authenticated');
+    throw new Error('Missing RAILWAY_TOKEN and Railway CLI is not available/authenticated');
   }
 
-  if (canUseTokenApi && candidateProjectRefs().length === 0) {
-    throw new Error('Missing both VERCEL_PROJECT_ID and VERCEL_PROJECT_SLUG');
+  if (canUseTokenApi && !RAILWAY_PROJECT_ID) {
+    throw new Error('Missing RAILWAY_PROJECT_ID');
   }
 
   const [wallet, walletLogs, autonomyStatus] = await Promise.all([
@@ -393,48 +266,48 @@ async function main() {
   console.log(`Safety controls: minOverflowEth=${DISTRIBUTION_MIN_OVERFLOW_ETH_SAFE} selfFundingTarget=${SELF_FUNDING_BALANCE_TARGET_ETH_SAFE} critical=${SELF_FUNDING_CRITICAL_BALANCE_ETH_SAFE}`);
   console.log(`Intelligence focus: edgeMode=${INTELLIGENCE_EDGE_FOCUS_MODE} collabEdgeRounds=${COLLAB_EDGE_ROUNDS} minCollabRounds=${COLLAB_EDGE_MIN_ROUNDS}`);
 
-  await upsertEnvVar('SELF_SUSTAIN_REINVEST_BPS', String(policy.reinvestBps));
-  await upsertEnvVar('TREASURY_MAX_REINVEST_BPS', String(treasuryMaxReinvestBps));
-  await upsertEnvVar('TREASURY_TARGET_ETH', policy.treasuryTargetEth);
+  await upsertEnvVar('SELF_SUSTAIN_REINVEST_BPS', String(policy.reinvestBps), railwayOpts);
+  await upsertEnvVar('TREASURY_MAX_REINVEST_BPS', String(treasuryMaxReinvestBps), railwayOpts);
+  await upsertEnvVar('TREASURY_TARGET_ETH', policy.treasuryTargetEth, railwayOpts);
   if (POLICY_OVERRIDE_MIN_PAYOUT) {
-    await upsertEnvVar('MIN_PAYOUT_ETH', policy.minPayoutEth);
+    await upsertEnvVar('MIN_PAYOUT_ETH', policy.minPayoutEth, railwayOpts);
   }
-  await upsertEnvVar('PAYOUT_MIN_USD', String(PAYOUT_MIN_USD));
-  await upsertEnvVar('MIN_PAYOUT_USD', String(PAYOUT_MIN_USD));
-  await upsertEnvVar('PAYOUT_ALLOW_TOKEN', 'false');
-  await upsertEnvVar('PAYOUT_ENFORCE_BASE_NATIVE_ONLY', PAYOUT_ENFORCE_BASE_NATIVE_ONLY ? 'true' : 'false');
-  await upsertEnvVar('ENFORCE_SINGLE_PAYOUT_RECIPIENT', 'true');
-  await upsertEnvVar('SINGLE_PAYOUT_RECIPIENT', SINGLE_PAYOUT_RECIPIENT);
-  await upsertEnvVar('REVENUE_RECIPIENTS', SINGLE_PAYOUT_RECIPIENT);
-  await upsertEnvVar('DISTRIBUTION_MIN_OVERFLOW_ETH', DISTRIBUTION_MIN_OVERFLOW_ETH_SAFE);
-  await upsertEnvVar('SELF_FUNDING_MODE', 'true');
-  await upsertEnvVar('SELF_FUNDING_PAUSE_OVERFLOW_ON_CRITICAL', 'true');
-  await upsertEnvVar('SELF_FUNDING_BALANCE_TARGET_ETH', SELF_FUNDING_BALANCE_TARGET_ETH_SAFE);
-  await upsertEnvVar('SELF_FUNDING_CRITICAL_BALANCE_ETH', SELF_FUNDING_CRITICAL_BALANCE_ETH_SAFE);
-  await upsertEnvVar('SELF_FUNDING_REINVEST_BPS_BELOW_TARGET', '9800');
-  await upsertEnvVar('SELF_FUNDING_REINVEST_BPS_ABOVE_TARGET', String(Math.max(9500, policy.reinvestBps)));
-  await upsertEnvVar('SELF_FUNDING_CRITICAL_REINVEST_BPS', '9900');
-  await upsertEnvVar('ALERT_ON_SUCCESS', 'false');
-  await upsertEnvVar('SELF_HEAL_NOTIFY_OK', 'false');
-  await upsertEnvVar('ALCHEMY_NETWORK', 'base-mainnet');
+  await upsertEnvVar('PAYOUT_MIN_USD', String(PAYOUT_MIN_USD), railwayOpts);
+  await upsertEnvVar('MIN_PAYOUT_USD', String(PAYOUT_MIN_USD), railwayOpts);
+  await upsertEnvVar('PAYOUT_ALLOW_TOKEN', 'false', railwayOpts);
+  await upsertEnvVar('PAYOUT_ENFORCE_BASE_NATIVE_ONLY', PAYOUT_ENFORCE_BASE_NATIVE_ONLY ? 'true' : 'false', railwayOpts);
+  await upsertEnvVar('ENFORCE_SINGLE_PAYOUT_RECIPIENT', 'true', railwayOpts);
+  await upsertEnvVar('SINGLE_PAYOUT_RECIPIENT', SINGLE_PAYOUT_RECIPIENT, railwayOpts);
+  await upsertEnvVar('REVENUE_RECIPIENTS', SINGLE_PAYOUT_RECIPIENT, railwayOpts);
+  await upsertEnvVar('DISTRIBUTION_MIN_OVERFLOW_ETH', DISTRIBUTION_MIN_OVERFLOW_ETH_SAFE, railwayOpts);
+  await upsertEnvVar('SELF_FUNDING_MODE', 'true', railwayOpts);
+  await upsertEnvVar('SELF_FUNDING_PAUSE_OVERFLOW_ON_CRITICAL', 'true', railwayOpts);
+  await upsertEnvVar('SELF_FUNDING_BALANCE_TARGET_ETH', SELF_FUNDING_BALANCE_TARGET_ETH_SAFE, railwayOpts);
+  await upsertEnvVar('SELF_FUNDING_CRITICAL_BALANCE_ETH', SELF_FUNDING_CRITICAL_BALANCE_ETH_SAFE, railwayOpts);
+  await upsertEnvVar('SELF_FUNDING_REINVEST_BPS_BELOW_TARGET', '9800', railwayOpts);
+  await upsertEnvVar('SELF_FUNDING_REINVEST_BPS_ABOVE_TARGET', String(Math.max(9500, policy.reinvestBps)), railwayOpts);
+  await upsertEnvVar('SELF_FUNDING_CRITICAL_REINVEST_BPS', '9900', railwayOpts);
+  await upsertEnvVar('ALERT_ON_SUCCESS', 'false', railwayOpts);
+  await upsertEnvVar('SELF_HEAL_NOTIFY_OK', 'false', railwayOpts);
+  await upsertEnvVar('ALCHEMY_NETWORK', 'base-mainnet', railwayOpts);
   if (INTELLIGENCE_EDGE_FOCUS_MODE) {
-    await upsertEnvVar('INTELLIGENCE_EDGE_FOCUS_MODE', 'true');
-    await upsertEnvVar('COLLAB_EDGE_ROUNDS', String(COLLAB_EDGE_ROUNDS));
-    await upsertEnvVar('COLLAB_EDGE_MIN_ROUNDS', String(COLLAB_EDGE_MIN_ROUNDS));
+    await upsertEnvVar('INTELLIGENCE_EDGE_FOCUS_MODE', 'true', railwayOpts);
+    await upsertEnvVar('COLLAB_EDGE_ROUNDS', String(COLLAB_EDGE_ROUNDS), railwayOpts);
+    await upsertEnvVar('COLLAB_EDGE_MIN_ROUNDS', String(COLLAB_EDGE_MIN_ROUNDS), railwayOpts);
   }
   if (TRADE_VENUE_AUTO_POLICY_ENABLED && venuePolicy.enabled && venuePolicy.selectedVenue) {
-    await upsertEnvVar('TRADE_VENUE', 'auto');
-    await upsertEnvVar('TRADE_VENUE_PRIORITY', venuePolicy.priority);
-    await upsertEnvVar('TRADE_VENUE_AUTO_LEARN', 'true');
-    await upsertEnvVar('TRADE_VENUE_MIN_SAMPLES', String(TRADE_VENUE_MIN_SAMPLES));
-    await upsertEnvVar('TRADE_VENUE_AUTO_FALLBACK_ON_SKIP', 'true');
+    await upsertEnvVar('TRADE_VENUE', 'auto', railwayOpts);
+    await upsertEnvVar('TRADE_VENUE_PRIORITY', venuePolicy.priority, railwayOpts);
+    await upsertEnvVar('TRADE_VENUE_AUTO_LEARN', 'true', railwayOpts);
+    await upsertEnvVar('TRADE_VENUE_MIN_SAMPLES', String(TRADE_VENUE_MIN_SAMPLES), railwayOpts);
+    await upsertEnvVar('TRADE_VENUE_AUTO_FALLBACK_ON_SKIP', 'true', railwayOpts);
   }
 
-  console.log('Vercel production env updated for weekly policy tuning.');
+  console.log('Railway production env updated for weekly policy tuning.');
 
   if (AUTO_REDEPLOY) {
     try {
-      await tryRedeployLatestProduction();
+      await triggerRedeployment(railwayOpts);
     } catch (error) {
       console.warn(`Policy updated, but auto-redeploy failed: ${error instanceof Error ? error.message : String(error)}`);
     }
