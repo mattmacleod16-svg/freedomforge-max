@@ -3,9 +3,9 @@
  * FreedomForge Profit Scorecard + Ironclad Owner Payout Protocol
  *
  * Mission Hardening:
- *   - Enforces 15% minimum payout (can never decrease)
+ *   - Enforces 25% minimum payout (can never decrease)
  *   - Tracks payout state in data/payout-state.json
- *   - Escalation: +1% every 90 consecutive profit days
+ *   - Escalation: +2% every 30 consecutive profit days
  *   - Updates payout history for dashboard transparency
  *   - Owner wallet: 0xEbf5Fc610Bd7BC27Fc1E26596DD1da186C1436b9 (Base/USDC)
  */
@@ -58,8 +58,8 @@ function writePayoutState(state) {
 }
 
 function enforcePayoutFloor(state) {
-  // Ironclad: payout can NEVER go below 15%
-  const FLOOR = 15;
+  // Ironclad: payout can NEVER go below 25%
+  const FLOOR = 25;
   if (!state) return;
   if ((state.payoutPct || 0) < FLOOR) {
     state.payoutPct = FLOOR;
@@ -71,8 +71,8 @@ function enforcePayoutFloor(state) {
 function checkEscalation(state) {
   if (!state || !state.escalationEnabled) return;
   const streakDays = state.consecutiveProfitDays || 0;
-  const threshold = state.escalationRules?.profitStreakDaysForEscalation || 90;
-  const increment = state.escalationRules?.escalationIncrementPct || 1;
+  const threshold = state.escalationRules?.profitStreakDaysForEscalation || 30;
+  const increment = state.escalationRules?.escalationIncrementPct || 2;
   const newEscalation = Math.floor(streakDays / threshold) * increment;
   if (newEscalation > (state.currentEscalationPct || 0)) {
     state.currentEscalationPct = newEscalation;

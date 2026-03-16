@@ -25,10 +25,10 @@ const { upsertEnvVar: platformUpsertEnvVar, redeploy: platformRedeploy, platform
 const NETWORKS = ['ETH_MAINNET', 'OPT_MAINNET', 'ARB_MAINNET', 'POLYGON_MAINNET'];
 
 const defaults = {
-  ETH_MAINNET: { minPayoutEth: 0.003, gasMultiplier: 6, reinvestBps: 3500 },
-  OPT_MAINNET: { minPayoutEth: 0.0012, gasMultiplier: 4, reinvestBps: 2800 },
-  ARB_MAINNET: { minPayoutEth: 0.0015, gasMultiplier: 5, reinvestBps: 3000 },
-  POLYGON_MAINNET: { minPayoutEth: 0.00035, gasMultiplier: 2, reinvestBps: 2000 },
+  ETH_MAINNET: { minPayoutEth: 0.003, gasMultiplier: 6, reinvestBps: 2500 },
+  OPT_MAINNET: { minPayoutEth: 0.0012, gasMultiplier: 4, reinvestBps: 2000 },
+  ARB_MAINNET: { minPayoutEth: 0.0015, gasMultiplier: 5, reinvestBps: 2000 },
+  POLYGON_MAINNET: { minPayoutEth: 0.00035, gasMultiplier: 2, reinvestBps: 1500 },
 };
 
 const floors = {
