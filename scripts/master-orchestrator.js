@@ -806,6 +806,35 @@ async function executeVenueTrade(venue, signal, orderUsd) {
 async function phaseTradeExecution(signals) {
   log('info', `═══ Phase 5: Trade Execution (${Math.min(signals.length, MAX_TRADES_PER_CYCLE)} max) ═══`);
 
+  // ═══ UCFEE-2.0: VIRTUE GATE — hard block if Virtue Index < 0.95 ═══
+  let virtueBlocked = false;
+  let virtueTradeStats = { blocked: 0, guidanceRejected: 0 };
+  try {
+    const virtue = require('../lib/virtue-engine');
+    const virtueState = virtue.getVirtueIndex();
+    const vi = virtueState.virtueIndex;
+
+    // Check conformance certificate validity — renew if expired
+    const certStatus = virtue.checkCertificateValidity();
+    if (certStatus.needsIssuance || certStatus.needsRenewal) {
+      const cert = virtue.issueConformanceCertificate();
+      log('info', `  Virtue conformance certificate renewed: ${cert.conformanceLevel} [${cert.registrationNo}]`);
+    }
+
+    if (vi < 0.95) {
+      log('warn', `  VIRTUE GATE: Virtue Index ${(vi * 100).toFixed(1)}% < 95% — blocking all trades`);
+      virtueBlocked = true;
+      // In conservative/hibernation mode, block entirely
+      if (vi < 0.80) {
+        return { tradesPlaced: 0, executions: [{ status: 'virtue_blocked', virtueIndex: vi, reason: 'Virtue Index below 80% — system in conservative/hibernation mode' }], virtueBlocked: true };
+      }
+      // Between 80-95%: allow but with reduced confidence multiplier applied below
+      log('info', `  Virtue Index ${(vi * 100).toFixed(1)}% — proceeding with reduced confidence`);
+    }
+  } catch (err) {
+    log('warn', `  Virtue engine unavailable: ${err?.message || err} — proceeding without virtue gate`);
+  }
+
   const executions = [];
   let tradesPlaced = 0;
   const tradedAssetsThisCycle = new Set();
@@ -1120,6 +1149,29 @@ async function phaseTradeExecution(signals) {
         }
       }
 
+      // ═══ UCFEE-2.0: VIRTUE GUIDANCE — consult before execution ═══
+      try {
+        const virtue = require('../lib/virtue-engine');
+        const virtueGuidance = virtue.getDecisionGuidance({
+          type: 'trade',
+          details: {
+            asset: signal.asset,
+            exceedsRiskLimit: false,
+            auditTrail: true,
+            taxCategory: signal.meta?.taxCategory || null,
+            estimatedCost: signal.meta?.estimatedCost || 0,
+          },
+        });
+        if (!virtueGuidance.approved) {
+          log('info', `  Virtue guidance rejected ${signal.asset}: ${virtueGuidance.virtueReasons.join(', ')}`);
+          executions.push({ asset: signal.asset, side: signal.side, status: 'virtue_rejected', reasons: virtueGuidance.virtueReasons });
+          virtueTradeStats.guidanceRejected++;
+          continue;
+        }
+        // Apply virtue confidence multiplier
+        signal.confidence *= virtueGuidance.confidenceMultiplier;
+      } catch {}
+
       // ═══ WAL: Write pending entry BEFORE attempting any venue ═══
       let walTradeId = null;
       if (tradeJournal) {
@@ -1399,6 +1451,8 @@ function phasePublishState(health, brainResult, signals, execution, predResult, 
       edgeCaseGrade: health.edgeCaseGrade || 'N/A',
       edgeCaseTriggered: health.edgeCaseTriggered || 0,
       predictionStatus: predResult?.status || 'disabled',
+      virtueGated: execution.virtueBlocked || false,
+      virtueRejections: execution.virtueTradeStats?.guidanceRejected || 0,
       exitManagerChecked: exitResult?.checked || 0,
       exitManagerExited: exitResult?.exited || 0,
       exitManagerErrors: exitResult?.errors || 0,

@@ -363,6 +363,21 @@ async function main() {
     logger.warn('Signal bus unavailable', { error: busErr?.message });
   }
 
+  // 10b. UCFEE-2.0: Issue/renew conformance certificate
+  let conformanceCert = null;
+  try {
+    const certStatus = virtue.checkCertificateValidity();
+    if (certStatus.needsIssuance || certStatus.needsRenewal) {
+      conformanceCert = virtue.issueConformanceCertificate();
+      console.log(`[ucfee] Conformance Certificate: ${conformanceCert.conformanceLevel} [Reg: ${conformanceCert.registrationNo}, License: ${conformanceCert.licenseNo}]`);
+      console.log(`[ucfee]   Valid until: ${conformanceCert.nextRenewal} | Non-conforming: ${conformanceCert.nonConforming.length} virtue(s)`);
+    } else {
+      console.log(`[ucfee] Conformance Certificate: VALID (${certStatus.conformanceLevel}) — ${certStatus.remainingHours}h remaining [${certStatus.registrationNo}]`);
+    }
+  } catch (certErr) {
+    logger.warn('Certificate issuance failed', { error: certErr?.message });
+  }
+
   // 11. Build summary report
   const lines = [
     `=== UCFEE-2.0 Virtue Report ===`,

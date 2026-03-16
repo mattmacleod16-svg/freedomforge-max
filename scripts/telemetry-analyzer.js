@@ -247,6 +247,62 @@ function analyzeBrainEvolution() {
   } catch { return null; }
 }
 
+// ─── Virtue Trend Analysis ──────────────────────────────────────────────────────
+
+function analyzeVirtueTrends() {
+  try {
+    const virtue = require('../lib/virtue-engine');
+    const state = virtue.getVirtueIndex();
+    const vi = state.virtueIndex;
+    const compliance = virtue.checkVirtueCompliance();
+    const certValidity = virtue.checkCertificateValidity();
+
+    // Compute per-virtue trends from history
+    const trends = {};
+    for (const [name, vs] of Object.entries(state.scores || {})) {
+      const delta = vs.current - vs.avg;
+      trends[name] = {
+        current: Math.round((vs.current || 0) * 1000) / 1000,
+        avg: Math.round((vs.avg || 0) * 1000) / 1000,
+        delta: Math.round(delta * 1000) / 1000,
+        trend: delta > 0.02 ? 'improving' : delta < -0.02 ? 'degrading' : 'stable',
+        min: Math.round((vs.min || 0) * 1000) / 1000,
+        max: Math.round((vs.max || 0) * 1000) / 1000,
+      };
+    }
+
+    // Identify weakest and degrading virtues
+    const degrading = Object.entries(trends)
+      .filter(([, t]) => t.trend === 'degrading')
+      .map(([name, t]) => ({ virtue: name, delta: t.delta }));
+
+    const weakest = Object.entries(trends)
+      .sort((a, b) => a[1].current - b[1].current)
+      .slice(0, 3)
+      .map(([name, t]) => ({ virtue: name, score: t.current }));
+
+    // Track telemetry
+    telemetry.gauge('virtue_index', vi);
+    telemetry.gauge('virtue_compliance_rate', compliance.complianceRate);
+    telemetry.gauge('virtue_degrading_count', degrading.length);
+
+    return {
+      virtueIndex: Math.round(vi * 1000) / 1000,
+      complianceRate: compliance.complianceRate,
+      allCompliant: compliance.compliant,
+      trends,
+      degrading,
+      weakest,
+      certificateValid: certValidity.valid || false,
+      conformanceLevel: certValidity.conformanceLevel || 'unknown',
+      evaluationCount: state.evaluationCount,
+      upgradeGeneration: state.upgradeGeneration,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Cost Efficiency Analysis ───────────────────────────────────────────────────
 
 function analyzeCostEfficiency() {
@@ -415,6 +471,15 @@ async function main() {
   const brainAnalysis = analyzeBrainEvolution();
   console.log(`[telemetry-analyzer] Brain generation: ${brainAnalysis?.generation || 'N/A'}`);
 
+  // 2b. Analyze virtue trends (UCFEE-2.0)
+  const virtueAnalysis = analyzeVirtueTrends();
+  if (virtueAnalysis) {
+    console.log(`[telemetry-analyzer] Virtue Index: ${(virtueAnalysis.virtueIndex * 100).toFixed(1)}% | Compliance: ${(virtueAnalysis.complianceRate * 100).toFixed(0)}% | Conformance: ${virtueAnalysis.conformanceLevel}`);
+    if (virtueAnalysis.degrading.length > 0) {
+      console.log(`[telemetry-analyzer] Degrading virtues: ${virtueAnalysis.degrading.map(d => d.virtue).join(', ')}`);
+    }
+  }
+
   // 3. Analyze cost efficiency
   const costAnalysis = analyzeCostEfficiency();
   console.log(`[telemetry-analyzer] Cost ratio: ${costAnalysis?.revenueCostRatio || 'N/A'}x`);
@@ -432,6 +497,7 @@ async function main() {
   if (tradeAnalysis && tradeAnalysis.winRate > 55) improvementScore += 0.1;
   if (tradeAnalysis && tradeAnalysis.profitFactor !== 'Inf' && tradeAnalysis.profitFactor > 1.5) improvementScore += 0.1;
   if (brainAnalysis && brainAnalysis.calibration > 0.7) improvementScore += 0.1;
+  if (virtueAnalysis && virtueAnalysis.virtueIndex >= 0.9) improvementScore += 0.1;
   if (costAnalysis && costAnalysis.selfSustaining) improvementScore += 0.1;
   if (feedbackStats.improvementRate > 0.6) improvementScore += 0.1;
   improvementScore = Math.min(1, improvementScore);
@@ -459,6 +525,15 @@ async function main() {
         costAnalysis: costAnalysis ? {
           revenueCostRatio: costAnalysis.revenueCostRatio,
           selfSustaining: costAnalysis.selfSustaining,
+        } : null,
+        virtueAnalysis: virtueAnalysis ? {
+          virtueIndex: virtueAnalysis.virtueIndex,
+          complianceRate: virtueAnalysis.complianceRate,
+          allCompliant: virtueAnalysis.allCompliant,
+          conformanceLevel: virtueAnalysis.conformanceLevel,
+          degradingVirtues: virtueAnalysis.degrading,
+          weakestVirtues: virtueAnalysis.weakest,
+          certificateValid: virtueAnalysis.certificateValid,
         } : null,
         feedbackStats: {
           total: feedbackStats.total,
