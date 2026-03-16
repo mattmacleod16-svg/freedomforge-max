@@ -245,16 +245,56 @@ async function main() {
     console.log(`  ${name.padEnd(18)} [${bar}] ${(data.score * 100).toFixed(0)}%`);
   }
 
-  // 4. Compute empowerment metrics
+  // 4. UCFEE-2.0: Compute Positivity Vector
+  const positivityVector = virtue.computePositivityVector(evaluation);
+  console.log(`[ucfee] Positivity Vector: magnitude=${positivityVector.magnitude} amplified=${positivityVector.amplified} direction=${positivityVector.direction}`);
+
+  // 5. UCFEE-2.0: Check per-virtue compliance against target metrics
+  const compliance = virtue.checkVirtueCompliance();
+  console.log(`[ucfee] Virtue Compliance: ${(compliance.complianceRate * 100).toFixed(0)}% (${Object.values(compliance.virtues).filter(v => v.passed).length}/${Object.keys(compliance.virtues).length} targets met)`);
+
+  // 6. UCFEE-2.0: Hibernation check
+  const hibernation = virtue.checkHibernation();
+  if (hibernation.shouldHibernate) {
+    console.log(`[ucfee] HIBERNATION TRIGGERED: ${hibernation.message}`);
+    await sendAlert(hibernation.message);
+  }
+
+  // 7. UCFEE-2.0: Growth Horizon Projections
+  let growthProjections = null;
+  try {
+    const ledgerPath = path.resolve(process.cwd(), 'data/treasury-ledger.json');
+    if (fs.existsSync(ledgerPath)) {
+      const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'));
+      growthProjections = virtue.projectGrowthHorizon({
+        currentCapital: ledger.currentCapital || 0,
+        monthlyContribution: 0,
+        annualReturnPct: 7,
+        annualFeePct: 0.5,
+      });
+      console.log(`[ucfee] Growth Horizon: 5yr=$${growthProjections.projections['5yr']?.balance} 10yr=$${growthProjections.projections['10yr']?.balance} 20yr=$${growthProjections.projections['20yr']?.balance}`);
+    }
+  } catch {}
+
+  // 8. Compute empowerment metrics
   const empowerment = computeEmpowermentMetrics();
 
-  // 5. Build holistic guidance payload
+  // 9. Build holistic guidance payload
   const guidancePayload = {
     virtueIndex: evaluation.virtueIndex,
     positivityIndex: evaluation.positivityIndex,
+    positivityVector,
     mode: evaluation.mode,
     confidenceMultiplier: evaluation.virtueIndex >= 0.9 ? 1.05 : evaluation.virtueIndex >= 0.7 ? 1.0 : 0.85,
     scores: evaluation.scores,
+    compliance: {
+      rate: compliance.complianceRate,
+      allPassed: compliance.compliant,
+    },
+    hibernation: {
+      active: hibernation.shouldHibernate,
+      virtueIndex: hibernation.virtueIndex,
+    },
     crossAgentIntel: {
       taxPreference: crossAgent.taxAdvice?.venuePreference?.recommendation || 'neutral',
       geoRiskLevel: crossAgent.geoRisk?.risk || 0,
@@ -265,7 +305,7 @@ async function main() {
     analysisAt: new Date().toISOString(),
   };
 
-  // Generate recommendations from weak virtues
+  // Generate recommendations from weak virtues + compliance gaps
   for (const [name, data] of Object.entries(evaluation.scores)) {
     if (data.score < 0.6) {
       guidancePayload.recommendations.push({
@@ -275,8 +315,18 @@ async function main() {
       });
     }
   }
+  for (const [name, vData] of Object.entries(compliance.virtues)) {
+    if (!vData.passed) {
+      guidancePayload.recommendations.push({
+        virtue: name,
+        score: vData.current,
+        target: vData.target,
+        action: `${name} at ${(vData.current * 100).toFixed(0)}%, target ${(vData.target * 100).toFixed(0)}% (${vData.metric}). Gap: ${(vData.gap * 100).toFixed(1)}%`,
+      });
+    }
+  }
 
-  // 6. Publish to signal bus
+  // 10. Publish to signal bus
   try {
     const bus = require('../lib/agent-signal-bus');
 
@@ -299,6 +349,9 @@ async function main() {
         virtueIndex: evaluation.virtueIndex,
         mode: evaluation.mode,
         positivityIndex: evaluation.positivityIndex,
+        positivityVector,
+        growthProjections: growthProjections?.projections || null,
+        complianceRate: compliance.complianceRate,
         taxEfficiency: crossAgent.taxAdvice?.venuePreference?.recommendation || 'active',
         quarterlyTaxDeadline: crossAgent.taxAdvice?.quarterlyDeadline || null,
       },
@@ -310,11 +363,13 @@ async function main() {
     logger.warn('Signal bus unavailable', { error: busErr?.message });
   }
 
-  // 7. Build summary report
+  // 11. Build summary report
   const lines = [
     `=== UCFEE-2.0 Virtue Report ===`,
     `Virtue Index: ${(evaluation.virtueIndex * 100).toFixed(1)}% | Positivity: ${(evaluation.positivityIndex * 100).toFixed(1)}%`,
+    `Positivity Vector: magnitude=${positivityVector.magnitude} direction=${positivityVector.direction}`,
     `Mode: ${evaluation.mode} | Generation: ${evaluation.upgradeGeneration}`,
+    `Compliance: ${(compliance.complianceRate * 100).toFixed(0)}% targets met | Hibernation: ${hibernation.shouldHibernate ? 'ACTIVE' : 'no'}`,
     ``,
   ];
 
@@ -322,13 +377,28 @@ async function main() {
   const sorted = Object.entries(evaluation.scores).sort((a, b) => b[1].score - a[1].score);
   lines.push('Strengths:');
   for (const [name, data] of sorted.slice(0, 3)) {
-    lines.push(`  + ${name}: ${(data.score * 100).toFixed(0)}%`);
+    const target = virtue.VIRTUE_TARGETS[name];
+    lines.push(`  + ${name}: ${(data.score * 100).toFixed(0)}% (target: ${(target?.target * 100).toFixed(0)}%)`);
   }
 
   // Bottom 3 (areas for growth — framed positively per cheerfulness)
   lines.push('Growth opportunities:');
   for (const [name, data] of sorted.slice(-3).reverse()) {
-    lines.push(`  * ${name}: ${(data.score * 100).toFixed(0)}% — room to strengthen`);
+    const target = virtue.VIRTUE_TARGETS[name];
+    lines.push(`  * ${name}: ${(data.score * 100).toFixed(0)}% → target ${(target?.target * 100).toFixed(0)}% — room to strengthen`);
+  }
+
+  // Growth horizon projections
+  if (growthProjections) {
+    lines.push('');
+    lines.push('Growth Horizon Projections:');
+    for (const [horizon, data] of Object.entries(growthProjections.projections)) {
+      lines.push(`  ${horizon}: $${data.balance.toLocaleString()} (${data.growthMultiple}x growth)`);
+    }
+    lines.push('Virtue-guided recommendations:');
+    for (const rec of growthProjections.recommendations) {
+      lines.push(`  [${rec.virtue}] ${rec.action}`);
+    }
   }
 
   lines.push('');
