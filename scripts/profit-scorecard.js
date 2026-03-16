@@ -76,7 +76,7 @@ function checkEscalation(state) {
   const newEscalation = Math.floor(streakDays / threshold) * increment;
   if (newEscalation > (state.currentEscalationPct || 0)) {
     state.currentEscalationPct = newEscalation;
-    state.payoutPct = Math.max(state.payoutPctFloor || 15, 15) + newEscalation;
+    state.payoutPct = Math.max(state.payoutPctFloor || 25, 25) + newEscalation;
     console.log(`[IRONCLAD] Payout escalated to ${state.payoutPct}% (+${newEscalation}% from ${streakDays}-day streak)`);
   }
 }
