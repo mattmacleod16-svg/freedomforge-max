@@ -290,6 +290,70 @@ export default function TokenPage() {
         </div>
       </section>
 
+      {/* Ecosystem Partners */}
+      <section className="mx-auto max-w-7xl px-6 pb-12">
+        <div className="glass-card rounded-3xl p-6 md:p-8">
+          <div className="text-center mb-8">
+            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80 mb-2">Growing Ecosystem</p>
+            <h2 className="text-3xl md:text-4xl font-black phoenix-title">
+              Partners & Integrations
+            </h2>
+            <p className="mt-2 text-zinc-400">$FORGE connects to the most powerful infrastructure in DeFi, AI, and DePIN.</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {[
+              { name: 'Alchemy', status: 'Live', desc: 'Multi-chain RPC' },
+              { name: 'Polymarket', status: 'Live', desc: 'Prediction markets' },
+              { name: 'NVIDIA NIM', status: 'Live', desc: 'GPU inference' },
+              { name: 'MultiversX', status: 'Live', desc: 'ESDT tokens' },
+              { name: 'Helius', status: 'Building', desc: 'Solana RPC' },
+              { name: 'World Liberty Fi', status: 'Research', desc: 'AgentPay SDK' },
+              { name: 'Based.one', status: 'Research', desc: 'Prediction + Card' },
+              { name: 'Aethir', status: 'Planned', desc: 'DePIN GPU compute' },
+              { name: 'Akash Network', status: 'Planned', desc: 'Decentralized cloud' },
+              { name: 'GEODNET', status: 'Research', desc: 'Geospatial DePIN' },
+              { name: 'Render', status: 'Research', desc: 'Distributed GPU' },
+              { name: 'ERC-8004', status: 'Research', desc: 'Agent identity' },
+            ].map((p) => (
+              <div key={p.name} className={`rounded-xl border ${p.status === 'Live' ? 'border-emerald-500/30' : p.status === 'Building' ? 'border-blue-500/30' : 'border-zinc-700'} bg-black/30 p-3 text-center`}>
+                <p className="text-sm font-bold text-zinc-200">{p.name}</p>
+                <p className="text-[10px] text-zinc-500">{p.desc}</p>
+                <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] font-bold ${p.status === 'Live' ? 'bg-emerald-500/20 text-emerald-400' : p.status === 'Building' ? 'bg-blue-500/20 text-blue-400' : p.status === 'Planned' ? 'bg-amber-500/20 text-amber-400' : 'bg-zinc-500/20 text-zinc-400'}`}>
+                  {p.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* DeFAI Market Context */}
+      <section className="mx-auto max-w-7xl px-6 pb-12">
+        <div className="glass-card rounded-3xl p-6 md:p-8 gold-accent-top">
+          <div className="text-center mb-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80 mb-2">The DeFAI Revolution</p>
+            <h2 className="text-2xl md:text-3xl font-black phoenix-title">$FORGE in the AI Agent Economy</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[
+              { value: '$15B+', label: 'AI Agent Market', sub: '2026 valuation' },
+              { value: '46.3%', label: 'CAGR', sub: 'To $52B by 2030' },
+              { value: '$650B', label: 'AI Infra Spend', sub: 'US tech in 2026' },
+              { value: '$1T', label: 'AI Chip Market', sub: 'Projected (NVIDIA)' },
+            ].map((m) => (
+              <div key={m.label} className="rounded-2xl border border-zinc-800 bg-black/30 p-4 text-center">
+                <p className="text-2xl font-black neon-text-gold">{m.value}</p>
+                <p className="text-xs font-semibold text-zinc-300 mt-1">{m.label}</p>
+                <p className="text-[10px] text-zinc-500">{m.sub}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-zinc-500">
+            Sources: MarketsandMarkets, Bridgewater Associates, NVIDIA GTC 2026, CoinMarketCap
+          </p>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="mx-auto max-w-7xl px-6 pb-16">
         <div className="glass-card rounded-3xl p-8 md:p-12 text-center gold-accent-top">

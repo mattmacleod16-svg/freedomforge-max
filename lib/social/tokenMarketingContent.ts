@@ -207,6 +207,46 @@ function getEducationalPosts(): TokenMarketingPost[] {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
+ * Ecosystem partnership posts.
+ */
+function getEcosystemPosts(): TokenMarketingPost[] {
+  return [
+    {
+      id: 'eco-1',
+      category: 'milestone',
+      template: `FreedomForge ecosystem growing:\n\n→ Alchemy (live) — multi-chain wallet ops\n→ Polymarket (live) — prediction markets\n→ NVIDIA NIM (live) — GPU inference\n→ Helius (building) — Solana infrastructure\n→ MultiversX (live) — ESDT tokens\n→ Aethir (planned) — decentralized GPU\n→ AgentPay SDK (researching) — agent payments\n\n14 partners. 6 chains. One stack.`,
+      hashtags: [...TOKEN_HASHTAGS, '#Ecosystem', '#DeFAI'],
+      targetAudience: 'DeFi builders, infrastructure enthusiasts',
+      priority: 8,
+    },
+    {
+      id: 'eco-2',
+      category: 'milestone',
+      template: `The DeFAI market is $15B+ and growing 46% CAGR to $52B by 2030.\n\nFreedomForge Max is:\n✓ 13+ AI models live\n✓ Multi-chain trading active\n✓ Autonomous distribution running\n✓ Skills matrix learning 24/7\n✓ $FORGE token ready\n\nNot watching from the sidelines. Building the infrastructure.`,
+      hashtags: [...TOKEN_HASHTAGS, '#DeFAI', '#AIAgents'],
+      targetAudience: 'crypto investors, AI enthusiasts',
+      priority: 9,
+    },
+    {
+      id: 'eco-3',
+      category: 'educational',
+      template: `2026 AI agent standards FreedomForge is adopting:\n\n• ERC-8004: On-chain agent identity\n• EIP-7702: Safe trading without exposing keys\n• x402: Machine-to-machine payments\n• AgentPay SDK: Policy-enforced autonomy\n\nResponsible autonomous AI isn't optional. It's the foundation.\n\n$FORGE governance decides the guardrails.`,
+      hashtags: [...TOKEN_HASHTAGS, '#AIAgents', '#ERC8004'],
+      targetAudience: 'developers, standards enthusiasts',
+      priority: 7,
+    },
+    {
+      id: 'eco-4',
+      category: 'milestone',
+      template: `FreedomForge compute strategy:\n\nCloud: Claude, GPT-4, Gemini, Grok (13+ providers)\nEdge: NVIDIA NIM, Cerebras, Groq\nLocal: Ollama (zero data egress)\nDePIN: Aethir, Akash, Render (planned)\nOn-Device: Apple Foundation Models ready\n\nWhen centralized fails, decentralized catches.\nWhen cloud is expensive, local is free.\n\n$FORGE stakers choose the routing.`,
+      hashtags: [...TOKEN_HASHTAGS, '#DePIN', '#AICompute'],
+      targetAudience: 'AI infrastructure enthusiasts, DePIN community',
+      priority: 8,
+    },
+  ];
+}
+
+/**
  * Get all token marketing posts, optionally filtered by category.
  */
 export function getTokenMarketingPosts(category?: TokenContentCategory): TokenMarketingPost[] {
@@ -219,6 +259,7 @@ export function getTokenMarketingPosts(category?: TokenContentCategory): TokenMa
     ...getMultiChainPosts(),
     ...getCommunityPosts(),
     ...getEducationalPosts(),
+    ...getEcosystemPosts(),
   ];
 
   if (category) return all.filter((p) => p.category === category);
