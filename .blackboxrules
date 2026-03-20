@@ -1,0 +1,53 @@
+# FreedomForge Max — Blackbox AI Rules
+
+## Project Identity
+This is FreedomForge Max — an autonomous intelligence engine for financial empowerment, tax intelligence, and human-first AI interactions built with Next.js 16, React 19, and TypeScript.
+
+## Architecture
+- Framework: Next.js 16 (App Router) + React 19 + TypeScript 5
+- Styling: Tailwind CSS 4
+- AI Backend: OpenRouter multi-model routing (26 MAX + 10 Advisor models)
+- Trading Backend: OCI (Oracle Cloud Infrastructure)
+- Auth: HMAC-SHA256 sessions
+- Testing: Vitest 4.1 (109+ tests)
+- Deploy: Railway (https://freedomforge.one)
+
+## File Structure
+- app/ — Next.js App Router pages and API routes
+- lib/ — Core business logic, models, utilities
+- middleware.ts — Edge auth, rate limiting, CSRF
+- public/ — PWA assets, service worker
+
+## Critical Files (Handle With Care)
+- lib/ucfee-virtues.ts — 5,600+ line behavioral framework (UCFEE-2.0)
+- lib/advisor-knowledge.ts — 916 line tax/legal knowledge base
+- lib/models.ts — AI model registry
+- middleware.ts — Security middleware
+
+## Coding Rules
+1. TypeScript strict mode — no `any` types unless unavoidable
+2. Tests live next to source files (*.test.ts / *.test.tsx)
+3. Run `npm test` before committing
+4. All AI API calls go through OpenRouter
+5. API routes use SSE (Server-Sent Events) for streaming
+6. Environment variables in .env.local (never commit secrets)
+7. Follow existing code patterns — check similar files first
+
+## Agent Context
+This project is managed by multiple AI agents sharing context:
+- Blackbox AI (you) — code editing and autocomplete
+- GitHub Copilot — via .github/agents/freedomforge.agent.md
+- Claude — via CLAUDE.md
+All agents should produce consistent, compatible changes.
+
+## When Generating Code
+- Use React Server Components where possible
+- Use 'use client' directive only when needed (state, effects, browser APIs)
+- Prefer async/await over .then() chains
+- Use the circuit breaker pattern for external API calls
+- Follow the existing error handling patterns
+- Keep security in mind — validate inputs, sanitize outputs
+
+## Models Available
+Use lib/models.ts as the source of truth for available AI models.
+Do NOT hardcode model IDs — always reference the registry.

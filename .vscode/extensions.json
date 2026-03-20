@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    "Blackboxapp.blackbox",
+    "bradlc.vscode-tailwindcss",
+    "dbaeumer.vscode-eslint"
+  ],
+  "unwantedRecommendations": []
+}
