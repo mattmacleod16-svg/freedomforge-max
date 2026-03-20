@@ -18,6 +18,24 @@ const RATE_LIMIT_RULES: { pattern: RegExp; max: number; windowMs: number }[] = [
   { pattern: /^\/api\/status\/autonomy\/forecast$/, max: 20, windowMs: 60 * 1000 },
   // Ground truth: 10 per minute per IP
   { pattern: /^\/api\/status\/autonomy\/ground-truth$/, max: 10, windowMs: 60 * 1000 },
+  // Sync: 120 per minute per IP (frequent client polling)
+  { pattern: /^\/api\/sync$/, max: 120, windowMs: 60 * 1000 },
+  // Skills: 30 per minute per IP
+  { pattern: /^\/api\/status\/skills$/, max: 30, windowMs: 60 * 1000 },
+  // Integrity: 10 per minute per IP
+  { pattern: /^\/api\/status\/integrity$/, max: 10, windowMs: 60 * 1000 },
+];
+
+/**
+ * Mutation endpoints that should be logged in the integrity audit trail.
+ * These are the most security-sensitive routes.
+ */
+const MUTATION_AUDIT_PATTERNS: RegExp[] = [
+  /^\/api\/alchemy\/wallet\/withdraw$/,
+  /^\/api\/alchemy\/wallet\/distribute$/,
+  /^\/api\/sync$/,
+  /^\/api\/status\/integrity$/,
+  /^\/api\/status\/skills$/,
 ];
 
 function getClientIp(request: NextRequest): string {
@@ -60,6 +78,19 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
+  // Tag mutation requests for server-side audit logging
+  const method = request.method;
+  if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+    for (const pattern of MUTATION_AUDIT_PATTERNS) {
+      if (pattern.test(pathname)) {
+        response.headers.set('X-Audit-Required', 'true');
+        response.headers.set('X-Audit-Endpoint', pathname);
+        response.headers.set('X-Audit-Method', method);
+        break;
+      }
+    }
+  }
+
   // Prevent clickjacking — only allow Grafana domain to embed
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -83,8 +114,20 @@ export function middleware(request: NextRequest) {
       "connect-src 'self' https:",
       "frame-src 'self' https://*.grafana.net https://*.grafana.com",
       "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
     ].join('; ')
   );
+
+  // Permissions Policy — restrict browser features to prevent abuse
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=()'
+  );
+
+  // Cross-Origin policies for additional isolation
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
 
   return response;
 }
