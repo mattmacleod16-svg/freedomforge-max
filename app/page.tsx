@@ -67,6 +67,9 @@ export default function Home() {
               <Link href="/ai-models" className="rounded-full border border-purple-500/30 px-3 py-1 text-purple-300 hover:bg-purple-500/10 transition">
                 AI Models
               </Link>
+              <Link href="/token" className="rounded-full border border-amber-500/30 px-3 py-1 text-amber-300 hover:bg-amber-500/10 transition">
+                $FORGE Token
+              </Link>
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
           </div>
@@ -460,6 +463,7 @@ export default function Home() {
             <nav className="flex gap-6">
               <Link href="/" className="hover:text-zinc-400 transition">Home</Link>
               <Link href="/ai-models" className="hover:text-zinc-400 transition">AI Models</Link>
+              <Link href="/token" className="hover:text-zinc-400 transition">$FORGE</Link>
               <Link href="/dashboard" className="hover:text-zinc-400 transition">Dashboard</Link>
             </nav>
           </div>
