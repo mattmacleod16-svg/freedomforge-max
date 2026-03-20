@@ -254,6 +254,54 @@ export default function AIModelsPage() {
         )}
       </div>
 
+      {/* On-Device AI & Privacy Section */}
+      <div className="mx-auto max-w-7xl px-6 pb-8">
+        <div className="glass-card rounded-3xl p-8 md:p-12">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-emerald-400/80 mb-2">Privacy-First Intelligence</p>
+              <h2 className="text-2xl md:text-3xl font-black phoenix-title mb-4">
+                Cloud, Edge, or On-Device
+              </h2>
+              <p className="text-zinc-400 leading-relaxed mb-4">
+                Apple&apos;s Foundation Models framework brings free, on-device AI to iOS 26 — and FreedomForge is ready. With Ollama for local inference
+                and edge-optimized models, your sensitive financial data never has to leave your device.
+              </p>
+              <ul className="space-y-3 text-sm text-zinc-300">
+                {[
+                  'Ollama local inference — zero cloud dependency for sensitive queries',
+                  'Apple Foundation Models compatible for on-device iOS intelligence',
+                  'Edge models via NVIDIA NIM and Cerebras for ultra-low latency',
+                  'Automatic routing: cloud for power, local for privacy',
+                  'Cost-aware budgeting — $0.012 to $0.028 per query at cloud tier',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-0.5 h-2 w-2 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { mode: 'Cloud AI', desc: '13+ providers, frontier reasoning', icon: 'C', color: 'border-purple-500/30' },
+                { mode: 'Local AI', desc: 'Ollama, zero data egress', icon: 'L', color: 'border-emerald-500/30' },
+                { mode: 'Edge AI', desc: 'NVIDIA NIM, Cerebras, Groq', icon: 'E', color: 'border-cyan-500/30' },
+                { mode: 'On-Device', desc: 'Apple Foundation Models ready', icon: 'D', color: 'border-amber-500/30' },
+              ].map((m) => (
+                <div key={m.mode} className={`rounded-xl border ${m.color} bg-black/30 p-4 text-center`}>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600/50 to-amber-600/50 text-sm font-black text-white mx-auto mb-2">
+                    {m.icon}
+                  </span>
+                  <p className="text-sm font-bold text-zinc-200">{m.mode}</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">{m.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
       <div className="mx-auto max-w-7xl px-6 pb-16">
         <div className="glass-card rounded-3xl p-8 md:p-12 text-center gold-accent-top">

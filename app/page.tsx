@@ -254,6 +254,70 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Use Cases — Inspired by App Store "Make AI Your Study Buddy" & "26 Apps for 2026" */}
+        <section className="glass-card rounded-3xl p-6 md:p-8">
+          <div className="text-center mb-8">
+            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80 mb-2">Built for Everyone</p>
+            <h2 className="text-3xl md:text-4xl font-black phoenix-title">
+              Your AI Command Center
+            </h2>
+            <p className="mt-3 text-zinc-400 max-w-2xl mx-auto">
+              From casual investors to power traders — FreedomForge adapts to you. Like the top-rated AI apps on the App Store, we make complex intelligence accessible.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                title: 'Smart Portfolio Planning',
+                desc: 'Ask FreedomForge to build a personalized investment plan — like Tiimo turns chaos into a calming timeline, we turn market noise into actionable strategy.',
+                icon: 'P',
+                prompt: '"Build me a diversified crypto portfolio for Q2 2026"',
+              },
+              {
+                title: 'AI-Powered Research',
+                desc: 'Multi-model consensus means answers verified across Claude, GPT-4, Gemini, and Grok simultaneously — no single point of AI failure.',
+                icon: 'R',
+                prompt: '"Compare ETH vs SOL yield opportunities right now"',
+              },
+              {
+                title: 'Real-Time Alerts',
+                desc: 'Geopolitical risk monitoring, market anomaly detection, and prediction market signals — delivered before you need to ask.',
+                icon: 'A',
+                prompt: '"Alert me when BTC drops below its 200-day moving average"',
+              },
+              {
+                title: 'On-Chain Execution',
+                desc: 'From balance checks to automated distributions — blockchain operations without touching a command line or block explorer.',
+                icon: 'B',
+                prompt: '"Check my wallet balance and suggest gas-optimal timing"',
+              },
+              {
+                title: 'Learning & Forecasting',
+                desc: 'Continuous learning loops update models every 30 minutes. Multi-horizon forecasts at 6h, 24h, and 72h with Brier-calibrated accuracy.',
+                icon: 'L',
+                prompt: '"What\'s the 72-hour forecast for prediction market outcomes?"',
+              },
+              {
+                title: 'Privacy-First Design',
+                desc: 'Local inference via Ollama, on-device processing options, and zero cloud dependency when you need it. Your data stays yours.',
+                icon: 'D',
+                prompt: '"Run this analysis locally without sending data to the cloud"',
+              },
+            ].map((feat) => (
+              <div key={feat.title} className="glass-card rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-amber-600 text-sm font-black text-white">
+                    {feat.icon}
+                  </span>
+                  <h3 className="text-base font-bold text-white">{feat.title}</h3>
+                </div>
+                <p className="text-sm text-zinc-400 leading-relaxed">{feat.desc}</p>
+                <p className="mt-3 text-xs text-purple-300/80 italic border-l-2 border-purple-500/30 pl-3">{feat.prompt}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Feature Highlights for SEO / Marketing */}
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {[
@@ -315,6 +379,77 @@ export default function Home() {
                 <p className="text-xs text-zinc-500">{m.sub}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* AI Market Wave — Mass Adoption Context */}
+        <section className="glass-card rounded-3xl p-6 md:p-8 gold-accent-top">
+          <div className="text-center mb-8">
+            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80 mb-2">The AI App Revolution</p>
+            <h2 className="text-3xl md:text-4xl font-black phoenix-title">
+              Ride the $10B+ Wave
+            </h2>
+            <p className="mt-3 text-zinc-400 max-w-2xl mx-auto">
+              Gen AI apps generated $5B in consumer spending in 2025 — tripling year-over-year. In 2026, that number is projected to exceed $10B. FreedomForge Max puts you at the center of this revolution.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {[
+              { value: '$5B+', label: '2025 AI App Revenue', sub: '3x YoY growth' },
+              { value: '3.8B', label: 'AI App Downloads', sub: '2x over 2024' },
+              { value: '48B hrs', label: 'Time in AI Apps', sub: '3.6x vs 2024' },
+              { value: '$10B+', label: '2026 Forecast', sub: 'Consumer spending' },
+            ].map((m) => (
+              <div key={m.label} className="rounded-2xl border border-zinc-800 bg-black/30 p-4 text-center">
+                <p className="text-2xl md:text-3xl font-black neon-text-gold">{m.value}</p>
+                <p className="text-xs font-semibold text-zinc-300 mt-1">{m.label}</p>
+                <p className="text-[10px] text-zinc-500">{m.sub}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-xs text-zinc-500">
+            Source: Sensor Tower State of AI Apps 2025, Appfigures, Wall Street Journal
+          </p>
+        </section>
+
+        {/* iOS & Cross-Platform Availability */}
+        <section className="glass-card rounded-3xl p-6 md:p-8">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80 mb-2">Available Everywhere</p>
+              <h2 className="text-2xl md:text-3xl font-black phoenix-title mb-4">
+                Web. iOS. Desktop.
+              </h2>
+              <p className="text-zinc-400 leading-relaxed mb-4">
+                Like the best apps featured in Apple&apos;s &ldquo;26 Apps for 2026&rdquo; collection, FreedomForge Max is built for the platforms you already use. Native iOS app via Capacitor, responsive web, and full API access.
+              </p>
+              <ul className="space-y-3 text-sm text-zinc-300">
+                {[
+                  'iOS native app with push notifications and Apple Watch readiness',
+                  'Progressive web app — works offline with local AI inference',
+                  'Apple Foundation Models compatible for on-device privacy',
+                  'API-first architecture for custom integrations',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <span className="mt-0.5 h-2 w-2 rounded-full bg-gradient-to-r from-purple-500 to-amber-500 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { platform: 'iPhone', status: 'Available', color: 'border-emerald-500/30 text-emerald-300' },
+                { platform: 'Web App', status: 'Live', color: 'border-emerald-500/30 text-emerald-300' },
+                { platform: 'iPad', status: 'Compatible', color: 'border-blue-500/30 text-blue-300' },
+                { platform: 'Apple Watch', status: 'Planned', color: 'border-amber-500/30 text-amber-300' },
+              ].map((p) => (
+                <div key={p.platform} className={`rounded-xl border ${p.color} bg-black/30 p-4 text-center`}>
+                  <p className="text-lg font-bold">{p.platform}</p>
+                  <p className="text-[10px] text-zinc-500 mt-1">{p.status}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
