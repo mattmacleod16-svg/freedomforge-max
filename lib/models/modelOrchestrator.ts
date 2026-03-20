@@ -1,12 +1,15 @@
 /**
  * Multi-Model AI Orchestrator
- * Routes queries to best-suited AI model for optimal responses
+ * Routes queries to best-suited AI model for optimal responses.
+ * Supports 20+ AI providers for maximum global reach and redundancy.
  */
+
+import { AI_MODEL_PROVIDERS, getRegistryStats } from './aiModelsRegistry';
 
 interface ModelConfig {
   name: string;
   apiKey: string;
-  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface' | 'openai-compatible' | 'gemini' | 'clawd';
+  type: 'grok' | 'openai' | 'anthropic' | 'local' | 'huggingface' | 'openai-compatible' | 'gemini' | 'clawd' | 'cohere';
   endpoint?: string;
   model?: string;
   extraHeaders?: Record<string, string>;
@@ -216,6 +219,97 @@ export async function initializeModels() {
         priority: 13,
       });
     }
+  }
+
+  // DeepSeek (Chinese frontier model - excellent at code & reasoning)
+  const deepseekKey = firstEnv('DEEPSEEK_API_KEY');
+  if (deepseekKey) {
+    upsertModel({
+      name: 'deepseek',
+      apiKey: deepseekKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('DEEPSEEK_ENDPOINT') || 'https://api.deepseek.com/v1/chat/completions',
+      model: firstEnv('DEEPSEEK_MODEL') || 'deepseek-chat',
+      priority: 14,
+    });
+  }
+
+  // Cohere Command R+ (enterprise RAG-optimized)
+  const cohereKey = firstEnv('COHERE_API_KEY');
+  if (cohereKey) {
+    upsertModel({
+      name: 'cohere',
+      apiKey: cohereKey,
+      type: 'cohere',
+      endpoint: firstEnv('COHERE_ENDPOINT') || 'https://api.cohere.ai/v2/chat',
+      model: firstEnv('COHERE_MODEL') || 'command-r-plus',
+      priority: 15,
+    });
+  }
+
+  // Perplexity (search-augmented AI)
+  const perplexityKey = firstEnv('PERPLEXITY_API_KEY', 'PPLX_API_KEY');
+  if (perplexityKey) {
+    upsertModel({
+      name: 'perplexity',
+      apiKey: perplexityKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('PERPLEXITY_ENDPOINT') || 'https://api.perplexity.ai/chat/completions',
+      model: firstEnv('PERPLEXITY_MODEL') || 'sonar-pro',
+      priority: 16,
+    });
+  }
+
+  // Together AI (fast open-source model hosting)
+  const togetherKey = firstEnv('TOGETHER_API_KEY', 'TOGETHERAI_API_KEY');
+  if (togetherKey) {
+    upsertModel({
+      name: 'together',
+      apiKey: togetherKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('TOGETHER_ENDPOINT') || 'https://api.together.xyz/v1/chat/completions',
+      model: firstEnv('TOGETHER_MODEL') || 'meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo',
+      priority: 17,
+    });
+  }
+
+  // Fireworks AI (optimized inference)
+  const fireworksKey = firstEnv('FIREWORKS_API_KEY');
+  if (fireworksKey) {
+    upsertModel({
+      name: 'fireworks',
+      apiKey: fireworksKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('FIREWORKS_ENDPOINT') || 'https://api.fireworks.ai/inference/v1/chat/completions',
+      model: firstEnv('FIREWORKS_MODEL') || 'accounts/fireworks/models/llama-v3p1-405b-instruct',
+      priority: 18,
+    });
+  }
+
+  // Qwen / DashScope (Alibaba - strong Asian language support)
+  const qwenKey = firstEnv('QWEN_API_KEY', 'DASHSCOPE_API_KEY');
+  if (qwenKey) {
+    upsertModel({
+      name: 'qwen',
+      apiKey: qwenKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('QWEN_ENDPOINT') || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+      model: firstEnv('QWEN_MODEL') || 'qwen-max',
+      priority: 19,
+    });
+  }
+
+  // AI21 Jamba (long-context enterprise model)
+  const ai21Key = firstEnv('AI21_API_KEY');
+  if (ai21Key) {
+    upsertModel({
+      name: 'ai21',
+      apiKey: ai21Key,
+      type: 'openai-compatible',
+      endpoint: firstEnv('AI21_ENDPOINT') || 'https://api.ai21.com/studio/v1/chat/completions',
+      model: firstEnv('AI21_MODEL') || 'jamba-1.5-large',
+      priority: 20,
+    });
   }
 }
 
@@ -428,6 +522,31 @@ async function queryHuggingFace(prompt: string, config: ModelConfig): Promise<st
   }
 }
 
+async function queryCohere(prompt: string, config: ModelConfig): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(config.endpoint || 'https://api.cohere.ai/v2/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model || 'command-r-plus',
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return 'No response';
+    const data = await response.json();
+    return data.message?.content?.[0]?.text || 'No response';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function queryClawd(prompt: string, config: ModelConfig): Promise<string> {
   if (!config.endpoint) {
     return 'No response';
@@ -527,6 +646,8 @@ export async function getMultiModelResponse(
           response = await queryOllamaWithConfig(prompt, model);
         } else if (model.type === 'huggingface') {
           response = await queryHuggingFace(prompt, model);
+        } else if (model.type === 'cohere') {
+          response = await queryCohere(prompt, model);
         } else if (model.type === 'clawd') {
           response = await queryClawd(prompt, model);
         }
@@ -561,4 +682,14 @@ export async function getBestResponse(prompt: string): Promise<string> {
 export function getAvailableModels(): string[] {
   ensureModelsInitialized();
   return models.map((m) => m.name);
+}
+
+export function getOrchestratorStats() {
+  ensureModelsInitialized();
+  const registry = getRegistryStats();
+  return {
+    activeModels: models.length,
+    modelNames: models.map((m) => m.name),
+    registry,
+  };
 }
