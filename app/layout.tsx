@@ -2,7 +2,7 @@ import './globals.css';
 import { Toaster } from 'sonner';
 import type { Metadata, Viewport } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freedomforge-max.up.railway.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freedomforge.one';
 const SITE_NAME = 'FreedomForge Max';
 const SITE_DESCRIPTION =
   'Autonomous AI intelligence stack integrating 20+ AI providers, 50+ models, and multi-model consensus for prediction, trading, and on-chain operations. The future of decentralized autonomous intelligence.';

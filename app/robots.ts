@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freedomforge-max.up.railway.app';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freedomforge.one';
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,11 +8,11 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/login'],
+        disallow: ['/api/', '/dashboard/ops'],
       },
       {
         userAgent: 'GPTBot',
-        allow: ['/ai-models', '/'],
+        allow: ['/ai-models', '/', '/intelligence', '/cipher-lab', '/token'],
       },
       {
         userAgent: 'Google-Extended',
@@ -20,6 +20,14 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: 'CCBot',
+        allow: '/',
+      },
+      {
+        userAgent: 'Bingbot',
+        allow: '/',
+      },
+      {
+        userAgent: 'Applebot',
         allow: '/',
       },
     ],

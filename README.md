@@ -1,26 +1,184 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# 🔥 FreedomForge Max
 
-First, run the development server:
+### The World's First Open-Source Autonomous Intelligence Stack
+
+**50+ AI Models · 20+ Providers · 100+ Languages · DeFi Intelligence · 52+ Autonomous Agents**
+
+[![Live](https://img.shields.io/badge/Live-freedomforge.one-brightgreen?style=for-the-badge)](https://freedomforge.one)
+[![Tests](https://img.shields.io/badge/Tests-166%20passing-success?style=for-the-badge)](#testing)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+[![Languages](https://img.shields.io/badge/Languages-100+-purple?style=for-the-badge)](#language-support)
+
+</div>
+
+---
+
+## What Is FreedomForge?
+
+FreedomForge Max is an open-source platform that unifies **50+ AI models** from **20+ providers** (Claude, GPT-4o, Gemini, Grok, Llama, DeepSeek, Mistral, and more), speaks **100+ languages**, and manages DeFi portfolios with **institutional-grade risk management**. It's not just an AI app — it's an AI operating system for financial freedom.
+
+### Why FreedomForge?
+
+| Problem | FreedomForge Solution |
+|---------|----------------------|
+| Locked into one AI provider | **50+ models from 20+ providers**, auto-routed by task |
+| AI tools don't understand finance | **Full DeFi stack** — lending, yield farming, arbitrage, NFTs, DAOs |
+| Language barriers | **100+ languages** with automatic detection and model routing |
+| No institutional-grade risk management | **VaR engine, circuit breakers, dead man's switch** |
+| Black-box algorithms | **100% open source** — audit every line |
+
+---
+
+## ✨ Key Features
+
+### 🧠 Multi-Model AI Intelligence
+- **20+ AI providers**: Anthropic Claude, OpenAI, Google Gemini, xAI Grok, Mistral, Meta Llama, DeepSeek, Cohere, NVIDIA NIM, and more
+- **50+ models orchestrated**: From GPT-4o and Claude Opus to open-source Llama 4 Scout (1M+ context)
+- **Ensemble consensus**: Champion policy voting across agents with confidence scoring
+- **Adaptive routing**: Language and capability-aware model selection
+
+### 🌍 100+ Language Support
+- **Latin** (50+): English, Spanish, French, German, Portuguese, Swahili, Filipino, and more
+- **Cyrillic** (15+): Russian, Ukrainian, Serbian, Bulgarian, Kazakh
+- **CJK** (5): Mandarin, Japanese, Korean
+- **Arabic** (5+): Arabic, Persian, Urdu
+- **Devanagari** (5+): Hindi, Sanskrit, Nepali, Marathi
+- **Other**: Hebrew, Thai, Georgian, Armenian, Greek, and more
+
+### 💰 DeFi Intelligence
+- **Lending protocols** with flash loans and e-mode
+- **Yield farming** and arbitrage detection
+- **NFT** minting, trading, fractionalization, and lending
+- **DAO** treasury management and governance voting
+- **Multi-chain**: EVM, Stellar, Cosmos IBC
+
+### 🛡️ Institutional-Grade Risk Management
+- **VaR Engine**: Parametric and historical Value-at-Risk
+- **Circuit breakers**: 3-state fault tolerance with auto-recovery
+- **Dead man's switch**: Auto-liquidation safety net
+- **HMAC-SHA256 integrity verification**
+- **Multi-layer authentication**: OAuth, session tokens, Bearer tokens, API keys
+
+### 🤖 52+ Autonomous Agents
+- Self-evolving brain with meta-learning
+- Agent supervisor with heartbeat monitoring
+- Inter-agent signal bus for coordination
+- Strategy discovery via genetic algorithms
+- Smart order routing and TWAP execution
+
+---
+
+## 🚀 Quick Start
 
 ```bash
+# Clone the repository
+git clone https://github.com/mattmacleod16-svg/freedomforge-max.git
+cd freedomforge-max
+
+# Install dependencies
+npm ci
+
+# Set up environment
+cp .env.example .env.local
+# Edit .env.local with your API keys
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see FreedomForge in action.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📊 Architecture
 
-## Custom AI Sidekick Features
+```
+freedomforge-max/
+├── app/                    # Next.js pages and API routes
+│   ├── page.tsx            # Main AI interface
+│   ├── ai-models/          # Model registry and comparison
+│   ├── intelligence/       # 16-module monitoring dashboard
+│   ├── cipher-lab/         # Cryptography utilities
+│   ├── token/              # $FORGE token economics
+│   ├── dashboard/          # Portfolio overview
+│   └── api/                # 39 API endpoints
+├── lib/                    # 107 core modules
+│   ├── intelligence/       # AI routing, language detection, growth engine
+│   ├── models/             # 50+ model registry and orchestrator
+│   ├── auth/               # Multi-layer authentication
+│   ├── security/           # HMAC integrity guard
+│   ├── protocols/          # Cross-chain adapters (Cosmos, Stellar, Chainlink)
+│   ├── defi/               # Lending protocol
+│   ├── nft/                # Digital assets engine
+│   ├── dao/                # Treasury and governance
+│   └── *.js                # 52+ trading and risk agents
+├── tests/                  # 166 tests across 70 suites
+└── .github/workflows/      # 20+ CI/CD workflows
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+npm test
+```
+
+| Metric | Value |
+|--------|-------|
+| Total Tests | 166 |
+| Pass Rate | 100% |
+| Test Suites | 70 |
+| Duration | ~550ms |
+
+Test coverage includes: VaR engine, risk management, circuit breakers, trade journal, treasury ledger, agent signal bus, resilient I/O, edge detection, capital mandate, self-evolving brain, and cross-module integration.
+
+---
+
+## 🌐 Deploy
+
+### Railway (Recommended)
+```bash
+npm install -g @railway/cli
+railway login
+railway link
+railway up
+```
+
+A `railway.toml` is included for zero-config builds. Currently live at [freedomforge.one](https://freedomforge.one).
+
+### Other Platforms
+FreedomForge runs on any platform that supports Node.js 22+: Vercel, AWS, GCP, Azure, DigitalOcean, or your own hardware.
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is open source under the [MIT License](LICENSE).
+
+---
+
+## Operational Reference
 
 > **Reliability note** – the superagent must never stop generating revenue.  the
 > code now includes extensive alerting if anything goes wrong (distribution
