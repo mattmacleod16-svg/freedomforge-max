@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verifySession } from '@/lib/auth/session';
+import { verifySessionToken } from '@/lib/auth/session';
 import { executeTrade, type TradeOrder } from '@/lib/trading/engine';
 
 export async function POST(request: Request) {
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const token = jar.get('ff_session')?.value;
     if (!token) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-    const session = await verifySession(token);
+    const session = verifySessionToken(token);
     if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
     const body = await request.json();
