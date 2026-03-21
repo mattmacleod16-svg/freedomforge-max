@@ -50,6 +50,13 @@
       "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
     },
     {
+      "name": "Trading",
+      "short_name": "Trade",
+      "description": "Multi-exchange trading — Coinbase + Kraken + ViaBTC",
+      "url": "/trading?shortcut=trading",
+      "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "AI Chat",
       "short_name": "Chat",
       "description": "Talk to MAX — your AI command center",
