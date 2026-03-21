@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verifySession } from '@/lib/auth/session';
+import { verifySessionToken } from '@/lib/auth/session';
 import {
   getTradingMode, getRiskLimits, getTradeLog,
   getDailyPnL, getAggregatedPortfolio, getExchangeStatus,
@@ -13,8 +13,8 @@ export async function GET() {
     const token = jar.get('ff_session')?.value;
     if (!token) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-    const session = await verifySession(token);
-    if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    const valid = verifySessionToken(token);
+    if (!valid) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
     const [portfolio] = await Promise.allSettled([getAggregatedPortfolio()]);
 
@@ -40,8 +40,8 @@ export async function POST(request: Request) {
     const token = jar.get('ff_session')?.value;
     if (!token) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-    const session = await verifySession(token);
-    if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    const valid = verifySessionToken(token);
+    if (!valid) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
     const body = await request.json();
 
