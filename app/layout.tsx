@@ -1,6 +1,7 @@
 import './globals.css';
 import { Toaster } from 'sonner';
 import type { Metadata, Viewport } from 'next';
+import GlobalNav from './components/GlobalNav';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freedomforge.one';
 const SITE_NAME = 'FreedomForge Max';
@@ -140,6 +141,12 @@ export default function RootLayout({
       'Real-Time Intelligence',
       'Risk Management',
       'Portfolio Optimization',
+      'Congressional Trade Tracking',
+      'Mining Operations Monitor',
+      'DePIN Network Validator',
+      'AI Shopping Intelligence',
+      'Patent Research',
+      'Personal AI Genie',
     ],
   };
 
@@ -175,6 +182,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-black text-white">
+        <GlobalNav />
         {children}
         <Toaster position="top-center" richColors />
         <script
