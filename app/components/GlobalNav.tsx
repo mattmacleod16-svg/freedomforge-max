@@ -20,6 +20,7 @@ const MORE_ITEMS = [
   { href: '/cipher-lab', label: 'Cipher', icon: '🔬' },
   { href: '/token', label: '$FORGE', icon: '🪙' },
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { href: '/marketing', label: 'Marketing', icon: '📣' },
 ];
 
 export default function GlobalNav() {
