@@ -108,6 +108,11 @@ export default function Home() {
               <Link href="/discover" className="rounded-full border border-blue-500/30 px-3 py-1 text-blue-300 hover:bg-blue-500/10 transition">
                 Discover
               </Link>
+              <Link href="/skills" className="rounded-full border border-purple-500/30 px-3 py-1 text-purple-300 hover:bg-purple-500/10 transition">
+                Skills
+              </Link>
+              <Link href="/genie" className="rounded-full border border-cyan-500/30 px-3 py-1 text-cyan-300 hover:bg-cyan-500/10 transition">
+              </Link>                
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
           </div>
@@ -543,6 +548,8 @@ export default function Home() {
               <Link href="/life" className="hover:text-zinc-400 transition">Life</Link>
               <Link href="/watchdog" className="hover:text-zinc-400 transition">Watchdog</Link>
               <Link href="/discover" className="hover:text-zinc-400 transition">Discover</Link>
+              <Link href="/skills" className="hover:text-zinc-400 transition">Skills</Link>
+              <Link href="/genie" className="hover:text-zinc-400 transition">Genie</Link>
             </nav>
           </div>
         </footer>
