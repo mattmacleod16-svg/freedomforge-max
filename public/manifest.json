@@ -1,7 +1,7 @@
 {
-  "name": "FreedomForge Max — Autonomous Intelligence",
+  "name": "FreedomForge Max — Your AI Genie",
   "short_name": "FreedomForge",
-  "description": "Your sovereign AI command center. 20+ providers, 50+ models, autonomous trading, tax intelligence, and on-chain operations — all in one app.",
+  "description": "Your sovereign AI genie. Personalized intelligence, autonomous trading, congressional watchdog, mining operations, smart shopping, and life automation — all custom to you.",
   "start_url": "/?utm_source=pwa",
   "id": "/",
   "display": "standalone",
@@ -43,6 +43,13 @@
   ],
   "shortcuts": [
     {
+      "name": "Ask Genie",
+      "short_name": "Genie",
+      "description": "Your personal AI assistant — custom to you",
+      "url": "/genie?shortcut=genie",
+      "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "AI Chat",
       "short_name": "Chat",
       "description": "Talk to MAX — your AI command center",
@@ -50,21 +57,21 @@
       "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Cipher Lab",
-      "short_name": "Cipher",
-      "description": "Encode, decode, and auto-detect any cipher",
-      "url": "/cipher-lab?shortcut=cipher",
+      "name": "Vault",
+      "short_name": "Vault",
+      "description": "Your financial command center",
+      "url": "/vault?shortcut=vault",
       "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "AI Models",
-      "short_name": "Models",
-      "description": "Explore 50+ AI models",
-      "url": "/ai-models?shortcut=models",
+      "name": "Watchdog",
+      "short_name": "Watchdog",
+      "description": "Congressional trade tracker and market intelligence",
+      "url": "/watchdog?shortcut=watchdog",
       "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
     }
   ],
-  "categories": ["finance", "productivity", "utilities", "business"],
+  "categories": ["finance", "productivity", "utilities", "business", "lifestyle"],
   "lang": "en-US",
   "dir": "ltr",
   "scope": "/",
