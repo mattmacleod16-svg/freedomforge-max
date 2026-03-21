@@ -1,4 +1,3 @@
-'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -102,6 +101,12 @@ export default function Home() {
               </Link>
               <Link href="/life" className="rounded-full border border-emerald-500/30 px-3 py-1 text-emerald-300 hover:bg-emerald-500/10 transition">
                 Life
+              </Link>
+              <Link href="/watchdog" className="rounded-full border border-red-500/30 px-3 py-1 text-red-300 hover:bg-red-500/10 transition">
+                Watchdog
+              </Link>
+              <Link href="/discover" className="rounded-full border border-blue-500/30 px-3 py-1 text-blue-300 hover:bg-blue-500/10 transition">
+                Discover
               </Link>
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
@@ -536,6 +541,8 @@ export default function Home() {
               <Link href="/cipher-lab" className="hover:text-zinc-400 transition">Cipher Lab</Link>
               <Link href="/vault" className="hover:text-zinc-400 transition">Vault</Link>
               <Link href="/life" className="hover:text-zinc-400 transition">Life</Link>
+              <Link href="/watchdog" className="hover:text-zinc-400 transition">Watchdog</Link>
+              <Link href="/discover" className="hover:text-zinc-400 transition">Discover</Link>
             </nav>
           </div>
         </footer>
