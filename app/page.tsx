@@ -7,11 +7,28 @@ export default function Home() {
   const [transcript, setTranscript] = React.useState('');
   const [response, setResponse] = React.useState('');
   const [textInput, setTextInput] = React.useState('');
+  const [history, setHistory] = React.useState<Array<{role: string; text: string; ts: number}>>([]);
+
+  // Load conversation history from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ff_chat_history');
+      if (saved) setHistory(JSON.parse(saved));
+    } catch { /* ignore */ }
+  }, []);
+
+  // Save history to localStorage whenever it changes
+  React.useEffect(() => {
+    if (history.length > 0) {
+      try { localStorage.setItem('ff_chat_history', JSON.stringify(history.slice(-50))); } catch { /* ignore */ }
+    }
+  }, [history]);
 
   // Shared function that processes any input (voice or text)
   const processInput = async (text: string) => {
     setTranscript(text);
     setResponse('…loading');
+    setHistory((h) => [...h, { role: 'user', text, ts: Date.now() }]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -22,8 +39,10 @@ export default function Home() {
       const data = await res.json();
       const reply = data.reply || 'No answer';
       setResponse(reply);
+      setHistory((h) => [...h, { role: 'assistant', text: reply, ts: Date.now() }]);
     } catch (err) {
       setResponse('Error contacting Max');
+      setHistory((h) => [...h, { role: 'assistant', text: 'Error contacting Max', ts: Date.now() }]);
     }
 
     setTextInput('');
@@ -102,18 +121,52 @@ export default function Home() {
               </button>
             </form>
 
-            <div className="mt-6 space-y-4 rounded-2xl border border-zinc-800 bg-black/30 p-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-400">Transcript</p>
-                <p className="mt-1 min-h-8 text-sm text-orange-300">{transcript ? `You: ${transcript}` : 'Waiting for command...'}</p>
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-400">Agent Response</p>
-                <p className="mt-1 min-h-20 whitespace-pre-wrap text-sm leading-relaxed text-zinc-100">
-                  {response || 'No response yet.'}
-                </p>
-              </div>
+            <div className="mt-6 space-y-3 rounded-2xl border border-zinc-800 bg-black/30 p-4 max-h-96 overflow-y-auto">
+              {history.length === 0 && !transcript && (
+                <p className="text-center text-xs text-zinc-600 py-8">Your conversation will appear here. Ask MAX anything.</p>
+              )}
+              {history.slice(-20).map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                    msg.role === 'user'
+                      ? 'bg-orange-500/15 border border-orange-500/20 text-orange-200'
+                      : 'bg-zinc-800/50 border border-zinc-700/50 text-zinc-100'
+                  }`}>
+                    <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                    <p className="mt-1 text-[10px] text-zinc-600">{new Date(msg.ts).toLocaleTimeString()}</p>
+                  </div>
+                </div>
+              ))}
+              {response === '…loading' && (
+                <div className="flex justify-start">
+                  <div className="rounded-2xl bg-zinc-800/50 border border-zinc-700/50 px-4 py-2.5 text-sm text-zinc-400">
+                    <span className="animate-pulse">Thinking...</span>
+                  </div>
+                </div>
+              )}
             </div>
+            {history.length > 0 && (
+              <div className="mt-2 flex justify-between items-center">
+                <p className="text-[10px] text-zinc-600">{history.length} messages</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const md = history.map((m) => `**${m.role === 'user' ? 'You' : 'MAX'}:** ${m.text}`).join('\n\n');
+                      navigator.clipboard?.writeText(md);
+                    }}
+                    className="text-[10px] text-zinc-500 hover:text-white transition"
+                  >
+                    📋 Copy
+                  </button>
+                  <button
+                    onClick={() => { setHistory([]); setTranscript(''); setResponse(''); localStorage.removeItem('ff_chat_history'); }}
+                    className="text-[10px] text-zinc-500 hover:text-red-400 transition"
+                  >
+                    🗑 Clear
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
           <aside className="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur space-y-6">

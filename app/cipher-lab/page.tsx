@@ -9,6 +9,18 @@ import {
   vigenere,
   vigenereDecode,
   atbash,
+  base64Encode,
+  base64Decode,
+  hexEncode,
+  hexDecode,
+  binaryEncode,
+  binaryDecode,
+  morseEncode,
+  morseDecode,
+  urlEncode,
+  urlDecode,
+  reverseText,
+  autoDetect,
   bruteForce,
   analyzeFrequency,
   CIPHER_ENCYCLOPEDIA,
@@ -16,13 +28,14 @@ import {
   type CipherAlgorithm,
   type CipherResult,
   type CipherAnalysis,
+  type DetectionResult,
 } from '@/lib/cipher';
 import { DataMask, MaskFieldGroup, ShieldStatus } from '@/app/components/DataMask';
 
 /* ─── Page ────────────────────────────────────────────────────────────────── */
 
 export default function CipherLabPage() {
-  const [activeTab, setActiveTab] = useState<'encode' | 'crack' | 'learn' | 'shield'>('encode');
+  const [activeTab, setActiveTab] = useState<'encode' | 'detect' | 'crack' | 'learn' | 'shield'>('encode');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--bg-void)] via-[var(--bg-deep)] to-[var(--bg-void)] cyber-grid-bg p-6 md:p-10">
@@ -34,7 +47,7 @@ export default function CipherLabPage() {
               <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80">Cryptographic Education Engine</p>
               <h1 className="mt-2 text-4xl font-black tracking-tight phoenix-title md:text-5xl">Cipher Lab</h1>
               <p className="mt-2 text-sm text-zinc-400">
-                Explore classical ciphers, crack codes, and understand the foundations of modern encryption.
+                Encode, decode, crack, and auto-detect — Base64, Hex, Binary, Morse, classical ciphers, and more.
               </p>
             </div>
             <Link
@@ -48,7 +61,7 @@ export default function CipherLabPage() {
 
         {/* Tab Navigation */}
         <nav className="flex gap-2 overflow-x-auto">
-          {(['encode', 'crack', 'learn', 'shield'] as const).map((tab) => (
+          {(['encode', 'detect', 'crack', 'learn', 'shield'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -58,16 +71,18 @@ export default function CipherLabPage() {
                   : 'border border-zinc-800 bg-black/30 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300'
               }`}
             >
-              {tab === 'encode' && 'Encode / Decode'}
-              {tab === 'crack' && 'Crack & Analyze'}
-              {tab === 'learn' && 'Cipher Academy'}
-              {tab === 'shield' && 'Data Shield'}
+              {tab === 'encode' && '🔐 Encode / Decode'}
+              {tab === 'detect' && '🔍 Auto-Detect'}
+              {tab === 'crack' && '🔓 Crack & Analyze'}
+              {tab === 'learn' && '📚 Cipher Academy'}
+              {tab === 'shield' && '🛡️ Data Shield'}
             </button>
           ))}
         </nav>
 
         {/* Tab Content */}
         {activeTab === 'encode' && <EncodeDecodeTab />}
+        {activeTab === 'detect' && <AutoDetectTab />}
         {activeTab === 'crack' && <CrackTab />}
         {activeTab === 'learn' && <LearnTab />}
         {activeTab === 'shield' && <ShieldTab />}
@@ -103,13 +118,25 @@ function EncodeDecodeTab() {
           case 'caesar': return caesar(input, shift);
           case 'vigenere': return vigenere(input, vigenereKey);
           case 'atbash': return atbash(input);
+          case 'base64': return base64Encode(input);
+          case 'hex': return hexEncode(input);
+          case 'binary': return binaryEncode(input);
+          case 'morse': return morseEncode(input);
+          case 'url': return urlEncode(input);
+          case 'reverse': return reverseText(input);
         }
       } else {
         switch (algorithm) {
-          case 'rot13': return rot13(input); // self-inverse
+          case 'rot13': return rot13(input);
           case 'caesar': return caesarDecode(input, shift);
           case 'vigenere': return vigenereDecode(input, vigenereKey);
-          case 'atbash': return atbash(input); // self-inverse
+          case 'atbash': return atbash(input);
+          case 'base64': return base64Decode(input);
+          case 'hex': return hexDecode(input);
+          case 'binary': return binaryDecode(input);
+          case 'morse': return morseDecode(input);
+          case 'url': return urlDecode(input);
+          case 'reverse': return reverseText(input);
         }
       }
     } catch {
@@ -138,10 +165,20 @@ function EncodeDecodeTab() {
             onChange={(e) => setAlgorithm(e.target.value as CipherAlgorithm)}
             className="rounded-lg border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white outline-none focus:border-purple-500"
           >
-            <option value="rot13">ROT13</option>
-            <option value="caesar">Caesar (ROT-N)</option>
-            <option value="vigenere">Vigenère</option>
-            <option value="atbash">Atbash</option>
+            <optgroup label="Classical Ciphers">
+              <option value="rot13">ROT13</option>
+              <option value="caesar">Caesar (ROT-N)</option>
+              <option value="vigenere">Vigenère</option>
+              <option value="atbash">Atbash</option>
+            </optgroup>
+            <optgroup label="Modern Encodings">
+              <option value="base64">Base64</option>
+              <option value="hex">Hexadecimal</option>
+              <option value="binary">Binary</option>
+              <option value="morse">Morse Code</option>
+              <option value="url">URL Encoding</option>
+              <option value="reverse">Reverse Text</option>
+            </optgroup>
           </select>
 
           {/* Mode Toggle */}
@@ -238,6 +275,105 @@ function EncodeDecodeTab() {
           </details>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Auto-Detect Tab ─────────────────────────────────────────────────────── */
+
+function AutoDetectTab() {
+  const [input, setInput] = useState('');
+
+  const detections: DetectionResult[] = useMemo(() => {
+    if (!input || input.length < 2) return [];
+    return autoDetect(input);
+  }, [input]);
+
+  return (
+    <div className="space-y-6">
+      <div className="glass-card rounded-2xl p-6">
+        <h2 className="mb-2 text-lg font-bold text-white">Paste Unknown Data</h2>
+        <p className="mb-4 text-xs text-zinc-500">
+          Paste any encoded, encrypted, or obfuscated text — FreedomForge will automatically detect the format and decode it.
+        </p>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Paste Base64, hex, binary, Morse code, URL-encoded text, Caesar cipher, or anything else..."
+          className="w-full rounded-xl border border-zinc-700 bg-black/50 px-4 py-3 font-mono text-sm text-white outline-none focus:border-purple-500 placeholder:text-zinc-600"
+          rows={4}
+        />
+      </div>
+
+      {detections.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-white">
+            🔍 Detected {detections.length} Possible Encoding{detections.length > 1 ? 's' : ''}
+          </h2>
+          {detections.map((det, i) => (
+            <div key={i} className="glass-card rounded-2xl p-6">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                    {det.format}
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    Confidence: {Math.round(det.confidence * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 w-24 overflow-hidden rounded-full bg-zinc-800">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${det.confidence * 100}%`,
+                      backgroundColor: det.confidence > 0.8 ? '#10b981' : det.confidence > 0.5 ? '#f59e0b' : '#ef4444',
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 font-mono text-sm text-emerald-400 break-all">
+                {det.decoded}
+              </div>
+              <button
+                onClick={() => navigator.clipboard?.writeText(det.decoded)}
+                className="mt-2 text-xs text-zinc-500 hover:text-white transition-colors"
+              >
+                📋 Copy decoded text
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {input.length >= 2 && detections.length === 0 && (
+        <div className="glass-card rounded-2xl p-6 text-center">
+          <p className="text-zinc-400">No known encoding patterns detected. Try the Crack &amp; Analyze tab for frequency analysis.</p>
+        </div>
+      )}
+
+      {/* Quick test examples */}
+      <div className="glass-card rounded-2xl p-6">
+        <h3 className="mb-3 text-sm font-bold text-zinc-300">Quick Test Examples</h3>
+        <div className="grid gap-2 md:grid-cols-2">
+          {[
+            { label: 'Base64', value: 'RnJlZWRvbUZvcmdlIE1heCAtIEFJIGZvciBIdW1hbml0eQ==' },
+            { label: 'Hex', value: '46 72 65 65 64 6f 6d' },
+            { label: 'Binary', value: '01000110 01101111 01110010 01100111 01100101' },
+            { label: 'Morse', value: '.. / .-.. --- ...- . / .- ..' },
+            { label: 'Caesar (shift 3)', value: 'Iuhhgrp Irujh' },
+            { label: 'URL Encoded', value: 'hello%20world%21%20%F0%9F%94%A5' },
+          ].map((example) => (
+            <button
+              key={example.label}
+              onClick={() => setInput(example.value)}
+              className="rounded-lg border border-zinc-800 bg-black/30 px-3 py-2 text-left text-xs transition-all hover:border-purple-500/40"
+            >
+              <span className="text-purple-400">{example.label}:</span>{' '}
+              <span className="font-mono text-zinc-400">{example.value.slice(0, 40)}{example.value.length > 40 ? '...' : ''}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

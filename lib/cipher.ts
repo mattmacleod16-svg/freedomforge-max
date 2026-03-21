@@ -18,12 +18,12 @@ const ALPHA_LEN = 26;
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
-export type CipherAlgorithm = 'rot13' | 'caesar' | 'vigenere' | 'atbash';
+export type CipherAlgorithm = 'rot13' | 'caesar' | 'vigenere' | 'atbash' | 'base64' | 'hex' | 'binary' | 'morse' | 'url' | 'reverse';
 
 export interface CipherResult {
   input: string;
   output: string;
-  algorithm: CipherAlgorithm;
+  algorithm: CipherAlgorithm | string;
   key: string | number;
   steps: CipherStep[];
 }
@@ -225,6 +225,212 @@ export function analyzeFrequency(text: string): CipherAnalysis {
   return { text, letterFrequency: normalized, mostCommon, leastCommon, entropy, isLikelyEncrypted };
 }
 
+/* ─── Base64 Encoding ──────────────────────────────────────────────────────── */
+
+export function base64Encode(text: string): CipherResult {
+  const output = typeof btoa === 'function'
+    ? btoa(unescape(encodeURIComponent(text)))
+    : Buffer.from(text, 'utf-8').toString('base64');
+  return { input: text, output, algorithm: 'base64', key: 'encode', steps: [] };
+}
+
+export function base64Decode(text: string): CipherResult {
+  try {
+    const output = typeof atob === 'function'
+      ? decodeURIComponent(escape(atob(text.trim())))
+      : Buffer.from(text.trim(), 'base64').toString('utf-8');
+    return { input: text, output, algorithm: 'base64', key: 'decode', steps: [] };
+  } catch {
+    return { input: text, output: '[Invalid Base64]', algorithm: 'base64', key: 'decode', steps: [] };
+  }
+}
+
+/* ─── Hex Encoding ─────────────────────────────────────────────────────────── */
+
+export function hexEncode(text: string): CipherResult {
+  const output = Array.from(new TextEncoder().encode(text))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join(' ');
+  return { input: text, output, algorithm: 'hex', key: 'encode', steps: [] };
+}
+
+export function hexDecode(text: string): CipherResult {
+  try {
+    const bytes = text.trim().split(/[\s,]+/).map((h) => parseInt(h, 16));
+    if (bytes.some(isNaN)) throw new Error('Invalid hex');
+    const output = new TextDecoder().decode(new Uint8Array(bytes));
+    return { input: text, output, algorithm: 'hex', key: 'decode', steps: [] };
+  } catch {
+    return { input: text, output: '[Invalid Hex]', algorithm: 'hex', key: 'decode', steps: [] };
+  }
+}
+
+/* ─── Binary Encoding ──────────────────────────────────────────────────────── */
+
+export function binaryEncode(text: string): CipherResult {
+  const output = Array.from(new TextEncoder().encode(text))
+    .map((b) => b.toString(2).padStart(8, '0'))
+    .join(' ');
+  return { input: text, output, algorithm: 'binary', key: 'encode', steps: [] };
+}
+
+export function binaryDecode(text: string): CipherResult {
+  try {
+    const bytes = text.trim().split(/[\s,]+/).map((b) => parseInt(b, 2));
+    if (bytes.some(isNaN)) throw new Error('Invalid binary');
+    const output = new TextDecoder().decode(new Uint8Array(bytes));
+    return { input: text, output, algorithm: 'binary', key: 'decode', steps: [] };
+  } catch {
+    return { input: text, output: '[Invalid Binary]', algorithm: 'binary', key: 'decode', steps: [] };
+  }
+}
+
+/* ─── Morse Code ───────────────────────────────────────────────────────────── */
+
+const MORSE_MAP: Record<string, string> = {
+  A: '.-', B: '-...', C: '-.-.', D: '-..', E: '.', F: '..-.', G: '--.', H: '....',
+  I: '..', J: '.---', K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.',
+  Q: '--.-', R: '.-.', S: '...', T: '-', U: '..-', V: '...-', W: '.--', X: '-..-',
+  Y: '-.--', Z: '--..', '0': '-----', '1': '.----', '2': '..---', '3': '...--',
+  '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+  '.': '.-.-.-', ',': '--..--', '?': '..--..', '!': '-.-.--', '/': '-..-.',
+  '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...', ';': '-.-.-.',
+  '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-', '"': '.-..-.',
+  '$': '...-..-', '@': '.--.-.', ' ': '/',
+};
+const MORSE_REVERSE: Record<string, string> = {};
+for (const [k, v] of Object.entries(MORSE_MAP)) MORSE_REVERSE[v] = k;
+
+export function morseEncode(text: string): CipherResult {
+  const output = text
+    .toUpperCase()
+    .split('')
+    .map((ch) => MORSE_MAP[ch] ?? ch)
+    .join(' ');
+  return { input: text, output, algorithm: 'morse', key: 'encode', steps: [] };
+}
+
+export function morseDecode(text: string): CipherResult {
+  try {
+    const output = text
+      .trim()
+      .split(/\s+/)
+      .map((code) => MORSE_REVERSE[code] ?? code)
+      .join('');
+    return { input: text, output, algorithm: 'morse', key: 'decode', steps: [] };
+  } catch {
+    return { input: text, output: '[Invalid Morse]', algorithm: 'morse', key: 'decode', steps: [] };
+  }
+}
+
+/* ─── URL Encoding ─────────────────────────────────────────────────────────── */
+
+export function urlEncode(text: string): CipherResult {
+  return { input: text, output: encodeURIComponent(text), algorithm: 'url', key: 'encode', steps: [] };
+}
+
+export function urlDecode(text: string): CipherResult {
+  try {
+    return { input: text, output: decodeURIComponent(text), algorithm: 'url', key: 'decode', steps: [] };
+  } catch {
+    return { input: text, output: '[Invalid URL encoding]', algorithm: 'url', key: 'decode', steps: [] };
+  }
+}
+
+/* ─── Reverse Text ─────────────────────────────────────────────────────────── */
+
+export function reverseText(text: string): CipherResult {
+  const output = [...text].reverse().join('');
+  return { input: text, output, algorithm: 'reverse', key: 'mirror', steps: [] };
+}
+
+/* ─── Auto-Detect Encoding ─────────────────────────────────────────────────── */
+
+export interface DetectionResult {
+  format: string;
+  confidence: number;
+  decoded: string;
+}
+
+export function autoDetect(text: string): DetectionResult[] {
+  const results: DetectionResult[] = [];
+  const trimmed = text.trim();
+
+  // Check Base64
+  if (/^[A-Za-z0-9+/]+=*$/.test(trimmed) && trimmed.length >= 4 && trimmed.length % 4 <= 1) {
+    try {
+      const decoded = base64Decode(trimmed);
+      if (decoded.output !== '[Invalid Base64]' && /^[\x20-\x7E\n\r\t]+$/.test(decoded.output)) {
+        results.push({ format: 'Base64', confidence: 0.85, decoded: decoded.output });
+      }
+    } catch { /* skip */ }
+  }
+
+  // Check Hex
+  if (/^([0-9a-fA-F]{2}[\s,]*)+$/.test(trimmed)) {
+    const decoded = hexDecode(trimmed);
+    if (decoded.output !== '[Invalid Hex]') {
+      results.push({ format: 'Hex', confidence: 0.9, decoded: decoded.output });
+    }
+  }
+
+  // Check Binary
+  if (/^([01]{8}[\s,]*)+$/.test(trimmed)) {
+    const decoded = binaryDecode(trimmed);
+    if (decoded.output !== '[Invalid Binary]') {
+      results.push({ format: 'Binary', confidence: 0.95, decoded: decoded.output });
+    }
+  }
+
+  // Check Morse
+  if (/^[.\-/\s]+$/.test(trimmed) && trimmed.includes('.') && trimmed.includes('-')) {
+    const decoded = morseDecode(trimmed);
+    if (decoded.output.length > 0) {
+      results.push({ format: 'Morse Code', confidence: 0.8, decoded: decoded.output });
+    }
+  }
+
+  // Check URL encoding
+  if (/%[0-9A-Fa-f]{2}/.test(trimmed)) {
+    const decoded = urlDecode(trimmed);
+    if (decoded.output !== '[Invalid URL encoding]') {
+      results.push({ format: 'URL Encoded', confidence: 0.9, decoded: decoded.output });
+    }
+  }
+
+  // Check reversed (heuristic: if reversed text has more common English words)
+  const reversed = [...trimmed].reverse().join('');
+  const commonWords = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out'];
+  const forwardHits = commonWords.filter((w) => trimmed.toLowerCase().includes(w)).length;
+  const reverseHits = commonWords.filter((w) => reversed.toLowerCase().includes(w)).length;
+  if (reverseHits > forwardHits && reverseHits >= 2) {
+    results.push({ format: 'Reversed Text', confidence: 0.6, decoded: reversed });
+  }
+
+  // Check Caesar (try all shifts, score by English frequency match)
+  if (/^[a-zA-Z\s]+$/.test(trimmed) && trimmed.length >= 10) {
+    const englishFreqOrder = 'ETAOINSHRDLCUMWFGYPBVKJXQZ';
+    let bestShift = 0;
+    let bestScore = 0;
+    for (let shift = 1; shift < 26; shift++) {
+      const decoded = caesar(trimmed, shift).output;
+      const freq = analyzeFrequency(decoded);
+      const sorted = Object.entries(freq.letterFrequency).sort((a, b) => b[1] - a[1]);
+      let score = 0;
+      sorted.slice(0, 5).forEach(([letter], i) => {
+        const expectedPos = englishFreqOrder.indexOf(letter);
+        if (expectedPos >= 0 && expectedPos < 8) score += (8 - Math.abs(expectedPos - i));
+      });
+      if (score > bestScore) { bestScore = score; bestShift = shift; }
+    }
+    if (bestScore > 15) {
+      results.push({ format: `Caesar (shift ${bestShift})`, confidence: Math.min(0.75, bestScore / 30), decoded: caesar(trimmed, bestShift).output });
+    }
+  }
+
+  return results.sort((a, b) => b.confidence - a.confidence);
+}
+
 /* ─── Display Obfuscation (Reversible) ────────────────────────────────────── */
 
 export function obfuscateDisplay(value: string, visibleChars: number = 4): string {
@@ -336,5 +542,5 @@ export function getCipherInfo(algorithm: CipherAlgorithm): CipherInfo | undefine
 }
 
 export function getAllCipherAlgorithms(): CipherAlgorithm[] {
-  return ['rot13', 'caesar', 'vigenere', 'atbash'];
+  return ['rot13', 'caesar', 'vigenere', 'atbash', 'base64', 'hex', 'binary', 'morse', 'url', 'reverse'];
 }
