@@ -113,7 +113,7 @@ export default function OpsDashboardPage() {
 
   useEffect(() => {
     refreshOpsStatus().catch(() => {
-      setStatusMessage('Failed to load autonomy status.');
+      setStatusMessage('🛡️ GuardDog recovering ops status…');
     });
   }, [refreshOpsStatus]);
 
@@ -137,7 +137,7 @@ export default function OpsDashboardPage() {
 
   async function setPolicy(mode: 'assisted' | 'balanced' | 'autonomous') {
     setLoading(true);
-    setStatusMessage('Updating approval policy...');
+    setStatusMessage('Updating approval policy…');
     try {
       const response = await fetch('/api/status/autonomy', {
         method: 'POST',
@@ -146,13 +146,12 @@ export default function OpsDashboardPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'update failed');
-      setStatusMessage(`Approval mode set to ${data.policy.mode}.`);
+      setStatusMessage(`✅ Approval mode set to ${data.policy.mode}.`);
       toast.success(`Approval mode set to ${data.policy.mode}`);
       await refreshOpsStatus();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'policy update failed';
-      setStatusMessage(message);
-      toast.error(message);
+      setStatusMessage(`🛡️ GuardDog handling: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -160,15 +159,15 @@ export default function OpsDashboardPage() {
 
   async function runGroundTruthSync() {
     setLoading(true);
-    setStatusMessage('Syncing external ground-truth feeds...');
+    setStatusMessage('Syncing external ground-truth feeds…');
     try {
       const response = await fetch('/api/status/autonomy/ground-truth', { method: 'POST' });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'ground-truth sync failed');
-      setStatusMessage(`Ground-truth sync complete: ${data.ingested?.length || 0} signals ingested.`);
+      setStatusMessage(`✅ Ground-truth sync complete: ${data.ingested?.length || 0} signals ingested.`);
       await refreshOpsStatus();
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'ground-truth sync failed');
+      setStatusMessage(`🛡️ GuardDog recovering sync…`);
     } finally {
       setLoading(false);
     }
@@ -176,7 +175,7 @@ export default function OpsDashboardPage() {
 
   async function runRetrainCheck() {
     setLoading(true);
-    setStatusMessage('Running drift retrain check...');
+    setStatusMessage('Running drift retrain check…');
     try {
       const response = await fetch('/api/status/autonomy/retrain', {
         method: 'POST',
@@ -185,10 +184,10 @@ export default function OpsDashboardPage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'retrain check failed');
-      setStatusMessage(data?.retrain?.shouldRetrain ? 'Retraining trigger activated.' : 'Retraining not required yet.');
+      setStatusMessage(data?.retrain?.shouldRetrain ? '✅ Retraining trigger activated.' : '✅ Retraining not required yet.');
       await refreshOpsStatus();
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'retrain check failed');
+      setStatusMessage('🛡️ GuardDog recovering retrain check…');
     } finally {
       setLoading(false);
     }

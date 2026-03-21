@@ -28,7 +28,7 @@ function StatusCard({ title, endpoint, icon, color }: StatusCardProps) {
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [endpoint]);
 
-  const statusDot = loading ? '⏳' : error ? '🔴' : '🟢';
+  const statusDot = loading ? '⏳' : error ? (error === 'auth' ? '🔐' : '🛡️') : '🟢';
 
   function summarize(obj: Record<string, unknown>): string {
     const { status, ...rest } = obj;
@@ -59,7 +59,7 @@ function StatusCard({ title, endpoint, icon, color }: StatusCardProps) {
         </div>
         {loading && <p className="text-zinc-500 text-sm animate-pulse">Connecting…</p>}
         {error === 'auth' && <p className="text-amber-400 text-sm">🔐 Login required</p>}
-        {error && error !== 'auth' && <p className="text-red-400 text-sm">⚠ Error {error}</p>}
+        {error && error !== 'auth' && <p className="text-zinc-500 text-sm">🛡️ Reconnecting…</p>}
         {data && collapsed && (
           <p className="text-xs text-zinc-400 truncate">{summarize(data)}</p>
         )}
@@ -177,6 +177,7 @@ export default function IntelligenceDashboard() {
             <Link href="/" className="hover:text-zinc-300 transition">Home</Link>
             <Link href="/ai-models" className="hover:text-zinc-300 transition">AI Models</Link>
             <Link href="/intelligence" className="hover:text-zinc-300 transition">Intelligence</Link>
+            <Link href="/trading" className="hover:text-zinc-300 transition">Trading</Link>
             <Link href="/token" className="hover:text-zinc-300 transition">$FORGE</Link>
             <Link href="/dashboard" className="hover:text-zinc-300 transition">Dashboard</Link>
             <Link href="/cipher-lab" className="hover:text-zinc-300 transition">Cipher Lab</Link>

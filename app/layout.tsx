@@ -2,6 +2,7 @@ import './globals.css';
 import { Toaster } from 'sonner';
 import type { Metadata, Viewport } from 'next';
 import GlobalNav from './components/GlobalNav';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freedomforge.one';
 const SITE_NAME = 'FreedomForge Max';
@@ -147,6 +148,8 @@ export default function RootLayout({
       'AI Shopping Intelligence',
       'Patent Research',
       'Personal AI Genie',
+      'Multi-Exchange Trading Engine',
+      'ViaBTC Mining Integration',
     ],
   };
 
@@ -183,7 +186,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-black text-white">
         <GlobalNav />
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
         <Toaster position="top-center" richColors />
         <script
           dangerouslySetInnerHTML={{
