@@ -100,6 +100,9 @@ export default function Home() {
               <Link href="/vault" className="rounded-full border border-pink-500/30 px-3 py-1 text-pink-300 hover:bg-pink-500/10 transition">
                 Vault
               </Link>
+              <Link href="/life" className="rounded-full border border-emerald-500/30 px-3 py-1 text-emerald-300 hover:bg-emerald-500/10 transition">
+                Life
+              </Link>
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
           </div>
@@ -532,6 +535,7 @@ export default function Home() {
               <Link href="/dashboard" className="hover:text-zinc-400 transition">Dashboard</Link>
               <Link href="/cipher-lab" className="hover:text-zinc-400 transition">Cipher Lab</Link>
               <Link href="/vault" className="hover:text-zinc-400 transition">Vault</Link>
+              <Link href="/life" className="hover:text-zinc-400 transition">Life</Link>
             </nav>
           </div>
         </footer>
