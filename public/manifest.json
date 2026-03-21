@@ -1,21 +1,72 @@
 {
-  "name": "FreedomForge Max",
+  "name": "FreedomForge Max — Autonomous Intelligence",
   "short_name": "FreedomForge",
-  "description": "Autonomous AI intelligence stack integrating 20+ AI providers and 50+ models for prediction, trading, and on-chain operations.",
-  "start_url": "/",
+  "description": "Your sovereign AI command center. 20+ providers, 50+ models, autonomous trading, tax intelligence, and on-chain operations — all in one app.",
+  "start_url": "/?utm_source=pwa",
+  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#030108",
   "theme_color": "#9333ea",
   "orientation": "portrait-primary",
   "icons": [
     {
+      "src": "/freedomforge-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/freedomforge-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/freedomforge-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/freedomforge-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "/freedomforge-icon-1024.png",
       "sizes": "1024x1024",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
-  "categories": ["finance", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "AI Chat",
+      "short_name": "Chat",
+      "description": "Talk to MAX — your AI command center",
+      "url": "/?shortcut=chat",
+      "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cipher Lab",
+      "short_name": "Cipher",
+      "description": "Encode, decode, and auto-detect any cipher",
+      "url": "/cipher-lab?shortcut=cipher",
+      "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Models",
+      "short_name": "Models",
+      "description": "Explore 50+ AI models",
+      "url": "/ai-models?shortcut=models",
+      "icons": [{ "src": "/freedomforge-icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["finance", "productivity", "utilities", "business"],
   "lang": "en-US",
-  "dir": "ltr"
+  "dir": "ltr",
+  "scope": "/",
+  "prefer_related_applications": false
 }

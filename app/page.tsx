@@ -2,6 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import InstallPrompt from './components/InstallPrompt';
+import ShareWidget from './components/ShareWidget';
 
 export default function Home() {
   const [transcript, setTranscript] = React.useState('');
@@ -530,6 +532,9 @@ export default function Home() {
           </div>
         </footer>
       </div>
+
+      <InstallPrompt />
+      <ShareWidget />
     </div>
   );
 }

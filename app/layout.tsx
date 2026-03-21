@@ -104,6 +104,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -155,9 +156,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/freedomforge-icon-1024.png" />
+        <link rel="icon" href="/freedomforge-icon-192.png" type="image/png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/freedomforge-icon-192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/freedomforge-icon-512.png" />
+        <link rel="apple-touch-icon" sizes="1024x1024" href="/freedomforge-icon-1024.png" />
         <link rel="manifest" href="/manifest.json" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="FreedomForge" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -170,6 +177,11 @@ export default function RootLayout({
       <body className="min-h-screen bg-black text-white">
         {children}
         <Toaster position="top-center" richColors />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}`,
+          }}
+        />
       </body>
     </html>
   );
