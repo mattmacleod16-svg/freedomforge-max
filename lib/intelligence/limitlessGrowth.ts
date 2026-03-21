@@ -180,7 +180,7 @@ export function getModelForLanguage(languageCode: string): string[] {
 }
 
 export function getSupportedLanguages(): Array<{ code: string; name: string; script: string }> {
-  return LANGUAGE_REGISTRY.map((l) => ({ code: l.code, name: l.name, script: l.scriptType }));
+  return LANGUAGE_REGISTRY.map((l) => ({ code: l.code, name: l.name, script: l.script }));
 }
 
 /* ─── Memory Engine ───────────────────────────────────────────────────────── */

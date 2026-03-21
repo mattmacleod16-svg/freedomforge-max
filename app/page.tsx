@@ -63,12 +63,18 @@ export default function Home() {
                 Powered by <span className="text-amber-300 font-semibold">20+ AI providers</span> and <span className="text-purple-300 font-semibold">50+ models</span>.
               </p>
             </div>
-            <div className="flex items-center gap-3 text-xs text-zinc-300">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-300">
               <Link href="/ai-models" className="rounded-full border border-purple-500/30 px-3 py-1 text-purple-300 hover:bg-purple-500/10 transition">
                 AI Models
               </Link>
+              <Link href="/intelligence" className="rounded-full border border-cyan-500/30 px-3 py-1 text-cyan-300 hover:bg-cyan-500/10 transition">
+                Intelligence
+              </Link>
               <Link href="/token" className="rounded-full border border-amber-500/30 px-3 py-1 text-amber-300 hover:bg-amber-500/10 transition">
                 $FORGE Token
+              </Link>
+              <Link href="/cipher-lab" className="rounded-full border border-emerald-500/30 px-3 py-1 text-emerald-300 hover:bg-emerald-500/10 transition">
+                Cipher Lab
               </Link>
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
@@ -460,11 +466,13 @@ export default function Home() {
         <footer className="border-t border-zinc-900 pt-6 pb-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-zinc-600">
             <p>FreedomForge Max — Autonomous Intelligence Stack</p>
-            <nav className="flex gap-6">
+            <nav className="flex flex-wrap gap-4 md:gap-6">
               <Link href="/" className="hover:text-zinc-400 transition">Home</Link>
               <Link href="/ai-models" className="hover:text-zinc-400 transition">AI Models</Link>
+              <Link href="/intelligence" className="hover:text-zinc-400 transition">Intelligence</Link>
               <Link href="/token" className="hover:text-zinc-400 transition">$FORGE</Link>
               <Link href="/dashboard" className="hover:text-zinc-400 transition">Dashboard</Link>
+              <Link href="/cipher-lab" className="hover:text-zinc-400 transition">Cipher Lab</Link>
             </nav>
           </div>
         </footer>
