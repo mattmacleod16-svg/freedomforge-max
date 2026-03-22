@@ -110,6 +110,16 @@ Actions:
 4. **Document everything** — update ops docs when changing infrastructure
 5. **Report to Commander** — structured report: infra health, disk usage, workflow status, deployment status
 
+## Inter-Agent Coordination
+
+- **Log rotation completed**: Notify **FF-SentinelWatch** to update monitoring baselines
+- **Workflow change**: Request **FF-Security** audit of new workflow permissions
+- **Deployment change**: Alert **FF-TradingOps** to verify engine connectivity post-deploy
+- **CI/CD failure**: Notify **FF-CodeQuality** if build/lint failures; **FF-TestCoverage** if test failures
+- **After completing work**: Report infra status to **Commander** (disk, deployments, workflows)
+
+> ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
+
 ## Key Files & Locations
 - Workflows: `.github/workflows/` (24 files)
 - Deployment: `railway.toml`, `scripts/deploy-to-vm.sh`, `capacitor.config.ts`

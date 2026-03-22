@@ -76,6 +76,16 @@ Known hardcoded URLs that should be configurable:
 4. **Non-destructive scanning** — read-only analysis unless explicitly asked to remediate
 5. **Report to Commander** — provide a structured security report with actionable findings
 
+## Inter-Agent Coordination
+
+- **Vulnerability found**: Route fix to **FF-Infrastructure** (deployment) + **FF-TestCoverage** (regression test)
+- **Credential exposure**: Escalate to **Commander** immediately — revenue-impacting
+- **Dependency CVE**: Notify **FF-CodeQuality** to update the package; block until patched
+- **Access control issue**: Notify **FF-SentinelWatch** for cross-system impact assessment
+- **After completing audit**: Report structured findings to **Commander** with severity levels
+
+> ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
+
 ## Key Files & Locations
 - Auth guard: `lib/auth/apiGuard.ts`
 - Key rotation: `scripts/key-rotation.js`

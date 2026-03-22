@@ -482,9 +482,9 @@ function deriveRiskControls(input: AutonomyInput, confidence: number) {
   const riskPenalty = clamp(1 - input.riskScore);
   const calibrationPenalty = clamp((forecastBrier - 0.1) / 0.3);
 
-  const minimumEdgeForAction = clamp(Number(process.env.PREDICTION_MIN_EDGE_FOR_ACTION || 0.18));
-  const minimumReliabilityForAction = clamp(Number(process.env.PREDICTION_MIN_RELIABILITY_FOR_ACTION || 0.58));
-  const calibrationGuardBrier = clamp(Number(process.env.PREDICTION_CALIBRATION_GUARD_BRIER || 0.24));
+  const minimumEdgeForAction = clamp(Number(process.env.PREDICTION_MIN_EDGE_FOR_ACTION || 0.24));
+  const minimumReliabilityForAction = clamp(Number(process.env.PREDICTION_MIN_RELIABILITY_FOR_ACTION || 0.64));
+  const calibrationGuardBrier = clamp(Number(process.env.PREDICTION_CALIBRATION_GUARD_BRIER || 0.21));
 
   const qualityScore = clamp(
     edge * 0.34 +

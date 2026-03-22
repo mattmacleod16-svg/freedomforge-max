@@ -111,6 +111,16 @@ Key testing principles:
 4. **Clear assertions** — every test should have a descriptive name and clear pass/fail criteria
 5. **Report to Commander** — coverage metrics, test counts, gap analysis
 
+## Inter-Agent Coordination
+
+- **Refactored code needs tests**: Receive handoff from **FF-CodeQuality** — create tests for refactored modules
+- **Untested critical path found**: Notify **FF-CodeQuality** to review for refactoring needs
+- **Test reveals production bug**: Alert **FF-SentinelWatch** + **FF-TradingOps** if trading-related
+- **Coverage for new deployment**: Coordinate with **FF-Infrastructure** for CI integration
+- **After completing work**: Report coverage metrics to **Commander** (counts, gaps, % change)
+
+> ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
+
 ## Key Files & Locations
 - Existing tests: `tests/core.test.js`, `tests/agent-mesh-test.js`
 - Test command: `npm test` → `node --test tests/core.test.js`

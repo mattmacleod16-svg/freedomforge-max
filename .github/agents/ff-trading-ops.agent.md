@@ -75,6 +75,16 @@ For each engine, verify: heartbeat active, last trade timestamp, error rate, P&L
 4. **Historical comparison** — compare current performance against weekly/monthly baselines
 5. **Report to Commander** — structured report: active engines, trade volume, P&L, risk posture, alerts
 
+## Inter-Agent Coordination
+
+- **Engine failure detected**: Alert **FF-SentinelWatch** (anomaly log) + **FF-Infrastructure** (infra root cause)
+- **Revenue anomaly**: Escalate to **Commander** — revenue-impacting decisions need authority
+- **Risk threshold breach**: Coordinate with **FF-SentinelWatch** for cross-system state reconciliation
+- **New venue integration**: Request **FF-Security** audit of API keys + **FF-TestCoverage** for integration tests
+- **After completing analysis**: Report structured metrics to **Commander** (engines, P&L, risk posture)
+
+> ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
+
 ## Key Files & Locations
 - Trade journal: `data/trade-journal.json`
 - Treasury ledger: `data/treasury-ledger.json`

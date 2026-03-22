@@ -68,6 +68,16 @@ Priority files exceeding 1000 LOC that need splitting:
 4. **Small commits** — one logical change per commit
 5. **Report to Commander** — summarize what was cleaned and what remains
 
+## Inter-Agent Coordination
+
+- **Before refactoring**: Notify **FF-TestCoverage** — tests must be updated for refactored modules
+- **Before removing dependencies**: Request **FF-Security** audit first (CVE/supply-chain check)
+- **If refactoring breaks agents**: Alert **FF-SentinelWatch** immediately — agent infrastructure is critical
+- **After completing work**: Report summary to **Commander** with files changed and tests needed
+- **Critical modules** (agent-supervisor, heartbeat-registry, signal-bus, consensus-engine, event-mesh, resilient-io): Do NOT refactor without Commander approval — these are the nervous system
+
+> ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
+
 ## Key Files & Locations
 - Logger: `lib/logger.js` and `lib/logger.ts`
 - ESLint config: `.eslintrc.*` or `eslint.config.*`
