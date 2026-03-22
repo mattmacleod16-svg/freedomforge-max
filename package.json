@@ -22,7 +22,7 @@
     "x-growth": "node scripts/x-growth.js",
     "monthly-strategy": "node scripts/monthly-strategy.js",
     "generate-ops-patch": "node scripts/generate-ops-patch.js",
-    "apply-railway-env": "node scripts/apply-vercel-env.js",
+    "apply-railway-env": "node scripts/apply-railway-env.js",
     "weekly-policy-review": "node scripts/weekly-policy-review.js",
     "geopolitical-watch": "node scripts/geopolitical-watch.js",
     "continuous-learning": "node scripts/continuous-learning.js",
