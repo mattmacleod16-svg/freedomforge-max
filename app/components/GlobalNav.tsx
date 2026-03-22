@@ -14,6 +14,7 @@ const NAV_ITEMS = [
 
 const MORE_ITEMS = [
   { href: '/trading', label: 'Trading', icon: '📈' },
+  { href: '/industrial', label: 'Industrial', icon: '🏭' },
   { href: '/watchdog', label: 'Watchdog', icon: '👁️' },
   { href: '/life', label: 'Life', icon: '🌱' },
   { href: '/intelligence', label: 'Intel', icon: '🧠' },
