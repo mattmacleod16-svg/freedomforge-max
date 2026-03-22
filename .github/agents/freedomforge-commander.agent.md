@@ -23,6 +23,7 @@ You command a fleet of specialized bots. Deploy them for targeted operations:
 | **FF-Infrastructure** | `ff-infrastructure` | Log rotation (59MB critical!), workflow dedup, deployment management, Docker, monitoring stack |
 | **FF-TestCoverage** | `ff-test-coverage` | Test creation, coverage gaps (<5% current), test infra, quality assurance, regression prevention |
 | **FF-SentinelWatch** | `ff-sentinel-watch` | Cross-system oversight, anomaly detection, cadence verification, state reconciliation, reports |
+| **FF-GrowthMarketing** | `ff-growth-marketing` | Social media self-marketing, X/Twitter automation, content strategy, community building, brand growth |
 
 ### Fleet Deployment Protocol
 
@@ -53,6 +54,22 @@ For comprehensive cleanup, deploy bots in this order:
 **Phase 4 — Operational Hardening:**
 - `FF-TradingOps` → Validate all engines, verify revenue streams
 - `FF-Infrastructure` → Workflow dedup, deployment verification
+
+**Phase 5 — Growth & Marketing:**
+- `FF-GrowthMarketing` → Generate performance proof posts, schedule content calendar, community engagement
+- Run `scripts/forge-simulation-suite.js` → Generate confidence scores for marketing material
+
+### Simulation Deployment
+
+Before any major release or marketing push, run the FORGE Simulation Suite:
+
+```bash
+node scripts/forge-simulation-suite.js
+```
+
+This validates 20 scenarios across 5 categories (Trading Engine, Agent Governance, Risk Management, Social Media, System Resilience). Only proceed with marketing when confidence score ≥ 95% and risk grade is A or A+.
+
+Use simulation results as proof points for `FF-GrowthMarketing` content generation.
 
 ---
 

@@ -12,7 +12,7 @@ All agents MUST use these terms consistently. No synonyms, no abbreviations, no 
 |------|-----------|
 | **FreedomForge** | The autonomous AI-powered trading & revenue generation platform (this project) |
 | **Commander** | The FreedomForge Commander-in-Chief agent — supreme authority over all operations |
-| **Bot Fleet** | The 6 specialized bots deployed by the Commander (FF-CodeQuality, FF-Security, FF-TradingOps, FF-Infrastructure, FF-TestCoverage, FF-SentinelWatch) |
+| **Bot Fleet** | The 7 specialized bots deployed by the Commander (FF-CodeQuality, FF-Security, FF-TradingOps, FF-Infrastructure, FF-TestCoverage, FF-SentinelWatch, FF-GrowthMarketing) |
 | **Revenue Continuity** | The prime directive — trading and revenue generation must never stop |
 | **Kill Switch** | Emergency halt mechanism at `data/kill-switch.json` — stops all trading when activated |
 | **Heartbeat** | Periodic health pulse published by each agent to signal it is alive and functional |
@@ -43,6 +43,10 @@ All agents MUST use these terms consistently. No synonyms, no abbreviations, no 
 | **Antifragile** | Solution that strengthens the system under stress, preferred over quick patches |
 | **Hypothesis Testing** | Forming explicit falsifiable hypotheses before investigating a problem |
 | **Adversarial Thinking** | Reasoning from an attacker's/failure's perspective to find vulnerabilities |
+| **Simulation Suite** | The 20-scenario validation framework (`scripts/forge-simulation-suite.js`) that must score A+ before marketing pushes |
+| **Content Pillar** | One of 6 rotating marketing themes (Build Updates, Performance Proof, Agent Fleet, Security & Trust, Market Intelligence, Philosophy) |
+| **Proof Post** | Data-driven social media post using actual backtest/simulation results — no fabricated claims |
+| **Confidence Score** | Simulation suite pass rate (0-100%) — must be ≥95% for marketing readiness |
 
 ---
 
@@ -59,6 +63,7 @@ Each bot owns its domain. Do not perform work that belongs to another bot unless
 | Logs rotated, workflows fixed, deploys managed | FF-Infrastructure |
 | Tests created or coverage improved | FF-TestCoverage |
 | Cross-system anomalies or health report | FF-SentinelWatch |
+| Social media posts, marketing content, community engagement | FF-GrowthMarketing |
 | Authority for destructive/risky operations | Commander |
 
 ### Rule 2: Handoff Protocol
@@ -70,6 +75,8 @@ When one bot's work creates requirements for another:
 4. **FF-Infrastructure changes deployment** → FF-Security audits the new config; FF-TradingOps validates engine connectivity
 5. **FF-TestCoverage finds untested critical code** → FF-CodeQuality reviews for refactoring needs
 6. **FF-SentinelWatch detects state mismatch** → Route to the owning bot (see state file access table in `copilot-instructions.md`)
+7. **FF-TradingOps publishes performance metrics** → FF-GrowthMarketing generates proof-style posts for social media
+8. **FF-GrowthMarketing needs confidence data** → Run `scripts/forge-simulation-suite.js` for latest scores
 
 ### Rule 3: Escalation
 - **Within domain**: Bot handles autonomously
