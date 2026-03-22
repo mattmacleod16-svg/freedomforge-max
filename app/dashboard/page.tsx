@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -259,7 +259,7 @@ function PhoenixShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number 
   const flameIntensity = Math.min(1, Math.max(0.2, Math.abs(roi) / 20));
   const isRising = roi >= 0;
 
-  const stars = useMemo(() =>
+  const [stars] = useState(() =>
     Array.from({ length: 80 }).map((_, i) => ({
       id: i,
       w: Math.random() * 2 + 0.5,
@@ -268,8 +268,8 @@ function PhoenixShip({ portfolioUsd, roi }: { portfolioUsd: number; roi: number 
       opacity: Math.random() * 0.7 + 0.3,
       dur: Math.random() * 4 + 2,
       delay: Math.random() * 3,
-    })),
-  []);
+    }))
+  );
 
   return (
     <div className="relative w-full h-80 rounded-2xl overflow-hidden border border-purple-500/10 scanline-overlay">

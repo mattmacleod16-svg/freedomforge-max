@@ -43,7 +43,7 @@ export default function Home() {
       const reply = data.reply || 'No answer';
       setResponse(reply);
       setHistory((h) => [...h, { role: 'assistant', text: reply, ts: Date.now() }]);
-    } catch (err) {
+    } catch {
       setResponse('Error contacting Max');
       setHistory((h) => [...h, { role: 'assistant', text: 'Error contacting Max', ts: Date.now() }]);
     }

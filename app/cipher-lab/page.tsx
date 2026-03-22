@@ -24,7 +24,6 @@ import {
   bruteForce,
   analyzeFrequency,
   CIPHER_ENCYCLOPEDIA,
-  getAllCipherAlgorithms,
   type CipherAlgorithm,
   type CipherResult,
   type CipherAnalysis,
@@ -597,7 +596,7 @@ function LearnTab() {
 /* ─── Data Shield Tab ─────────────────────────────────────────────────────── */
 
 function ShieldTab() {
-  const [shieldActive, setShieldActive] = useState(true);
+  const shieldActive = true;
 
   const demoFields = [
     { label: 'Wallet', value: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18', mode: 'middle' as const, sensitive: true },

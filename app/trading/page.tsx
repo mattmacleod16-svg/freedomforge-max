@@ -60,6 +60,7 @@ export default function TradingPage() {
     setLoading(false);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { refresh(); const id = setInterval(refresh, 15000); return () => clearInterval(id); }, [refresh]);
 
   const executeTrade = async () => {

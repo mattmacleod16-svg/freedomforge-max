@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 async function safeImport<T>(modulePath: string): Promise<T | null> {
   try {
-    return require(modulePath);
+    return await import(modulePath);
   } catch {
     return null;
   }

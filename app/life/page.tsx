@@ -55,16 +55,12 @@ interface SystemStatus {
 // ── Main Component ─────────────────────────────────────────────────────
 
 export default function LifeDashboard() {
-  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [profile, setProfile] = useState<UserProfile>(loadProfile);
   const [systems, setSystems] = useState<SystemStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'present' | 'goals' | 'identity' | 'depin'>('present');
   const [newGoal, setNewGoal] = useState('');
   const [newGoalCat, setNewGoalCat] = useState('financial');
-
-  useEffect(() => {
-    setProfile(loadProfile());
-  }, []);
 
   const updateProfile = useCallback((updates: Partial<UserProfile>) => {
     setProfile((prev) => {
@@ -123,6 +119,7 @@ export default function LifeDashboard() {
     setLoading(false);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { checkSystems(); }, [checkSystems]);
 
   const addGoal = () => {

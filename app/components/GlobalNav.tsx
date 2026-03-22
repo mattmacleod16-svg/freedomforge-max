@@ -37,17 +37,17 @@ const SAFE_AREA_CSS = `
 export default function GlobalNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [userName, setUserName] = useState('');
-
-  useEffect(() => {
+  const [userName] = useState(() => {
+    if (typeof window === 'undefined') return '';
     try {
       const profile = localStorage.getItem('ff_user_profile');
       if (profile) {
         const p = JSON.parse(profile);
-        setUserName(p.name || '');
+        return p.name || '';
       }
     } catch {}
-  }, []);
+    return '';
+  });
 
   useEffect(() => {
     const handleClick = () => setMoreOpen(false);

@@ -20,7 +20,7 @@ export const runtime = 'nodejs';
 // Dynamic imports — these modules may not exist yet on all environments
 async function safeRequire(modulePath: string) {
   try {
-    return require(modulePath);
+    return await import(modulePath);
   } catch {
     return null;
   }

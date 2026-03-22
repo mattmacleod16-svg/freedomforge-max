@@ -8,34 +8,28 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function InstallPrompt() {
-  const [showIOSPrompt, setShowIOSPrompt] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(false);
-  const [installed, setInstalled] = useState(false);
-
-  useEffect(() => {
-    // Don't show if already dismissed or running as installed PWA
-    if (typeof window === 'undefined') return;
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
     const wasDismissed = localStorage.getItem('ff_install_dismissed');
-    if (wasDismissed && Date.now() - Number(wasDismissed) < 7 * 86400000) {
-      setDismissed(true);
-      return;
-    }
-
-    const isStandalone =
+    return !!(wasDismissed && Date.now() - Number(wasDismissed) < 7 * 86400000);
+  });
+  const [installed, setInstalled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return (
       window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true;
-    if (isStandalone) {
-      setInstalled(true);
-      return;
-    }
-
-    // iOS detection
+      (navigator as unknown as { standalone?: boolean }).standalone === true
+    );
+  });
+  const [showIOSPrompt] = useState(() => {
+    if (typeof window === 'undefined') return false;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
     const isSafari = /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|Chrome/.test(navigator.userAgent);
-    if (isIOS && isSafari) {
-      setShowIOSPrompt(true);
-    }
+    return isIOS && isSafari;
+  });
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+
+  useEffect(() => {
+    if (dismissed || installed) return;
 
     // Android/Desktop Chrome install prompt
     const handler = (e: Event) => {
@@ -44,7 +38,7 @@ export default function InstallPrompt() {
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+  }, [dismissed, installed]);
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;

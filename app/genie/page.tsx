@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
 
 interface GenieProfile {
@@ -82,22 +82,23 @@ const DASHBOARD_MODULES = [
 ];
 
 export default function GeniePage() {
-  const [profile, setProfile] = useState<GenieProfile>(DEFAULT_PROFILE);
-  const [tab, setTab] = useState<'home' | 'customize' | 'briefing' | 'actions'>('home');
-  const [setupStep, setSetupStep] = useState(0);
-  const [isNew, setIsNew] = useState(true);
-  const [genieMessage, setGenieMessage] = useState('');
-  const [userInput, setUserInput] = useState('');
-
-  useEffect(() => {
+  const [profile, setProfile] = useState<GenieProfile>(() => {
     try {
       const saved = localStorage.getItem('ff_genie_profile');
-      if (saved) {
-        setProfile({ ...DEFAULT_PROFILE, ...JSON.parse(saved) });
-        setIsNew(false);
-      }
+      if (saved) return { ...DEFAULT_PROFILE, ...JSON.parse(saved) };
     } catch {}
-  }, []);
+    return DEFAULT_PROFILE;
+  });
+  const [tab, setTab] = useState<'home' | 'customize' | 'briefing' | 'actions'>('home');
+  const [setupStep, setSetupStep] = useState(0);
+  const [isNew, setIsNew] = useState(() => {
+    try {
+      return !localStorage.getItem('ff_genie_profile');
+    } catch {}
+    return true;
+  });
+  const [genieMessage, setGenieMessage] = useState('');
+  const [userInput, setUserInput] = useState('');
 
   const saveProfile = useCallback((updates: Partial<GenieProfile>) => {
     const updated = { ...profile, ...updates };

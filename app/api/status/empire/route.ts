@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 /* ─── VM Proxy (Railway → Oracle Cloud) — Hardened with retry + backoff ──── */
 
 /** Simple in-memory circuit breaker for the Railway → VM path */
-let vmCircuit = { failures: 0, lastFailure: 0, status: 'CLOSED' as 'CLOSED' | 'OPEN' | 'HALF_OPEN' };
+const vmCircuit = { failures: 0, lastFailure: 0, status: 'CLOSED' as 'CLOSED' | 'OPEN' | 'HALF_OPEN' };
 const VM_CB_THRESHOLD = 3;
 const VM_CB_RESET_MS = 90_000; // 90s cooldown when circuit opens
 

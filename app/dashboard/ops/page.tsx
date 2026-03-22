@@ -166,7 +166,7 @@ export default function OpsDashboardPage() {
       if (!response.ok) throw new Error(data?.error || 'ground-truth sync failed');
       setStatusMessage(`✅ Ground-truth sync complete: ${data.ingested?.length || 0} signals ingested.`);
       await refreshOpsStatus();
-    } catch (error) {
+    } catch {
       setStatusMessage(`🛡️ GuardDog recovering sync…`);
     } finally {
       setLoading(false);
@@ -186,7 +186,7 @@ export default function OpsDashboardPage() {
       if (!response.ok) throw new Error(data?.error || 'retrain check failed');
       setStatusMessage(data?.retrain?.shouldRetrain ? '✅ Retraining trigger activated.' : '✅ Retraining not required yet.');
       await refreshOpsStatus();
-    } catch (error) {
+    } catch {
       setStatusMessage('🛡️ GuardDog recovering retrain check…');
     } finally {
       setLoading(false);

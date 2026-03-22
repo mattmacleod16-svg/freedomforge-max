@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   if (authError) return authError;
 
   try {
-    const defi = require('@/lib/defi/multichain-engine');
+    const defi = await import('@/lib/defi/multichain-engine');
     const engine = defi.getMultiChainDeFiEngine();
 
     const [bestYields, flashLoanOpps, portfolio, health] = await Promise.allSettled([
