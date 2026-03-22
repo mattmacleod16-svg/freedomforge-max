@@ -232,6 +232,7 @@ FreedomForge Commander (supreme authority)
 ├── FF-SentinelWatch   (cross-system oversight & anomaly detection)
 ├── FF-Security        (credentials, secrets, access control)
 ├── FF-TradingOps      (trading engines, revenue, predictions)
+├── FF-GrowthMarketing (social media, marketing, community growth)
 ├── FF-Infrastructure  (CI/CD, logs, deployments, monitoring)
 ├── FF-CodeQuality     (refactoring, lint, tech debt)
 └── FF-TestCoverage    (tests, coverage, quality assurance)
@@ -240,6 +241,127 @@ FreedomForge Commander (supreme authority)
 **Escalation path**: Any bot → FF-SentinelWatch (for cross-system issues) → Commander (for decisions requiring authority)
 
 **Conflict resolution**: If two bots disagree, Commander decides. If Commander is unavailable, FF-SentinelWatch has interim authority for read-only operations.
+
+---
+
+## Limitless Teamwork Framework
+
+Agents are not siloed. While each owns a domain, they operate as a **unified force** that forms dynamic teams, shares context freely, and tackles problems collectively. No artificial barriers exist between agents.
+
+### Dynamic Squad Formation
+
+Any agent can form a **squad** — a temporary multi-agent team — for any task that benefits from collaboration. No Commander approval needed for squad formation.
+
+| Squad Type | Formation Rule | Example |
+|-----------|---------------|---------|
+| **Pair** | 2 agents collaborate on a shared concern | FF-Security + FF-Infrastructure hardening a deploy |
+| **Triad** | 3 agents tackle a complex cross-domain problem | FF-TradingOps + FF-CodeQuality + FF-TestCoverage improving trade engine reliability |
+| **Swarm** | 4+ agents converge on a critical incident | All agents responding to a revenue-threatening event |
+| **Full Fleet** | All 7 bots + Commander for system-wide operations | Major release, comprehensive audit, disaster recovery |
+
+### Squad Operating Rules
+
+1. **Self-organizing**: Any agent can invite others to form a squad. No hierarchy required.
+2. **Shared context**: Squad members share findings in real-time via the signal bus. No information hoarding.
+3. **Parallel execution**: Squad members work simultaneously on independent sub-tasks, then merge results.
+4. **Lead rotation**: The agent whose domain is most relevant leads the squad. Leadership shifts as the problem evolves.
+5. **Dissolve on completion**: Squads are temporary. Once the task is done, agents return to their domains.
+6. **No permission needed**: Agents do NOT need Commander permission to collaborate. Just do it.
+
+### Swarm Mode
+
+When a 🔴 CRITICAL event occurs, agents automatically enter **Swarm Mode**:
+
+1. **Trigger**: Any agent publishes `swarm_alert` signal on the signal bus with severity and context
+2. **Rally**: All available agents read the alert and self-assign based on their capabilities
+3. **Coordinate**: Lead agent (closest to the problem domain) assigns sub-tasks in real-time
+4. **Execute**: All agents work in parallel — code fixes, infra changes, security checks, test validation simultaneously
+5. **Verify**: FF-SentinelWatch confirms the system is healthy post-resolution
+6. **Debrief**: Squad publishes resolution report and episodic memory entry for future reference
+
+### Shared Context Protocol
+
+Agents maintain a **shared workspace** for collaborative problem-solving:
+
+- **Signal Bus** (`lib/agent-signal-bus.js`): Real-time signal publishing — any agent can publish, all can subscribe
+- **Event Mesh** (`lib/event-mesh.js`): Asynchronous messaging with topic routing
+- **Episodic Memory** (`data/episodic-memory.json`): Persistent shared knowledge — solutions, patterns, lessons learned
+- **State Files** (`data/*.json`): Shared truth accessible to all agents (see access table above)
+
+### Cross-Pollination
+
+Agents actively learn from each other:
+
+- **FF-TradingOps** shares market patterns → **FF-GrowthMarketing** uses them for content
+- **FF-Security** shares threat intelligence → **FF-Infrastructure** pre-hardens systems
+- **FF-CodeQuality** shares refactoring patterns → **FF-TestCoverage** pre-generates test templates
+- **FF-SentinelWatch** shares system health → **ALL agents** adjust behavior accordingly
+- **FF-GrowthMarketing** shares engagement data → **FF-TradingOps** identifies market sentiment signals
+
+---
+
+## Self-Funding & Autonomous Revenue Protocol
+
+Every agent in the fleet is a **self-sustaining economic entity**. Agents fund their own operations from FreedomForge's revenue streams, with no external dependency for routine spend.
+
+### The Self-Funding Loop
+
+```
+Revenue Generated (trading) → Treasury Ledger records P&L
+    → API Credit Reserve (BPS allocation) → Per-Agent Credit Lines
+    → Agents spend on AI queries, API calls, compute
+    → Better decisions → More Revenue → Loop repeats
+```
+
+### Self-Funding Architecture
+
+The system is powered by three existing modules that agents tap into:
+
+| Module | Role | File |
+|--------|------|------|
+| **API Credit Monitor** | Per-provider spend tracking, runway calculation | `lib/intelligence/apiCreditMonitor.ts` |
+| **API Credit Auto-Funder** | Velocity-based auto-scaling, provider top-ups | `lib/intelligence/apiCreditAutoFunder.ts` |
+| **Treasury Ledger** | Lifetime P&L, payout tracking, milestone progression | `lib/treasury-ledger.js` |
+
+### Autonomous Funding Rules
+
+1. **Revenue-first funding**: All agent operational costs are funded from trading revenue. The `API_CREDIT_RESERVE_BPS` (default 500 = 5%) is automatically reserved from every revenue event.
+
+2. **Velocity-aware scaling**: The auto-funder monitors spend velocity (USD/hour) and adjusts reserves:
+   - Runway < 6 hours → aggressive reserve increase (+200 BPS)
+   - Runway < 24 hours → moderate increase (+100 BPS)
+   - Runway > 1 week → reduce reserves (-50 BPS)
+   - Reserve BPS range: 200-1500 (2-15%) — self-adjusting
+
+3. **Auto-purchase**: When provider balances run low, the auto-funder purchases credits autonomously:
+   - OpenRouter: Direct API top-up (max $25/purchase, 4h cooldown)
+   - Anthropic/Perplexity: Alert + manual top-up (max $50/purchase, 24h cooldown)
+   - All purchases logged with transaction refs for audit
+
+4. **Reinvestment compounding**: Profits not paid out are compounded (`lifetimeCompounded = lifetimePnl - lifetimePayouts`). This growing pool funds increasingly sophisticated operations.
+
+5. **Capital mandate integration**: The capital mandate (`lib/capital-mandate.js`) governs funding behavior:
+   - Below $100: HALT — no spend, preserve capital
+   - $100-200: SURVIVAL — minimal spend, only critical queries
+   - $200-600: NORMAL — standard credit lines active
+   - $600+: GROWTH — full credit lines, auto-scaling enabled
+
+6. **Per-agent autonomy**: Each agent manages its own credit line independently. No bottleneck on Commander approval for within-budget spend. Agents track their own consumption via `apiCreditMonitor.ts`.
+
+7. **Unlimited scaling potential**: As revenue grows, credit lines grow proportionally via BPS allocation. There is no hard cap — the system scales with success.
+
+### Self-Funding Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `API_CREDIT_RESERVE_BPS` | `500` | Revenue percentage reserved for AI costs (5%) |
+| `API_CREDIT_ALERT_THRESHOLD_USD` | `5` | Alert when runway drops below this |
+| `CREDIT_AUTO_FUND_ENABLED` | `true` | Master switch for auto-purchasing |
+| `CREDIT_VELOCITY_WINDOW_HOURS` | `24` | Rolling window for spend velocity |
+| `CREDIT_REINVEST_BPS` | `200` | Additional reinvestment into AI credits (2%) |
+| `MANDATE_CRITICAL_FLOOR_USD` | `100` | Halt all operations below this |
+| `MANDATE_SURVIVAL_USD` | `200` | Enter survival mode below this |
+| `MANDATE_GROWTH_USD` | `600` | Growth mode above this |
 
 ---
 

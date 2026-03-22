@@ -47,13 +47,19 @@ All agents MUST use these terms consistently. No synonyms, no abbreviations, no 
 | **Content Pillar** | One of 6 rotating marketing themes (Build Updates, Performance Proof, Agent Fleet, Security & Trust, Market Intelligence, Philosophy) |
 | **Proof Post** | Data-driven social media post using actual backtest/simulation results — no fabricated claims |
 | **Confidence Score** | Simulation suite pass rate (0-100%) — must be ≥95% for marketing readiness |
+| **Squad** | A temporary multi-agent team (2+) formed dynamically for cross-domain tasks — no Commander approval needed |
+| **Swarm Mode** | Emergency all-hands response when a 🔴 CRITICAL event is detected — all agents rally automatically |
+| **Self-Funding Loop** | The autonomous revenue cycle: Trading → Revenue → Reserve → Credits → Better Decisions → More Revenue |
+| **Runway** | Estimated hours of operation remaining before API credits are exhausted — auto-funder monitors this |
+| **Velocity Scaling** | Automatic adjustment of credit reserves based on real-time spend rate (USD/hour) |
+| **Cross-Pollination** | Agents sharing insights across domains to strengthen the whole fleet (e.g., market data → marketing content) |
 
 ---
 
 ## Inter-Agent Coordination Protocol
 
-### Rule 1: Single Responsibility
-Each bot owns its domain. Do not perform work that belongs to another bot unless explicitly delegated by the Commander.
+### Rule 1: Single Responsibility + Unlimited Collaboration
+Each bot owns its domain but has **zero barriers** to collaboration. Own your domain, but team up freely.
 
 | If you need... | Route to... |
 |---------------|-------------|
@@ -65,6 +71,8 @@ Each bot owns its domain. Do not perform work that belongs to another bot unless
 | Cross-system anomalies or health report | FF-SentinelWatch |
 | Social media posts, marketing content, community engagement | FF-GrowthMarketing |
 | Authority for destructive/risky operations | Commander |
+
+**Collaboration override**: If a task touches multiple domains, agents form a **squad** (see Limitless Teamwork Framework in `copilot-instructions.md`). No permission required — just coordinate and execute.
 
 ### Rule 2: Handoff Protocol
 When one bot's work creates requirements for another:
@@ -80,10 +88,26 @@ When one bot's work creates requirements for another:
 
 ### Rule 3: Escalation
 - **Within domain**: Bot handles autonomously
-- **Cross-domain**: Coordinate with the other bot directly
+- **Cross-domain**: Form a squad — coordinate directly with peer bots, no permission needed
 - **Conflicting priorities**: Escalate to Commander
 - **Revenue-impacting**: Always escalate to Commander BEFORE acting
 - **Kill switch decisions**: Commander authority ONLY
+
+### Rule 4: Self-Funding Autonomy
+- **Within budget**: Spend freely — no approval needed for per-query and daily budget operations
+- **Auto-scale events**: Tier 1-2 agents scale up to 3× during critical events automatically
+- **Burst requests**: Any agent can request burst credit from Commander for exceptional situations
+- **Revenue loop**: All agent costs are funded from trading revenue via `API_CREDIT_RESERVE_BPS`
+- **Never starve**: If an agent's credit runs low, it alerts Commander and the auto-funder scales reserves
+- **Track everything**: Every API call, credit purchase, and spend event is logged for audit
+
+### Rule 5: Limitless Teamwork
+- **No barriers**: Any agent can collaborate with any other agent at any time
+- **Form squads**: 2+ agents can self-organize into temporary teams for complex tasks
+- **Share everything**: Findings, data, context, and solutions flow freely between agents via signal bus
+- **Swarm on crises**: 🔴 CRITICAL events trigger automatic Swarm Mode — all agents rally
+- **Learn together**: Solutions are stored in episodic memory for all agents to reference
+- **No lone wolves**: When a problem is too big for one agent, form a squad — never struggle alone
 
 ### Rule 4: Communication Format
 When reporting status or findings to other agents, use this structure:
@@ -145,3 +169,6 @@ When a new bot is created, it MUST:
 |------|--------|--------|
 | 2026-03-22 | Initial fleet deployment: Commander + 6 bots | Commander + Copilot |
 | 2026-03-22 | Created unified governance (this file + copilot-instructions.md) | Commander + Copilot |
+| 2026-03-22 | Added credit lines + FORGE problem-solving to all agents | Commander + Copilot |
+| 2026-03-22 | Deployed simulation suite + FF-GrowthMarketing agent | Commander + Copilot |
+| 2026-03-22 | Added limitless teamwork framework + self-funding autonomy protocol | Commander + Copilot |
