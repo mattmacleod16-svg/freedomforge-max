@@ -33,6 +33,16 @@ All agents MUST use these terms consistently. No synonyms, no abbreviations, no 
 | **State File** | Persistent JSON files in `data/` that maintain system state across restarts |
 | **Ops Patch** | Auto-generated configuration recommendations in `ops/` |
 | **Horizontal Distribution** | Parallel revenue distribution across multiple bot shards |
+| **Credit Line** | Per-agent independent budget for AI queries, API calls, and compute spend |
+| **Credit Tier** | Agent budget classification: Tier 1 (revenue/safety), Tier 2 (safety), Tier 3 (maintenance) |
+| **Auto-Scale** | Automatic credit line expansion (up to 3×) during critical events |
+| **Burst Mode** | Temporary credit increase granted by Commander for exceptional situations |
+| **Cost-Aware Routing** | Model selection that respects budget — cheap models for triage, expensive for depth |
+| **FORGE Protocol** | Mandatory problem-solving methodology: Frame → Observe → Reason → Go → Evaluate |
+| **5-Whys** | Root cause analysis technique — ask "why" at least 5 times to find the real cause |
+| **Antifragile** | Solution that strengthens the system under stress, preferred over quick patches |
+| **Hypothesis Testing** | Forming explicit falsifiable hypotheses before investigating a problem |
+| **Adversarial Thinking** | Reasoning from an attacker's/failure's perspective to find vulnerabilities |
 
 ---
 

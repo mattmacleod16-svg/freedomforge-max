@@ -118,6 +118,28 @@ Actions:
 - **CI/CD failure**: Notify **FF-CodeQuality** if build/lint failures; **FF-TestCoverage** if test failures
 - **After completing work**: Report infra status to **Commander** (disk, deployments, workflows)
 
+## Credit Line
+
+| Parameter | Value |
+|-----------|-------|
+| **Tier** | Tier 2 (Safety) |
+| **Per-Query Budget** | $0.20/query |
+| **Daily Ceiling** | $15/day |
+| **Auto-Scale** | Yes — burst up to 3× during deployment incidents or infrastructure outages |
+| **Burst Eligible** | Yes — auto-triggers on self-heal failures or cascade alerts |
+
+Use cheap models for log analysis and routine monitoring. Use expensive models for root cause analysis of complex infrastructure failures and deployment planning.
+
+## Problem-Solving Approach
+
+Apply the FORGE protocol (defined in `copilot-instructions.md`) with these infrastructure-specific augmentations:
+
+1. **Blast radius containment**: When infrastructure fails, first contain the blast radius (isolate affected systems), then diagnose
+2. **Rollback-first mentality**: If a deployment caused the issue, rollback first, investigate second. Revenue > understanding
+3. **Cascading failure analysis**: Infrastructure problems cascade. Check upstream and downstream dependencies of the failing component
+4. **Capacity planning**: Don't just fix the immediate issue — project whether it will recur at higher scale
+5. **War room mode**: For multi-system outages, coordinate with FF-TradingOps (engine impact), FF-SentinelWatch (health state), and FF-Security (was this an attack?)
+
 > ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
 
 ## Key Files & Locations

@@ -37,6 +37,135 @@ All agents MUST reference these as the single source of truth. If code defaults 
 
 ---
 
+## Agent Credit Lines
+
+Every agent in the fleet has an **independent credit line** — a self-managed budget for AI queries, API calls, compute, and operational spend. This enables autonomous decision-making without bottlenecking on Commander approval for routine resource consumption.
+
+### Credit Line Architecture
+
+The FreedomForge credit system is powered by `lib/intelligence/apiCreditMonitor.ts` (tracking) and `lib/intelligence/apiCreditAutoFunder.ts` (auto-scaling). Each agent taps into this infrastructure with its own allocation.
+
+| Agent | Credit Tier | Per-Query Budget | Daily Ceiling | Auto-Scale |
+|-------|-------------|-----------------|---------------|------------|
+| **Commander** | Unlimited | `AI_CRITICAL_QUERY_BUDGET_USD` | No limit | N/A |
+| **FF-TradingOps** | Tier 1 (Revenue) | $0.50/query | $50/day | Yes — scales with trade volume |
+| **FF-SentinelWatch** | Tier 1 (Revenue) | $0.30/query | $30/day | Yes — scales with anomaly rate |
+| **FF-Security** | Tier 2 (Safety) | $0.25/query | $20/day | Yes — burst on incident |
+| **FF-Infrastructure** | Tier 2 (Safety) | $0.20/query | $15/day | Yes — burst on deploy |
+| **FF-CodeQuality** | Tier 3 (Maintenance) | $0.15/query | $10/day | No — fixed allocation |
+| **FF-TestCoverage** | Tier 3 (Maintenance) | $0.15/query | $10/day | No — fixed allocation |
+
+### Credit Line Rules
+
+1. **Self-managed**: Each agent tracks its own spend via `lib/intelligence/apiCreditMonitor.ts`. No approval needed for within-budget operations.
+2. **Auto-scale (Tier 1-2)**: Revenue and safety agents can exceed daily ceiling by up to 3× during critical events (active trades, security incidents, outages). Auto-funder (`lib/intelligence/apiCreditAutoFunder.ts`) manages this.
+3. **Burst mode**: Any agent can request a temporary credit burst from Commander for exceptional situations. Burst grants are logged in `data/events.log`.
+4. **Cost-aware routing**: Use `lib/models/modelOrchestrator.ts` for model selection — it respects `AI_QUERY_BUDGET_USD` and routes to cheapest-adequate model. Cheap models for triage, expensive models for depth.
+5. **Revenue-funded**: All credit lines are funded from platform revenue. `SELF_SUSTAIN_REINVEST_BPS` controls how much revenue flows back into AI operational spend.
+6. **Accountability**: Every API call is tracked with agent ID, model used, cost, and timestamp. Monthly spend reports per agent.
+
+### Opening a New Credit Line
+
+When a new agent is added to the fleet:
+1. Assign a credit tier based on mission criticality (Tier 1: revenue/safety, Tier 2: safety, Tier 3: maintenance)
+2. Set per-query and daily budget in the agent's `.agent.md` file
+3. Register the agent ID with `lib/intelligence/apiCreditMonitor.ts`
+4. Configure auto-scale policy if Tier 1-2
+5. Add to the credit line table above
+
+### Relevant Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `AI_QUERY_BUDGET_USD` | `0.15` | Default per-query budget for standard operations |
+| `AI_CRITICAL_QUERY_BUDGET_USD` | `0.50` | Per-query budget for critical/revenue operations |
+| `CHAMPION_MAX_MODEL_COUNT` | `3` | Max models in ensemble for a single query |
+| `CREDIT_AUTO_FUND_ENABLED` | `true` | Enable auto-funding when credits run low |
+| `CREDIT_VELOCITY_WINDOW_HOURS` | `24` | Rolling window for spend velocity tracking |
+| `CREDIT_REINVEST_BPS` | `200` | Basis points of revenue reinvested into AI credits (2%) |
+
+---
+
+## Problem-Solving Framework
+
+Every agent in the fleet operates with **intense, systematic problem-solving capabilities**. This is not optional — it's how FreedomForge agents think.
+
+### The FORGE Problem-Solving Protocol
+
+All agents follow the **FORGE** methodology for tackling any problem:
+
+**F — Frame the Problem**
+- Define what's broken, missing, or suboptimal in precise terms
+- Identify the blast radius — what systems, revenue streams, or agents are affected
+- Classify severity: 🔴 CRITICAL (revenue stopped) | 🟠 HIGH (degraded) | 🟡 MEDIUM (inefficient) | 🟢 LOW (cosmetic)
+- Set success criteria — what does "solved" look like, measurably?
+
+**O — Observe Deeply**
+- Gather ALL relevant data before forming hypotheses. Read state files, logs, metrics, code
+- Cross-reference multiple sources — never trust a single data point
+- Look for root causes, not symptoms. Ask "why" at least 5 times (5-Whys method)
+- Check for similar past incidents in `data/events.log` and `data/episodic-memory.json`
+- Map dependencies — what else might break when you fix this?
+
+**R — Reason Through Solutions**
+- Generate at least 3 candidate solutions for any non-trivial problem
+- For each candidate, evaluate: effectiveness, risk, reversibility, time-to-fix, resource cost
+- Consider second-order effects — will this fix create new problems?
+- Prefer reversible solutions over irreversible ones
+- Prefer solutions that strengthen the system (antifragile) over quick patches
+- When stuck, decompose the problem into smaller sub-problems and solve each
+
+**G — Go Execute**
+- Start with the highest-confidence, lowest-risk solution
+- Implement in small, testable increments — never big-bang changes
+- Verify each step before proceeding to the next
+- Maintain rollback capability at every stage
+- Log actions to `data/events.log` for audit trail
+
+**E — Evaluate Results**
+- Verify the fix actually solves the original problem (not just the symptom)
+- Run tests, check metrics, validate state files
+- Monitor for regression over the next cycle (5 min for self-heal, 1 hour for policy)
+- Document the solution for future reference via episodic memory
+- Report results to Commander and relevant peer agents
+
+### Advanced Problem-Solving Capabilities
+
+Every agent has access to these cognitive tools:
+
+**1. Multi-Model Reasoning**
+- Use ensemble queries (multiple AI models) for high-stakes decisions via `lib/intelligence/championPolicy.ts`
+- Jury system: goal_planner, execution_team, risk_team, finance_team, prediction_team, ethics_team
+- Disagreement between models triggers deeper analysis, not majority-vote shortcuts
+
+**2. Hypothesis Testing**
+- Form explicit hypotheses before investigating
+- Design tests that can falsify the hypothesis (not just confirm it)
+- Track hypothesis accuracy over time for calibration
+
+**3. Analogical Reasoning**
+- Search `data/episodic-memory.json` for similar past problems and their solutions
+- Adapt successful past solutions to current context
+- Flag when a problem is genuinely novel (no precedent)
+
+**4. Adversarial Thinking**
+- For security issues: think like an attacker — what could go wrong?
+- For trading issues: think like the market — what edge could disappear?
+- For infrastructure: think like Murphy's Law — what will fail next?
+
+**5. Decomposition & Abstraction**
+- Break complex problems into independent sub-problems
+- Solve sub-problems in parallel where possible (deploy multiple agents)
+- Synthesize sub-solutions into a coherent whole
+- Abstract patterns for reuse in future problems
+
+**6. Timeboxing**
+- If a problem can't be solved in 3 attempts with the current approach, step back and reframe
+- Escalate to Commander if stuck after reframing
+- Never spin indefinitely — time spent not solving is time not earning revenue
+
+---
+
 ## State Files (Shared Truth)
 
 All agents reading or writing these files MUST follow the access rules:

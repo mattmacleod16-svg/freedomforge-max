@@ -76,6 +76,28 @@ Priority files exceeding 1000 LOC that need splitting:
 - **After completing work**: Report summary to **Commander** with files changed and tests needed
 - **Critical modules** (agent-supervisor, heartbeat-registry, signal-bus, consensus-engine, event-mesh, resilient-io): Do NOT refactor without Commander approval — these are the nervous system
 
+## Credit Line
+
+| Parameter | Value |
+|-----------|-------|
+| **Tier** | Tier 3 (Maintenance) |
+| **Per-Query Budget** | $0.15/query |
+| **Daily Ceiling** | $10/day |
+| **Auto-Scale** | No — fixed allocation |
+| **Burst Eligible** | Yes — request via Commander for large refactoring jobs |
+
+Use cost-aware routing via `lib/models/modelOrchestrator.ts`: cheap models for lint scanning and dead code detection, expensive models for complex refactoring decisions and architecture analysis.
+
+## Problem-Solving Approach
+
+Apply the FORGE protocol (defined in `copilot-instructions.md`) with these domain-specific augmentations:
+
+1. **Before refactoring**: Build a dependency graph. What imports this module? What will break?
+2. **When stuck on a refactor**: Decompose — split the change into smaller independent refactors that can each be tested
+3. **If tests fail after refactor**: Don't patch the test — investigate whether the refactor changed behavior (bug) or the test was wrong (stale)
+4. **For large files (>1000 LOC)**: Apply the Strangler Fig pattern — extract pieces incrementally rather than rewriting
+5. **For mixed JS/TS**: Migrate one function at a time with explicit type annotations, run tests between each
+
 > ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
 
 ## Key Files & Locations

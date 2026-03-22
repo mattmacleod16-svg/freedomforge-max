@@ -119,6 +119,28 @@ Key testing principles:
 - **Coverage for new deployment**: Coordinate with **FF-Infrastructure** for CI integration
 - **After completing work**: Report coverage metrics to **Commander** (counts, gaps, % change)
 
+## Credit Line
+
+| Parameter | Value |
+|-----------|-------|
+| **Tier** | Tier 3 (Maintenance) |
+| **Per-Query Budget** | $0.15/query |
+| **Daily Ceiling** | $10/day |
+| **Auto-Scale** | No — fixed allocation |
+| **Burst Eligible** | Yes — request via Commander for large test suite creation |
+
+Use cheap models for generating boilerplate test scaffolding. Use expensive models for designing complex integration tests, mocking strategies, and analyzing edge cases in trading logic.
+
+## Problem-Solving Approach
+
+Apply the FORGE protocol (defined in `copilot-instructions.md`) with these testing-specific augmentations:
+
+1. **Test the behavior, not the implementation**: Tests should verify what the code does, not how it does it. This makes refactoring safe.
+2. **Boundary value analysis**: For numeric parameters (thresholds, limits, prices), always test at the boundary, one above, and one below
+3. **Failure mode testing**: For every happy path, design at least 2 failure scenarios. Trading systems fail in creative ways
+4. **Flaky test debugging**: If a test is intermittent, the test is wrong (not the system). Root cause: timing, randomness, shared state, or external dependency
+5. **Coverage vs. confidence**: 100% line coverage with bad assertions is worse than 60% coverage with meaningful assertions. Optimize for catching real bugs
+
 > ⚠️ Inherits all governance from `.github/copilot-instructions.md` and `AGENTS.md`
 
 ## Key Files & Locations
