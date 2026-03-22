@@ -25,6 +25,15 @@ const MORE_ITEMS = [
   { href: '/marketing', label: 'Marketing', icon: '📣' },
 ];
 
+const SAFE_AREA_CSS = `
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .ff-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+@media (max-width: 767px) {
+  body { padding-bottom: 72px; }
+}
+`;
+
 export default function GlobalNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -48,6 +57,8 @@ export default function GlobalNav() {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: SAFE_AREA_CSS }} />
+
       {/* Desktop top bar */}
       <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 items-center justify-between border-b border-zinc-800/50 bg-black/80 backdrop-blur-xl px-4 py-2">
         <div className="flex items-center gap-1">
@@ -68,7 +79,7 @@ export default function GlobalNav() {
               <span>⋯</span> More
             </button>
             {moreOpen && (
-              <div className="absolute top-full left-0 mt-1 w-48 rounded-xl border border-zinc-800 bg-zinc-900/95 backdrop-blur-xl p-1 shadow-2xl">
+              <div className="absolute top-full left-0 mt-1 w-48 rounded-xl border border-zinc-800 bg-zinc-900/95 backdrop-blur-xl p-1 shadow-2xl z-50">
                 {MORE_ITEMS.map((item) => (
                   <Link key={item.href} href={item.href}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition ${
@@ -90,7 +101,7 @@ export default function GlobalNav() {
       </nav>
 
       {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800/50 bg-black/90 backdrop-blur-xl safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-zinc-800/50 bg-black/90 backdrop-blur-xl ff-safe-bottom">
         <div className="flex items-center justify-around px-1 py-1">
           {NAV_ITEMS.map((item) => (
             <Link key={item.href} href={item.href}
@@ -110,7 +121,7 @@ export default function GlobalNav() {
           </button>
         </div>
         {moreOpen && (
-          <div className="absolute bottom-full left-2 right-2 mb-1 rounded-2xl border border-zinc-800 bg-zinc-900/95 backdrop-blur-xl p-2 shadow-2xl">
+          <div className="absolute bottom-full left-2 right-2 mb-1 rounded-2xl border border-zinc-800 bg-zinc-900/95 backdrop-blur-xl p-2 shadow-2xl z-50">
             <div className="grid grid-cols-4 gap-1">
               {MORE_ITEMS.map((item) => (
                 <Link key={item.href} href={item.href}
@@ -126,16 +137,8 @@ export default function GlobalNav() {
         )}
       </nav>
 
-      {/* Spacers */}
+      {/* Desktop spacer */}
       <div className="hidden md:block h-12" />
-      <style jsx global>{`
-        @supports (padding-bottom: env(safe-area-inset-bottom)) {
-          .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
-        }
-        @media (max-width: 767px) {
-          body { padding-bottom: 72px; }
-        }
-      `}</style>
     </>
   );
 }
