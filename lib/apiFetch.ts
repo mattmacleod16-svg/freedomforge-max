@@ -46,7 +46,7 @@ export async function apiFetch(url: string, options: ApiFetchOptions = {}): Prom
       signal = timeoutSignal;
     }
   } else {
-    signal = externalSignal;
+    signal = externalSignal ?? undefined;
   }
 
   let res: Response;
