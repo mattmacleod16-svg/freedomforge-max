@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';

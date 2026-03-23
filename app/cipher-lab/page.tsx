@@ -24,7 +24,6 @@ import {
   bruteForce,
   analyzeFrequency,
   CIPHER_ENCYCLOPEDIA,
-  getAllCipherAlgorithms,
   type CipherAlgorithm,
   type CipherResult,
   type CipherAnalysis,
@@ -160,7 +159,10 @@ function EncodeDecodeTab() {
         {/* Controls */}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {/* Algorithm */}
+          <label htmlFor="cipher-algorithm" className="sr-only">Cipher algorithm</label>
           <select
+            id="cipher-algorithm"
+            title="Cipher algorithm"
             value={algorithm}
             onChange={(e) => setAlgorithm(e.target.value as CipherAlgorithm)}
             className="rounded-lg border border-zinc-700 bg-black/50 px-3 py-2 text-sm text-white outline-none focus:border-purple-500"
@@ -204,8 +206,11 @@ function EncodeDecodeTab() {
           {/* Shift (Caesar only) */}
           {algorithm === 'caesar' && (
             <div className="flex items-center gap-2">
-              <label className="text-xs text-zinc-500">Shift:</label>
+              <label htmlFor="cipher-shift" className="text-xs text-zinc-500">Shift:</label>
               <input
+                id="cipher-shift"
+                title="Caesar shift"
+                placeholder="13"
                 type="number"
                 min={1}
                 max={25}
@@ -321,15 +326,18 @@ function AutoDetectTab() {
                     Confidence: {Math.round(det.confidence * 100)}%
                   </span>
                 </div>
-                <div className="h-2 w-24 overflow-hidden rounded-full bg-zinc-800">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${det.confidence * 100}%`,
-                      backgroundColor: det.confidence > 0.8 ? '#10b981' : det.confidence > 0.5 ? '#f59e0b' : '#ef4444',
-                    }}
-                  />
-                </div>
+                <progress
+                  aria-label={`${det.format} confidence`}
+                  className={
+                    det.confidence > 0.8
+                      ? 'h-2 w-24 overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:bg-emerald-500 [&::-moz-progress-bar]:bg-emerald-500'
+                      : det.confidence > 0.5
+                      ? 'h-2 w-24 overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:bg-amber-500 [&::-moz-progress-bar]:bg-amber-500'
+                      : 'h-2 w-24 overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:bg-rose-500 [&::-moz-progress-bar]:bg-rose-500'
+                  }
+                  max={100}
+                  value={Math.round(det.confidence * 100)}
+                />
               </div>
               <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 font-mono text-sm text-emerald-400 break-all">
                 {det.decoded}
@@ -442,14 +450,18 @@ function CrackTab() {
                 <div key={letter} className="flex items-center gap-2">
                   <span className="w-4 font-mono text-xs text-zinc-400">{letter}</span>
                   <div className="flex-1 space-y-0.5">
-                    <div
-                      className="h-2 rounded bg-purple-500/60 transition-all"
-                      style={{ width: `${Math.min(freq * 5, 100)}%` }}
+                    <progress
+                      aria-label={`${letter} input frequency`}
+                      className="h-2 w-full overflow-hidden rounded [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:bg-purple-500 [&::-moz-progress-bar]:bg-purple-500"
+                      max={100}
+                      value={Math.min(freq * 5, 100)}
                     />
                     {englishFreq[letter] !== undefined && (
-                      <div
-                        className="h-1 rounded bg-amber-500/40"
-                        style={{ width: `${Math.min(englishFreq[letter] * 5, 100)}%` }}
+                      <progress
+                        aria-label={`${letter} english frequency`}
+                        className="h-1 w-full overflow-hidden rounded [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:bg-amber-500 [&::-moz-progress-bar]:bg-amber-500"
+                        max={100}
+                        value={Math.min(englishFreq[letter] * 5, 100)}
                       />
                     )}
                   </div>
@@ -597,7 +609,7 @@ function LearnTab() {
 /* ─── Data Shield Tab ─────────────────────────────────────────────────────── */
 
 function ShieldTab() {
-  const [shieldActive, setShieldActive] = useState(true);
+  const shieldActive = true;
 
   const demoFields = [
     { label: 'Wallet', value: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18', mode: 'middle' as const, sensitive: true },

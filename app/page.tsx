@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { apiFetch, RateLimitError } from '@/lib/apiFetch';
@@ -115,7 +116,14 @@ export default function Home() {
         <header className="glass-card rounded-3xl p-6 md:p-8 gold-accent-top">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="flex items-center gap-5">
-              <img src="/freedomforge-logo.jpg" alt="FreedomForge" className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border border-orange-500/30 shadow-lg shadow-orange-500/10" />
+              <Image
+                src="/freedomforge-logo.jpg"
+                alt="FreedomForge"
+                width={80}
+                height={80}
+                className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border border-orange-500/30 shadow-lg shadow-orange-500/10"
+                priority
+              />
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-orange-400/90">Autonomous Intelligence Stack</p>
                 <h1 className="mt-2 text-4xl md:text-6xl font-black tracking-tight text-white">FreedomForge Max</h1>

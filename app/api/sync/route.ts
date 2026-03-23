@@ -8,7 +8,6 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/apiGuard';
 import {
   registerDevice,
-  getDevices,
   removeDevice,
   pushDeltas,
   pullDeltas,
