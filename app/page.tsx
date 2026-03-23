@@ -40,9 +40,15 @@ export default function Home() {
         body: JSON.stringify({ message: text }),
       });
       const data = await res.json();
-      const reply = data.reply || 'No answer';
-      setResponse(reply);
-      setHistory((h) => [...h, { role: 'assistant', text: reply, ts: Date.now() }]);
+      if (!res.ok || data.error) {
+        const errorMsg = '⚠️ All AI models failed to respond. Please check your API keys and model availability, or try again.';
+        setResponse(errorMsg);
+        setHistory((h) => [...h, { role: 'assistant', text: errorMsg, ts: Date.now() }]);
+      } else {
+        const reply = data.reply || 'No answer';
+        setResponse(reply);
+        setHistory((h) => [...h, { role: 'assistant', text: reply, ts: Date.now() }]);
+      }
     } catch (err) {
       setResponse('Error contacting Max');
       setHistory((h) => [...h, { role: 'assistant', text: 'Error contacting Max', ts: Date.now() }]);

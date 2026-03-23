@@ -3,7 +3,7 @@
  * POST /api/chat
  */
 
-import { synthesizeAnswer } from '@/lib/synthesis/orchestrator';
+import { synthesizeAnswer, SYNTHESIS_FALLBACK_RESPONSE } from '@/lib/synthesis/orchestrator';
 import {
   buildAgentCommunicationPacket,
   buildAgentToAgentPacket,
@@ -130,6 +130,28 @@ export async function POST(req: Request): Promise<Response> {
 
     // Use the enhanced synthesis system
     const result = await synthesizeAnswer(message);
+
+    // If all model paths failed, return a descriptive 500 instead of surfacing
+    // the raw fallback sentinel string to the client.
+    if (result.response === SYNTHESIS_FALLBACK_RESPONSE) {
+      const attemptedModels = result.models_used ?? [];
+      const userMessage = '⚠️ All AI models failed to respond. Please check your API keys and model availability, or try again.';
+      console.error('⚠️ synthesizeAnswer returned fallback — all model paths failed', {
+        message: message.substring(0, 100),
+        attemptedModels,
+        reasoning: result.reasoning,
+      });
+      return Response.json(
+        {
+          error: userMessage,
+          reply: userMessage,
+          metadata: {
+            models_attempted: attemptedModels,
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     const mcp = buildModelContextPacket({
       query: message,
