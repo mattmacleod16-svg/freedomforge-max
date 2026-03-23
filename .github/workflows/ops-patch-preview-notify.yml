@@ -18,7 +18,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'automation/monthly-ops-patch')
     runs-on: ubuntu-latest
     env:
-      VERCEL_TARGET: production
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
       DRY_RUN: 'true'
       OPS_PATCH_FILE: ops/recommended-env-overrides.env
       ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
@@ -54,7 +57,7 @@ jobs:
         id: preview
         run: |
           set +e
-          output=$(npm run apply-vercel-env 2>&1)
+          output=$(npm run apply-railway-env 2>&1)
           code=$?
           echo "$output"
 
@@ -210,10 +213,9 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'apply-vercel-env.yml',
+              workflow_id: 'apply-railway-env.yml',
               ref: context.payload.repository.default_branch,
               inputs: {
-                target: 'production',
                 apply_keys: `${{ steps.approved.outputs.keys }}`,
                 dry_run: 'false',
               },

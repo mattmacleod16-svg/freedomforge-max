@@ -17,7 +17,7 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     env:
-            APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.vercel.app' }}
+            APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge-max.up.railway.app' }}
             ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
             ALERT_MENTION: ${{ secrets.ALERT_MENTION }}
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -156,7 +156,7 @@ railway up
 A `railway.toml` is included for zero-config builds. Currently live at [freedomforge.one](https://freedomforge.one).
 
 ### Other Platforms
-FreedomForge runs on any platform that supports Node.js 22+: Vercel, AWS, GCP, Azure, DigitalOcean, or your own hardware.
+FreedomForge runs on any platform that supports Node.js 22+: AWS, GCP, Azure, DigitalOcean, or your own hardware.
 
 ---
 

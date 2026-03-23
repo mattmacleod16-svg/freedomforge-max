@@ -136,7 +136,6 @@ declare namespace NodeJS {
     API_CREDIT_RESERVE_BPS?: string;
     API_CREDIT_ALERT_THRESHOLD_USD?: string;
     API_CREDIT_LEDGER_FILE?: string;
-    VERCEL?: string;
 
     // ─── Railway ──────────────────────────────────────────────────────
     RAILWAY_ENVIRONMENT?: string;

@@ -274,16 +274,6 @@ railway variables set DASHBOARD_PASS=your_password
 railway up
 ```
 
-### Vercel
-
-```bash
-npm install -g vercel
-vercel login
-vercel --prod
-```
-
-> **Note:** Some features (WebSocket subscriptions, long-running trading loops) require persistent server-side Node.js. Vercel's serverless functions have execution time limits. Use Vercel for the dashboard/API and a separate VPS for trading engines.
-
 ### Docker
 
 ```dockerfile
@@ -385,7 +375,7 @@ This creates a clean zip excluding:
 
 - `node_modules/`, `.next/`, `.env.local`, `.env`
 - Git history, IDE files, build artifacts
-- Sensitive data directories (`data/`, `.claude/`, `.vercel/`)
+- Sensitive data directories (`data/`, `.claude/`, `.railway/`)
 - Log files and OS artifacts
 
 The recipient gets a clean, ready-to-configure package with `.env.example` included.
