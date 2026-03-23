@@ -18,11 +18,17 @@ import { buildVendorStrategyContext } from '@/lib/intelligence/vendorStack';
 import { buildBehavioralContext } from '@/lib/intelligence/behavioralIntel';
 import { logEvent } from '@/lib/logger';
 
+/** Sentinel string returned when all model response paths fail. */
+export const SYNTHESIS_FALLBACK_RESPONSE = 'Unable to generate response';
+
+/** Maximum characters to include in diagnostic log snippets. */
+const LOG_SNIPPET_MAX_LENGTH = 80;
+
 function isMaxModeEnabled() {
   return String(process.env.MAX_INTELLIGENCE_MODE || process.env.AUTONOMY_MAX_MODE || 'false').toLowerCase() === 'true';
 }
 
-function isUsableResponse(text: string) {
+export function isUsableResponse(text: string) {
   const value = (text || '').trim().toLowerCase();
   if (!value) return false;
   if (value === 'no response') return false;
@@ -30,11 +36,11 @@ function isUsableResponse(text: string) {
   return value.length >= 24;
 }
 
-function firstUsableResponse(responses: Array<{ response: string }>) {
+export function firstUsableResponse(responses: Array<{ response: string }>) {
   return responses.find((item) => isUsableResponse(item.response))?.response || '';
 }
 
-function extractKeyLines(text: string, limit = 2) {
+export function extractKeyLines(text: string, limit = 2) {
   const lines = (text || '')
     .split(/\n+/)
     .map((line) => line.trim())
@@ -43,7 +49,7 @@ function extractKeyLines(text: string, limit = 2) {
   return lines.slice(0, limit);
 }
 
-function classifyResponseIssue(text: string) {
+export function classifyResponseIssue(text: string) {
   const value = (text || '').trim().toLowerCase();
   if (!value) return 'empty';
   if (value === 'no response') return 'no_response';
@@ -72,7 +78,7 @@ function jaccard(a: Set<string>, b: Set<string>) {
   return intersection / union.size;
 }
 
-function computeAgreementScore(items: Array<{ response: string }>) {
+export function computeAgreementScore(items: Array<{ response: string }>) {
   if (items.length <= 1) return 1;
   const sets = items.map((item) => tokenSet(item.response));
   const pairs: number[] = [];
@@ -104,13 +110,13 @@ function countWords(text: string) {
   return (text || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
-function isBottomLineCriticalQuery(query: string) {
+export function isBottomLineCriticalQuery(query: string) {
   return /(portfolio|allocation|position size|rebalance|drawdown|risk|autopilot|prediction market|trade|entry|exit|capital|cashflow|budget|revenue|payout|transfer|wire|execute|bottom line|profit|loss)/i.test(
     query
   );
 }
 
-function isLowStakesQuery(query: string) {
+export function isLowStakesQuery(query: string) {
   const text = (query || '').trim();
   if (!text) return true;
   const words = countWords(text);
@@ -119,7 +125,7 @@ function isLowStakesQuery(query: string) {
   return false;
 }
 
-function estimateComplexityScore(input: {
+export function estimateComplexityScore(input: {
   userQuery: string;
   maxMode: boolean;
   marketRegime?: 'risk_on' | 'risk_off' | 'neutral' | 'unknown';
@@ -145,7 +151,7 @@ function estimateComplexityScore(input: {
   return Math.max(0, Math.min(1, Number(score.toFixed(4))));
 }
 
-function buildReasoningProfile(input: {
+export function buildReasoningProfile(input: {
   userQuery: string;
   maxMode: boolean;
   availableModelCount: number;
@@ -239,7 +245,7 @@ function buildReasoningProfile(input: {
   };
 }
 
-function shouldEscalateModelPass(input: {
+export function shouldEscalateModelPass(input: {
   profile: ReasoningProfile;
   consensusAgreement: number;
   maxConfidence: number;
@@ -282,7 +288,7 @@ function shouldEscalateModelPass(input: {
   };
 }
 
-function buildEnsembleConsensus(input: {
+export function buildEnsembleConsensus(input: {
   responses: Array<{ model: string; response: string; confidence: number }>;
   maxMode: boolean;
 }) {
@@ -644,13 +650,34 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       (adaptiveDecision?.response && isUsableResponse(adaptiveDecision.response) ? adaptiveDecision.response : '') ||
       (consensus.response && isUsableResponse(consensus.response) ? consensus.response : '') ||
       firstUsableResponse(modelResponses) ||
-      'Unable to generate response';
+      '';
+
+    if (!selectedResponse) {
+      logEvent('synthesis_all_models_failed', {
+        query: userQuery.substring(0, 200),
+        adaptiveResponse: adaptiveDecision?.response
+          ? { length: adaptiveDecision.response.length, snippet: adaptiveDecision.response.substring(0, LOG_SNIPPET_MAX_LENGTH), issue: classifyResponseIssue(adaptiveDecision.response) }
+          : null,
+        consensusResponse: consensus.response
+          ? { length: consensus.response.length, snippet: consensus.response.substring(0, LOG_SNIPPET_MAX_LENGTH), issue: classifyResponseIssue(consensus.response) }
+          : null,
+        modelResponses: modelResponses.map((r) => ({
+          model: r.model,
+          responseLength: r.response?.length ?? 0,
+          snippet: (r.response || '').substring(0, LOG_SNIPPET_MAX_LENGTH),
+          issue: classifyResponseIssue(r.response || ''),
+        })),
+        droppedDetails: consensus.droppedDetails,
+      });
+    }
+
+    const finalSelectedResponse = selectedResponse || SYNTHESIS_FALLBACK_RESPONSE;
 
     const selectedModel = adaptiveDecision?.modelsUsed?.[0] || modelResponses[0]?.model;
 
     const autonomyDecision = await runAutonomyDirector({
       userQuery,
-      selectedResponse,
+      selectedResponse: finalSelectedResponse,
       modelResponses,
       sources,
       riskScore: adaptiveDecision?.riskScore ?? 0.5,
