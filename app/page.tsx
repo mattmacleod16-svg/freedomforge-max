@@ -1,8 +1,9 @@
 'use client';
 
-
 import React from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { apiFetch, RateLimitError } from '@/lib/apiFetch';
 import InstallPrompt from './components/InstallPrompt';
 import ShareWidget from './components/ShareWidget';
 
@@ -11,21 +12,34 @@ export default function Home() {
   const [response, setResponse] = React.useState('');
   const [textInput, setTextInput] = React.useState('');
   const [history, setHistory] = React.useState<Array<{role: string; text: string; ts: number}>>([]);
+  const [username, setUsername] = React.useState('');
 
-  // Load conversation history from localStorage on mount
+  // Per-user chat history key — anonymous users share a generic key
+  const historyKey = username ? `ff_chat_history_${username}` : 'ff_chat_history';
+
+  // Resolve username from session (no redirect — main page is public)
+  React.useEffect(() => {
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => { if (d?.user) setUsername(d.user); })
+      .catch(() => {});
+  }, []);
+
+  // Load conversation history once we know which key to use
   React.useEffect(() => {
     try {
-      const saved = localStorage.getItem('ff_chat_history');
+      const saved = localStorage.getItem(historyKey);
       if (saved) setHistory(JSON.parse(saved));
+      else setHistory([]);
     } catch { /* ignore */ }
-  }, []);
+  }, [historyKey]);
 
   // Save history to localStorage whenever it changes
   React.useEffect(() => {
     if (history.length > 0) {
-      try { localStorage.setItem('ff_chat_history', JSON.stringify(history.slice(-50))); } catch { /* ignore */ }
+      try { localStorage.setItem(historyKey, JSON.stringify(history.slice(-50))); } catch { /* ignore */ }
     }
-  }, [history]);
+  }, [history, historyKey]);
 
   // Shared function that processes any input (voice or text)
   const processInput = async (text: string) => {
@@ -34,10 +48,11 @@ export default function Home() {
     setHistory((h) => [...h, { role: 'user', text, ts: Date.now() }]);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await apiFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
+        timeoutMs: 60_000, // AI responses can take time
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -50,8 +65,13 @@ export default function Home() {
         setHistory((h) => [...h, { role: 'assistant', text: reply, ts: Date.now() }]);
       }
     } catch (err) {
-      setResponse('Error contacting Max');
-      setHistory((h) => [...h, { role: 'assistant', text: 'Error contacting Max', ts: Date.now() }]);
+      const msg = err instanceof RateLimitError
+        ? `⏳ Too many requests — please wait ${Math.ceil(err.retryAfterMs / 1000)}s`
+        : err instanceof Error && err.message.includes('timed out')
+          ? '⌛ Max is taking too long. Please try again.'
+          : '⚠️ Could not reach Max. Check your connection and try again.';
+      setResponse(msg);
+      setHistory((h) => [...h, { role: 'assistant', text: msg, ts: Date.now() }]);
     }
 
     setTextInput('');
@@ -65,9 +85,16 @@ export default function Home() {
 
   const fetchBalance = async () => {
     if (!alchemyAddress) return;
-    const res = await fetch(`/api/alchemy/balance?address=${alchemyAddress}`);
-    const data = await res.json();
-    setAlchemyInfo(`Balance of ${alchemyAddress}: ${data.balance}`);
+    try {
+      const res = await apiFetch(`/api/alchemy/balance?address=${encodeURIComponent(alchemyAddress)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch balance');
+      setAlchemyInfo(`Balance of ${alchemyAddress}: ${data.balance}`);
+    } catch (err) {
+      const msg = err instanceof RateLimitError ? err.message : 'Failed to fetch balance';
+      setAlchemyInfo(`Error: ${msg}`);
+      toast.error(msg);
+    }
   };
 
   // Text mode - send on Enter or button click
@@ -195,9 +222,16 @@ export default function Home() {
               <p className="text-sm font-semibold text-zinc-200">Revenue Wallet</p>
               <button
                 onClick={async () => {
-                  const res = await fetch('/api/alchemy/wallet');
-                  const data = await res.json();
-                  setAlchemyInfo(`Revenue wallet ${data.address} balance ${data.balance}`);
+                  try {
+                    const res = await apiFetch('/api/alchemy/wallet');
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to fetch wallet');
+                    setAlchemyInfo(`Revenue wallet ${data.address} balance ${data.balance}`);
+                  } catch (err) {
+                    const msg = err instanceof RateLimitError ? err.message : 'Failed to fetch wallet info';
+                    setAlchemyInfo(`Error: ${msg}`);
+                    toast.error(msg);
+                  }
                 }}
                 className="w-full rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
               >
@@ -224,13 +258,22 @@ export default function Home() {
               <button
                 onClick={async () => {
                   if (!withAddress || !withAmount) return;
-                  const res = await fetch('/api/alchemy/wallet/withdraw', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ to: withAddress, amount: withAmount }),
-                  });
-                  const data = await res.json();
-                  setAlchemyInfo(`Withdraw tx: ${data.txHash}`);
+                  try {
+                    const res = await apiFetch('/api/alchemy/wallet/withdraw', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ to: withAddress, amount: withAmount }),
+                      timeoutMs: 30_000,
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Withdrawal failed');
+                    setAlchemyInfo(`Withdraw tx: ${data.txHash}`);
+                    toast.success('Withdrawal submitted');
+                  } catch (err) {
+                    const msg = err instanceof RateLimitError ? err.message : (err instanceof Error ? err.message : 'Withdrawal failed');
+                    setAlchemyInfo(`Error: ${msg}`);
+                    toast.error(msg);
+                  }
                 }}
                 className="w-full rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700"
               >

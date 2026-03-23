@@ -1,6 +1,4 @@
-name: Apply Recommended Railway Env (legacy trigger)
-# This workflow is superseded by apply-railway-env.yml
-# Kept for backward compatibility — routes to the same Railway script.
+name: Apply Recommended Railway Env
 
 on:
   workflow_dispatch:
@@ -70,5 +68,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Apply recommended env values to Railway
+      - name: Apply recommended env values
         run: npm run apply-railway-env

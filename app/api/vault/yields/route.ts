@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth/apiGuard';
 import { getYieldIntelligence } from '@/lib/defi/yield-intelligence';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  const cookie = req.headers.get('cookie') || '';
-  const hasSession = cookie.includes('ff_session') || cookie.includes('ff_dashboard_session');
-  const isLocalhost = req.headers.get('host')?.startsWith('localhost');
-
-  if (!hasSession && !isLocalhost) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const denied = await requireAuth(req);
+  if (denied) return denied;
 
   try {
     const intel = await getYieldIntelligence();

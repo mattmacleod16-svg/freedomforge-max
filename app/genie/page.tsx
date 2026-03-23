@@ -88,27 +88,45 @@ export default function GeniePage() {
   const [isNew, setIsNew] = useState(true);
   const [genieMessage, setGenieMessage] = useState('');
   const [userInput, setUserInput] = useState('');
+  const [username, setUsername] = useState('');
+
+  // Derive per-user localStorage keys so each account has its own profile
+  const profileKey = username ? `ff_genie_profile_${username}` : 'ff_genie_profile';
+  const userProfileKey = username ? `ff_user_profile_${username}` : 'ff_user_profile';
+
+  useEffect(() => {
+    // Fetch logged-in username first, then load the matching profile
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => { if (d?.user) setUsername(d.user); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('ff_genie_profile');
+      const saved = localStorage.getItem(profileKey);
       if (saved) {
         setProfile({ ...DEFAULT_PROFILE, ...JSON.parse(saved) });
         setIsNew(false);
+      } else {
+        // Reset to new-user state when switching accounts
+        setProfile(DEFAULT_PROFILE);
+        setIsNew(true);
+        setSetupStep(0);
       }
     } catch {}
-  }, []);
+  }, [profileKey]);
 
   const saveProfile = useCallback((updates: Partial<GenieProfile>) => {
     const updated = { ...profile, ...updates };
     setProfile(updated);
-    localStorage.setItem('ff_genie_profile', JSON.stringify(updated));
-    // Also sync to ff_user_profile for other pages
+    localStorage.setItem(profileKey, JSON.stringify(updated));
+    // Sync name/avatar to shared user profile key for other pages
     try {
-      const existing = JSON.parse(localStorage.getItem('ff_user_profile') || '{}');
-      localStorage.setItem('ff_user_profile', JSON.stringify({ ...existing, name: updated.name, avatar: updated.avatar }));
+      const existing = JSON.parse(localStorage.getItem(userProfileKey) || '{}');
+      localStorage.setItem(userProfileKey, JSON.stringify({ ...existing, name: updated.name, avatar: updated.avatar }));
     } catch {}
-  }, [profile]);
+  }, [profile, profileKey, userProfileKey]);
 
   const toggleInterest = (id: string) => {
     const interests = profile.interests.includes(id)
@@ -548,7 +566,7 @@ export default function GeniePage() {
               </div>
             </div>
 
-            <button onClick={() => { localStorage.removeItem('ff_genie_profile'); setProfile(DEFAULT_PROFILE); setIsNew(true); setSetupStep(0); }}
+            <button onClick={() => { localStorage.removeItem(profileKey); setProfile(DEFAULT_PROFILE); setIsNew(true); setSetupStep(0); }}
               className="w-full rounded-xl border border-red-500/20 py-2 text-xs text-red-400 hover:bg-red-500/5 transition">
               Reset Genie (start over)
             </button>
