@@ -30,6 +30,10 @@ declare namespace NodeJS {
     OPEN_ROUTER_API_KEY?: string;
     OPENROUTER_ENDPOINT?: string;
     OPENROUTER_MODEL?: string;
+    PERPLEXITY_API_KEY?: string;
+    PPLX_API_KEY?: string;
+    PERPLEXITY_ENDPOINT?: string;
+    PERPLEXITY_MODEL?: string;
     GROQ_API_KEY?: string;
     GROC_API_KEY?: string;
     GROQ_ENDPOINT?: string;
@@ -129,6 +133,26 @@ declare namespace NodeJS {
     AI_ESCALATION_AGREEMENT_THRESHOLD?: string;
     AI_ESCALATION_CONFIDENCE_THRESHOLD?: string;
     RAILWAY?: string;
+    API_CREDIT_RESERVE_BPS?: string;
+    API_CREDIT_ALERT_THRESHOLD_USD?: string;
+    API_CREDIT_LEDGER_FILE?: string;
+    VERCEL?: string;
+
+    // ─── Railway ──────────────────────────────────────────────────────
+    RAILWAY_ENVIRONMENT?: string;
+    RAILWAY_SERVICE_NAME?: string;
+    RAILWAY_PROJECT_ID?: string;
+    PERSISTENT_STORAGE_PATH?: string;
+
+    // ─── Model Synergy Engine ─────────────────────────────────────────
+    MODEL_SYNERGY_ENABLED?: string;
+    MODEL_SYNERGY_MAX_CHAIN_STEPS?: string;
+    MODEL_SYNERGY_BUDGET_CAP?: string;
+
+    // ─── API Credit Auto-Funding ──────────────────────────────────────
+    API_AUTO_FUNDING_ENABLED?: string;
+    API_AUTO_FUNDING_MIN_RESERVE_BPS?: string;
+    API_AUTO_FUNDING_MAX_RESERVE_BPS?: string;
 
     // ─── MultiversX (xPortal) ─────────────────────────────────────────
     MVX_ENABLED?: string;
@@ -151,6 +175,7 @@ declare namespace NodeJS {
     SOLANA_WALLET_ADDRESS?: string;
     SOLANA_PRIVATE_KEY?: string;
     SOLANA_NETWORK?: string;
+    HELIUS_API_KEY?: string;
 
     // ─── DeFi Multi-Chain ─────────────────────────────────────────────
     DEFI_MULTICHAIN_ENABLED?: string;

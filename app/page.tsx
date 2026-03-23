@@ -77,44 +77,18 @@ export default function Home() {
       <div className="mx-auto max-w-7xl space-y-8">
         <header className="glass-card rounded-3xl p-6 md:p-8 gold-accent-top">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80">Autonomous Intelligence Stack</p>
-              <h1 className="mt-2 text-4xl md:text-6xl font-black tracking-tight phoenix-title">FreedomForge Max</h1>
-              <p className="mt-2 text-zinc-300 max-w-2xl">
-                High-intelligence, risk-aware command interface for prediction, orchestration, and on-chain operations.
-                Powered by <span className="text-amber-300 font-semibold">20+ AI providers</span> and <span className="text-purple-300 font-semibold">50+ models</span>.
-              </p>
+            <div className="flex items-center gap-5">
+              <img src="/freedomforge-logo.jpg" alt="FreedomForge" className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border border-orange-500/30 shadow-lg shadow-orange-500/10" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-orange-400/90">Autonomous Intelligence Stack</p>
+                <h1 className="mt-2 text-4xl md:text-6xl font-black tracking-tight text-white">FreedomForge Max</h1>
+                <p className="mt-2 text-zinc-300 max-w-2xl">
+                  High-intelligence, risk-aware command interface for prediction, orchestration, and on-chain operations.
+                  Powered by <span className="text-amber-300 font-semibold">20+ AI providers</span> and <span className="text-purple-300 font-semibold">50+ models</span>.
+                </p>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-300">
-              <Link href="/ai-models" className="rounded-full border border-purple-500/30 px-3 py-1 text-purple-300 hover:bg-purple-500/10 transition">
-                AI Models
-              </Link>
-              <Link href="/intelligence" className="rounded-full border border-cyan-500/30 px-3 py-1 text-cyan-300 hover:bg-cyan-500/10 transition">
-                Intelligence
-              </Link>
-              <Link href="/token" className="rounded-full border border-amber-500/30 px-3 py-1 text-amber-300 hover:bg-amber-500/10 transition">
-                $FORGE Token
-              </Link>
-              <Link href="/cipher-lab" className="rounded-full border border-emerald-500/30 px-3 py-1 text-emerald-300 hover:bg-emerald-500/10 transition">
-                Cipher Lab
-              </Link>
-              <Link href="/vault" className="rounded-full border border-pink-500/30 px-3 py-1 text-pink-300 hover:bg-pink-500/10 transition">
-                Vault
-              </Link>
-              <Link href="/life" className="rounded-full border border-emerald-500/30 px-3 py-1 text-emerald-300 hover:bg-emerald-500/10 transition">
-                Life
-              </Link>
-              <Link href="/watchdog" className="rounded-full border border-red-500/30 px-3 py-1 text-red-300 hover:bg-red-500/10 transition">
-                Watchdog
-              </Link>
-              <Link href="/discover" className="rounded-full border border-blue-500/30 px-3 py-1 text-blue-300 hover:bg-blue-500/10 transition">
-                Discover
-              </Link>
-              <Link href="/skills" className="rounded-full border border-purple-500/30 px-3 py-1 text-purple-300 hover:bg-purple-500/10 transition">
-                Skills
-              </Link>
-              <Link href="/genie" className="rounded-full border border-cyan-500/30 px-3 py-1 text-cyan-300 hover:bg-cyan-500/10 transition">
-              </Link>                
+            <div className="flex items-center gap-3 text-xs text-zinc-300">
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
           </div>
