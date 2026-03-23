@@ -23,6 +23,7 @@ jobs:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID || vars.RAILWAY_PROJECT_ID }}
       RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID || vars.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID || vars.RAILWAY_ENVIRONMENT_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,7 +40,16 @@ jobs:
             exit 1
           fi
           if [ -z "$RAILWAY_PROJECT_ID" ]; then
-            echo "RAILWAY_PROJECT_ID not set; ensure it is configured in repository secrets or variables"
+            echo "Missing required secret: RAILWAY_PROJECT_ID"
+            exit 1
+          fi
+          if [ -z "$RAILWAY_SERVICE_ID" ]; then
+            echo "Missing required secret: RAILWAY_SERVICE_ID"
+            exit 1
+          fi
+          if [ -z "$RAILWAY_ENVIRONMENT_ID" ]; then
+            echo "Missing required secret: RAILWAY_ENVIRONMENT_ID"
+            exit 1
           fi
 
       - name: Run weekly policy tuner

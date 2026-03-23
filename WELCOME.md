@@ -375,7 +375,7 @@ This creates a clean zip excluding:
 
 - `node_modules/`, `.next/`, `.env.local`, `.env`
 - Git history, IDE files, build artifacts
-- Sensitive data directories (`data/`, `.claude/`)
+- Sensitive data directories (`data/`, `.claude/`, `.railway/`)
 - Log files and OS artifacts
 
 The recipient gets a clean, ready-to-configure package with `.env.example` included.
