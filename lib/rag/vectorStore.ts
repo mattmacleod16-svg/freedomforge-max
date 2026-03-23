@@ -7,6 +7,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createHash, randomBytes } from 'crypto';
 
+const { createLogger } = require('../logger');
+const log = createLogger('vector-store');
+
 interface VectorDoc {
   id: string;
   text: string;
@@ -50,10 +53,10 @@ class VectorStore {
         this.docs = raw.map((doc) => this.normalizeDoc(doc));
         const hadExpired = this.cleanupExpiredDocuments();
         if (hadExpired) await this.persist();
-        console.log(`Loaded ${this.docs.length} documents from knowledge base`);
+        log.info(`Loaded ${this.docs.length} documents from knowledge base`);
       }
     } catch (error) {
-      console.error('Error loading knowledge base:', error);
+      log.error('Error loading knowledge base:', error);
     }
   }
 
@@ -112,7 +115,7 @@ class VectorStore {
       fs.writeFileSync(tmp, JSON.stringify(this.docs, null, 2));
       fs.renameSync(tmp, this.storePath);
     } catch (error) {
-      console.error('Error persisting knowledge base:', error);
+      log.error('Error persisting knowledge base:', error);
     }
   }
 
@@ -383,7 +386,7 @@ export async function loadOpenSourceData() {
 
   // Add to vector store
   await vectorStore.addDocuments(datasets);
-  console.log(`Loaded ${datasets.length} documents into knowledge base`);
+  log.info(`Loaded ${datasets.length} documents into knowledge base`);
 }
 
 /**
