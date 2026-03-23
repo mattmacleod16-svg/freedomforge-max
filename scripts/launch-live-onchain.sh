@@ -28,7 +28,7 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 required_keys=(
-  "WALLET_PRIVATE_KEY"
+  "AGENTS_WALLET_PRIVATE_KEY"
   "ALCHEMY_API_KEY"
   "CONVERSION_NETWORKS"
 )

@@ -17,6 +17,7 @@ const PRIVATE_KEY = (
   process.env.POLY_CLOB_PRIVATE_KEY ||
   process.env.POLYMARKET_PRIVATE_KEY ||
   process.env.PRIVATE_KEY ||
+  process.env.AGENTS_WALLET_PRIVATE_KEY ||
   process.env.WALLET_PRIVATE_KEY ||
   ''
 ).trim();
@@ -45,7 +46,7 @@ async function main() {
   }
 
   if (!PRIVATE_KEY) {
-    throw new Error('Missing private key. Set POLY_CLOB_PRIVATE_KEY, PRIVATE_KEY, or WALLET_PRIVATE_KEY.');
+    throw new Error('Missing private key. Set POLY_CLOB_PRIVATE_KEY, PRIVATE_KEY, or AGENTS_WALLET_PRIVATE_KEY.');
   }
 
   const wallet = new Wallet(PRIVATE_KEY);

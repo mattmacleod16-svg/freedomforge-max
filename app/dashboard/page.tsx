@@ -653,9 +653,8 @@ export default function CommandCenter() {
       <header className={`sticky top-0 z-50 backdrop-blur-2xl border-b transition-all duration-300 ${pulseHeader ? 'border-purple-400/30' : 'border-slate-700/30'}`} style={{ background: 'rgba(13, 6, 25, 0.85)' }}>
         <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              <div className="absolute inset-0 border border-purple-500/25 rotate-45 rounded-sm" />
-              <span className="text-lg font-black phoenix-title">FF</span>
+            <div className="relative w-10 h-10 flex items-center justify-center rounded-lg overflow-hidden">
+              <img src="/freedomforge-logo.jpg" alt="FreedomForge" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-lg font-black phoenix-title tracking-wide">FREEDOMFORGE</h1>

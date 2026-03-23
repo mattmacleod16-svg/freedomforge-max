@@ -214,9 +214,9 @@ async function executeRoute(networkSlug, networkState, nowMs) {
     return { network: networkSlug, status: 'skipped', reason: `missing CONVERSION_FROM_TOKEN_${suffix} / CONVERSION_TO_TOKEN_${suffix}` };
   }
 
-  const privateKey = (process.env.WALLET_PRIVATE_KEY || '').trim();
+  const privateKey = (process.env.AGENTS_WALLET_PRIVATE_KEY || process.env.WALLET_PRIVATE_KEY || '').trim();
   if (!privateKey) {
-    return { network: networkSlug, status: 'skipped', reason: 'missing WALLET_PRIVATE_KEY' };
+    return { network: networkSlug, status: 'skipped', reason: 'missing AGENTS_WALLET_PRIVATE_KEY' };
   }
 
   const rpcUrl = getRpcUrl(networkSlug);

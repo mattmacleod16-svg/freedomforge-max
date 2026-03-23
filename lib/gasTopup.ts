@@ -6,7 +6,7 @@ import { logEvent } from './logger';
 /**
  * Ensure the revenue wallet has enough ETH for gas. If below threshold,
  * transfer `GAS_TOPUP_AMOUNT` from the funding wallet defined by
- * `FUNDING_PRIVATE_KEY` (env) to the revenue address.
+ * `GAS_FUNDING_PRIVATE_KEY` (env) to the revenue address.
  */
 function getNetworkEnvSuffix(networkRaw?: string): string {
   const value = (networkRaw || process.env.ALCHEMY_NETWORK || 'eth-mainnet').toLowerCase();
@@ -38,7 +38,7 @@ export async function ensureRevenueWalletHasGas(revenueAddress: string, networkO
 
   const threshold = (getScopedEnv('GAS_TOPUP_THRESHOLD', networkOverride) || '0.01').trim(); // native gas token
   const topupAmount = (getScopedEnv('GAS_TOPUP_AMOUNT', networkOverride) || '0.05').trim(); // native gas token
-  const fundingKey = process.env.FUNDING_PRIVATE_KEY?.trim();
+  const fundingKey = (process.env.GAS_FUNDING_PRIVATE_KEY || process.env.FUNDING_PRIVATE_KEY)?.trim();
   const adaptiveTopupEnabled = (getScopedEnv('GAS_TOPUP_ADAPTIVE', networkOverride) || 'true').trim().toLowerCase() === 'true';
   const adaptiveBufferEth = (getScopedEnv('GAS_TOPUP_BUFFER_ETH', networkOverride) || '0.002').trim();
   const maxTopupAmount = getScopedEnv('GAS_TOPUP_MAX_AMOUNT', networkOverride)?.trim();

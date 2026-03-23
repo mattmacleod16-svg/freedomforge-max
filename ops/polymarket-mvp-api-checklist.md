@@ -18,7 +18,7 @@ This checklist is designed for your current stack and mission: continuous, small
 ## 2) Wallet / Settlement (Required)
 
 - Signing key:
-  - `WALLET_PRIVATE_KEY`
+  - `AGENTS_WALLET_PRIVATE_KEY`
 - Chain RPC:
   - `ALCHEMY_API_KEY`
   - `ALCHEMY_NETWORK` (set to execution chain)

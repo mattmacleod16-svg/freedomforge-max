@@ -51,7 +51,11 @@ Symptoms:
 
 Fix:
 - Refill funding wallet and rerun manual distribution.
+<<<<<<< Updated upstream
 - Confirm `FUNDING_PRIVATE_KEY` exists in Railway environment variables.
+=======
+- Confirm `GAS_FUNDING_PRIVATE_KEY` exists in Vercel Production env.
+>>>>>>> Stashed changes
 
 ### B) Repeated `results: null`
 Symptoms:

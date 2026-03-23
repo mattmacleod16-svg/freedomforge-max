@@ -5,8 +5,8 @@ Use this checklist to keep gas top-up and payout automation stable after env or 
 ## Locked Runtime Settings (validated in live test)
 
 - `ALCHEMY_NETWORK=base-mainnet`
-- `FUNDING_PRIVATE_KEY` set (must hold enough native ETH for top-ups)
-- `WALLET_PRIVATE_KEY` set (stable revenue wallet)
+- `GAS_FUNDING_PRIVATE_KEY` set (must hold enough native ETH for top-ups)
+- `AGENTS_WALLET_PRIVATE_KEY` set (stable revenue wallet)
 - `PAYOUT_TOKEN_ADDRESS` unset for native ETH payout mode
 - `GAS_TOPUP_AMOUNT=0.01`
 - `GAS_TOPUP_THRESHOLD=0.01` (default is acceptable)

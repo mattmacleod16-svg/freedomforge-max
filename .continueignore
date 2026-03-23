@@ -1,0 +1,12 @@
+# Heavy/binary files that shouldn't be indexed
+node_modules/
+.next/
+ios/App/Pods/
+ios/capacitor-cordova-ios-plugins/
+logs/*.log
+data/*.bak.*
+data/backtest-cache/
+public/*.png
+public/*.jpg
+public/*.ico
+*.map

@@ -63,8 +63,13 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-black via-zinc-950 to-black flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="rounded-2xl border border-zinc-700/60 bg-zinc-900/70 backdrop-blur-sm p-7 shadow-2xl shadow-orange-500/10">
-          <p className="text-xs uppercase tracking-[0.2em] text-orange-400/90">FreedomForge Max</p>
-          <h1 className="mt-3 text-3xl font-black text-white">Dashboard Login</h1>
+          <div className="flex items-center gap-4">
+            <img src="/freedomforge-logo.jpg" alt="FreedomForge" className="w-12 h-12 rounded-lg object-cover border border-orange-500/20" />
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-orange-400/90">FreedomForge Max</p>
+              <h1 className="mt-1 text-3xl font-black text-white">Dashboard Login</h1>
+            </div>
+          </div>
           <p className="mt-2 text-sm text-zinc-300">Secure session sign-in for operations controls and live revenue telemetry.</p>
 
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>

@@ -1868,6 +1868,25 @@ async function runCycle(startMs) {
     }
   }
 
+  // Phase 8e: API Credit Auto-Funding — check spend velocity, auto-scale reserves, trigger purchases
+  try {
+    const { autoFundingTick } = require('../lib/intelligence/apiCreditAutoFunder');
+    const fundingResult = await autoFundingTick();
+    if (fundingResult.checked) {
+      log('info', `API auto-funding: runway=$${fundingResult.runway.remainingUsd.toFixed(2)} velocity=$${fundingResult.velocity.usdPerHour.toFixed(4)}/h reserve=${fundingResult.newReserveBps}bps`);
+      if (fundingResult.purchases.length > 0) {
+        for (const p of fundingResult.purchases) {
+          log('info', `  API purchase: ${p.provider} $${p.amountUsd.toFixed(2)} status=${p.status}${p.error ? ' err=' + p.error : ''}`);
+        }
+      }
+      if (fundingResult.reserveAdjusted) {
+        log('info', `  API reserve BPS auto-scaled to ${fundingResult.newReserveBps}`);
+      }
+    }
+  } catch (e) {
+    log('warn', `API auto-funding tick failed: ${e?.message || e}`);
+  }
+
   // Update state
   state.lastRunAt = startMs;
   state.cycleCount++;

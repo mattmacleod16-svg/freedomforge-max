@@ -16,6 +16,8 @@ import { initializeMemoryEngine, recallMemories, rememberEpisode } from '@/lib/i
 import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
 import { buildVendorStrategyContext } from '@/lib/intelligence/vendorStack';
 import { buildBehavioralContext } from '@/lib/intelligence/behavioralIntel';
+import { initializeModelSynergy, buildSynergyPlan, classifyQueryIntent, recordSynergyOutcome, crossCalibrate } from '@/lib/intelligence/modelSynergyEngine';
+import { initializeAutoFunding } from '@/lib/intelligence/apiCreditAutoFunder';
 import { logEvent } from '@/lib/logger';
 
 function isMaxModeEnabled() {
@@ -438,7 +440,9 @@ export async function initializeSynthesis() {
   initializeMemoryEngine();
   initializeAdaptiveIntelligence();
   initializeAutonomyDirector();
-  console.log('Knowledge synthesis engine initialized');
+  initializeModelSynergy();
+  initializeAutoFunding();
+  console.log('Knowledge synthesis engine initialized (with model synergy & auto-funding)');
 }
 
 /**
@@ -556,8 +560,19 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     kbHitCount = kbMatches;
     enhancedPrompt = kbEnhancedPrompt;
 
-    // Step 3: Get responses from multiple models
-    console.log('🤖 Querying multiple AI models...');
+    // Step 3: Get responses from multiple models (synergy-aware)
+    console.log('🤖 Querying multiple AI models with synergy routing...');
+
+    // Build synergy plan — assigns specialized models to chain steps
+    const synergyPlan = buildSynergyPlan(userQuery, getAvailableModels(), {
+      budgetCap: maxMode ? 'expensive' : 'moderate',
+    });
+    const queryIntent = synergyPlan.intent;
+    sources.push(`synergy://${queryIntent}/${synergyPlan.chain.id}`);
+
+    // Use synergy-preferred models to inform champion routing
+    const synergyPreferred = synergyPlan.assignments.map((a) => a.model);
+
     const routing = selectChampionChallengerRouting({
       availableModels: getAvailableModels(),
       regime: marketContext?.regime || 'unknown',
@@ -569,6 +584,10 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     if (maxMode) {
       routing.modelCount = Math.max(routing.modelCount, Math.min(5, Math.max(3, getAvailableModels().length)));
     }
+
+    // Merge synergy-preferred models with champion routing
+    const mergedPreferred = [...new Set([...synergyPreferred, ...routing.preferredModels])];
+    routing.preferredModels = mergedPreferred;
 
     const reasoningProfile = buildReasoningProfile({
       userQuery,
@@ -582,8 +601,23 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     });
 
     let modelResponses = await getMultiModelResponse(enhancedPrompt, reasoningProfile.initialModelCount, {
-      preferredModels: routing.preferredModels,
+      preferredModels: mergedPreferred,
     });
+
+    // Apply cross-model calibration from synergy engine
+    const calibrated = crossCalibrate(
+      modelResponses.map((r) => ({
+        model: r.model,
+        response: r.response,
+        confidence: r.confidence,
+        specialization: synergyPlan.assignments.find((a) => a.model === r.model)?.specialization || 'general' as const,
+      }))
+    );
+    // Update confidences with cross-calibrated values
+    for (const cal of calibrated) {
+      const match = modelResponses.find((r) => r.model === cal.model);
+      if (match) match.confidence = cal.calibratedConfidence;
+    }
 
     let consensus = buildEnsembleConsensus({
       responses: modelResponses,
@@ -604,7 +638,7 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
 
     if (escalationDecision.escalate && reasoningProfile.maxModelCount > reasoningProfile.initialModelCount) {
       const escalatedResponses = await getMultiModelResponse(enhancedPrompt, reasoningProfile.maxModelCount, {
-        preferredModels: routing.preferredModels,
+        preferredModels: mergedPreferred,
       });
 
       if (escalatedResponses.length > modelResponses.length) {
@@ -617,6 +651,22 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     }
 
     const modelsUsed = modelResponses.map((r) => r.model);
+
+    // Record synergy outcome for reinforcement learning
+    recordSynergyOutcome({
+      intent: queryIntent,
+      chainId: synergyPlan.chain.id,
+      steps: synergyPlan.assignments
+        .filter((a) => modelsUsed.includes(a.model))
+        .map((a) => ({
+          model: a.model,
+          specialization: a.specialization,
+          reward: modelResponses.find((r) => r.model === a.model)?.confidence ?? 0.5,
+          latencyMs: Date.now() - startTime,
+        })),
+      overallReward: consensus.agreementScore,
+    });
+
     await logEvent('ensemble_decision', {
       queriedModels: modelsUsed,
       passOneModels: passOneModelsUsed,

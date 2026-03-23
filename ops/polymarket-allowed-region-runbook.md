@@ -18,7 +18,7 @@ Local machine:
 
 - SSH private key for remote host
 - Local env file with required keys:
-  - `WALLET_PRIVATE_KEY`
+  - `AGENTS_WALLET_PRIVATE_KEY`
   - `ALCHEMY_API_KEY`
   - `POLY_CLOB_API_KEY`
   - `POLY_CLOB_API_SECRET`

@@ -278,7 +278,7 @@ export function initRevenueWallet(networkOverride?: string): Wallet | null {
   const existing = revenueWalletByNetwork.get(rpcSlug);
   if (existing) return existing;
 
-  let privateKey = process.env.WALLET_PRIVATE_KEY;
+  let privateKey = process.env.AGENTS_WALLET_PRIVATE_KEY || process.env.WALLET_PRIVATE_KEY;
   const requestedAutoGenerate = String(process.env.WALLET_AUTO_GENERATE || 'false').toLowerCase() === 'true';
   const autoGenerateWallet = requestedAutoGenerate && process.env.NODE_ENV !== 'production';
 
@@ -286,8 +286,8 @@ export function initRevenueWallet(networkOverride?: string): Wallet | null {
     if (!autoGenerateWallet) {
       if (!missingWalletConfigAlertedByNetwork.has(rpcSlug)) {
         const msg = requestedAutoGenerate && process.env.NODE_ENV === 'production'
-          ? 'WALLET_AUTO_GENERATE is ignored in production; set WALLET_PRIVATE_KEY for a stable production wallet.'
-          : 'No WALLET_PRIVATE_KEY configured; revenue wallet disabled. Set WALLET_PRIVATE_KEY to use one stable address. Set WALLET_AUTO_GENERATE=true only for local testing.';
+          ? 'WALLET_AUTO_GENERATE is ignored in production; set AGENTS_WALLET_PRIVATE_KEY for a stable production wallet.'
+          : 'No AGENTS_WALLET_PRIVATE_KEY configured; revenue wallet disabled. Set AGENTS_WALLET_PRIVATE_KEY to use one stable address. Set WALLET_AUTO_GENERATE=true only for local testing.';
         console.error(msg);
         sendAlert(msg);
         missingWalletConfigAlertedByNetwork.add(rpcSlug);
@@ -298,9 +298,9 @@ export function initRevenueWallet(networkOverride?: string): Wallet | null {
     const generated = Wallet.createRandom();
     privateKey = generated.privateKey;
     generatedWalletAddressByNetwork.set(rpcSlug, generated.address);
-    console.warn("🤖 WALLET_AUTO_GENERATE=true and no WALLET_PRIVATE_KEY set; generated temporary wallet:", generated.address);
+    console.warn("🤖 WALLET_AUTO_GENERATE=true and no AGENTS_WALLET_PRIVATE_KEY set; generated temporary wallet:", generated.address);
     console.warn("⚠️ This wallet is ephemeral and should only be used for local testing");
-    sendAlert(`🤖 Temporary wallet generated (WALLET_AUTO_GENERATE=true): ${generated.address} — set WALLET_PRIVATE_KEY for a stable production address`);
+    sendAlert(`🤖 Temporary wallet generated (WALLET_AUTO_GENERATE=true): ${generated.address} — set AGENTS_WALLET_PRIVATE_KEY for a stable production address`);
   }
   const provider = getRpcProvider(networkOverride);
   if (!provider) return null;

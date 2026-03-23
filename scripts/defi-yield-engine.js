@@ -11,7 +11,7 @@
  *   - Auto-withdraws if kill switch is active
  *   - Gas guard: aborts if estimated gas exceeds $2
  *
- * Requires: ALCHEMY_API_KEY, WALLET_PRIVATE_KEY
+ * Requires: ALCHEMY_API_KEY, AGENTS_WALLET_PRIVATE_KEY
  * Uses ethers.js v6 + Alchemy RPC on Base mainnet.
  */
 
@@ -34,7 +34,7 @@ const MIN_APY = Math.min(100, Math.max(0, Number(process.env.DEFI_YIELD_MIN_APY 
 const PROTOCOL = String(process.env.DEFI_YIELD_PROTOCOL || 'aave').toLowerCase();
 const NETWORK = String(process.env.DEFI_YIELD_NETWORK || 'base').toLowerCase();
 const CHECK_INTERVAL_SEC = Math.min(86400, Math.max(60, Number(process.env.DEFI_YIELD_CHECK_INTERVAL_SEC || 3600)));
-const WALLET_PRIVATE_KEY = (process.env.WALLET_PRIVATE_KEY || '').trim();
+const WALLET_PRIVATE_KEY = (process.env.AGENTS_WALLET_PRIVATE_KEY || process.env.WALLET_PRIVATE_KEY || '').trim();
 const ALCHEMY_API_KEY = (process.env.ALCHEMY_API_KEY || '').trim();
 const STATE_FILE = process.env.DEFI_YIELD_STATE_FILE || 'data/defi-yield-state.json';
 const GAS_MAX_USD = 2.0; // hard cap: never spend more than $2 on gas per tx
@@ -230,7 +230,7 @@ async function main() {
     return;
   }
   if (!DRY_RUN && !WALLET_PRIVATE_KEY) {
-    console.log(JSON.stringify({ status: 'skipped', reason: 'missing WALLET_PRIVATE_KEY (required for live mode)' }, null, 2));
+    console.log(JSON.stringify({ status: 'skipped', reason: 'missing AGENTS_WALLET_PRIVATE_KEY (required for live mode)' }, null, 2));
     return;
   }
 

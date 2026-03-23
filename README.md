@@ -194,7 +194,7 @@ This project is open source under the [MIT License](LICENSE).
 - Set `WALLET_PRIVATE_KEY` to keep one stable production revenue wallet address across deploys.
 - `WALLET_AUTO_GENERATE=true` is for local testing only (ephemeral wallet); keep it unset/false in production.
 - Revenue wallet can automatically distribute funds to a configurable list of addresses (`REVENUE_RECIPIENTS`). Use a single recipient value if you want one destination wallet.
-- Optional gas self-funding: set `FUNDING_PRIVATE_KEY` so the bot auto-topups gas when revenue wallet balance drops below `GAS_TOPUP_THRESHOLD`.
+- Optional gas self-funding: set `GAS_FUNDING_PRIVATE_KEY` so the bot auto-topups gas when revenue wallet balance drops below `GAS_TOPUP_THRESHOLD`.
 - Optional token payouts: set `PAYOUT_TOKEN_ADDRESS` to distribute an ERC-20 token balance instead of native ETH (for Base bridged WETH use `0x4200000000000000000000000000000000000006` and set `ALCHEMY_NETWORK=base-mainnet`)
 - Distribution tuning:
 	- `MIN_PAYOUT_ETH` minimum per-recipient native ETH payout (default `0`)
@@ -204,7 +204,7 @@ This project is open source under the [MIT License](LICENSE).
 - Self-sustaining payout mode (no constant manual topups):
 	- `GAS_RESERVE_ETH` native ETH kept in the revenue wallet before payouts (default `0.02`)
 	- `SELF_SUSTAIN_REINVEST_BPS` basis points of post-reserve funds retained for growth (default `2000` = 20%)
-	- `FUNDING_PRIVATE_KEY` optional treasury key for automatic gas topups when below threshold
+	- `GAS_FUNDING_PRIVATE_KEY` optional treasury key for automatic gas topups when below threshold
 - Horizontal scaling:
 	- Distribution endpoint accepts shard params: `/api/alchemy/wallet/distribute?shard=0&shards=2&botId=bot-0`
 	- Workflow `.github/workflows/distribute-horizontal.yml` runs up to 4 shard bots in parallel

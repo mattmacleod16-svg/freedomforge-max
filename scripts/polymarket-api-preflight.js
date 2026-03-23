@@ -22,7 +22,7 @@ dotenv.config();
 const APP_BASE_URL = (process.env.APP_BASE_URL || 'https://freedomforge-max.up.railway.app').replace(/\/$/, '');
 
 const requiredEnv = [
-  'WALLET_PRIVATE_KEY',
+  'AGENTS_WALLET_PRIVATE_KEY',
   'ALCHEMY_API_KEY',
   'ZEROX_API_KEY',
   'CONVERSION_ENGINE_ENABLED',
