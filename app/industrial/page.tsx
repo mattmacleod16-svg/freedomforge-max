@@ -198,24 +198,24 @@ export default function IndustrialPage() {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/50 p-6 space-y-4">
               <h2 className="text-lg font-bold text-white">🎯 Equipment Selection Wizard</h2>
-              <div><label className="text-xs text-zinc-500 block mb-1">Fluid Type</label>
-                <select value={sFluid} onChange={e => setSFluid(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
+              <div><label htmlFor="selector-fluid" className="text-xs text-zinc-500 block mb-1">Fluid Type</label>
+                <select id="selector-fluid" title="Fluid Type" value={sFluid} onChange={e => setSFluid(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
                   {['water','oil','gas','steam','chemical','slurry','pharmaceutical'].map(f => <option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
                 </select></div>
-              <div><label className="text-xs text-zinc-500 block mb-1">Pipe Size</label>
-                <select value={sPipe} onChange={e => setSPipe(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
+              <div><label htmlFor="selector-pipe-size" className="text-xs text-zinc-500 block mb-1">Pipe Size</label>
+                <select id="selector-pipe-size" title="Pipe Size" value={sPipe} onChange={e => setSPipe(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
                   {[['small','Small (<2")'],['medium','Medium (2–6")'],['large','Large (>6")']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                 </select></div>
-              <div><label className="text-xs text-zinc-500 block mb-1">Required Accuracy</label>
-                <select value={sAccuracy} onChange={e => setSAccuracy(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
+              <div><label htmlFor="selector-accuracy" className="text-xs text-zinc-500 block mb-1">Required Accuracy</label>
+                <select id="selector-accuracy" title="Required Accuracy" value={sAccuracy} onChange={e => setSAccuracy(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
                   {[['high','High (±0.1–0.5%)'],['moderate','Moderate (±0.5–1%)'],['low','Standard (±1–2%)']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                 </select></div>
-              <div><label className="text-xs text-zinc-500 block mb-1">Budget</label>
-                <select value={sBudget} onChange={e => setSBudget(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
+              <div><label htmlFor="selector-budget" className="text-xs text-zinc-500 block mb-1">Budget</label>
+                <select id="selector-budget" title="Budget" value={sBudget} onChange={e => setSBudget(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
                   {[['low','Low (<$5K)'],['medium','Medium ($5K–$15K)'],['high','High ($15K+)']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                 </select></div>
-              <div><label className="text-xs text-zinc-500 block mb-1">Application</label>
-                <select value={sApp} onChange={e => setSApp(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
+              <div><label htmlFor="selector-application" className="text-xs text-zinc-500 block mb-1">Application</label>
+                <select id="selector-application" title="Application" value={sApp} onChange={e => setSApp(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm">
                   {[['process-control','Process Control'],['custody-transfer','Custody Transfer'],['hvac','HVAC'],['environmental','Environmental Monitoring'],['pharmaceutical','Pharmaceutical'],['food','Food & Beverage']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                 </select></div>
               <button onClick={runRecommendation} disabled={recommending} className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:opacity-90 transition">
@@ -229,7 +229,12 @@ export default function IndustrialPage() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-white">{i === 0 ? '🏆 ' : ''}{r.name}</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-16 h-2 rounded-full bg-zinc-700 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500" style={{width:`${r.score}%`}} /></div>
+                      <progress
+                        aria-label={`${r.name} recommendation score`}
+                        className="w-16 h-2 overflow-hidden [&::-webkit-progress-bar]:bg-zinc-700 [&::-webkit-progress-value]:bg-cyan-500 [&::-moz-progress-bar]:bg-cyan-500"
+                        max={100}
+                        value={r.score}
+                      />
                       <span className="text-xs font-bold text-cyan-400">{r.score}%</span>
                     </div>
                   </div>
@@ -251,11 +256,13 @@ export default function IndustrialPage() {
             <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/50 p-6 space-y-3">
               <h2 className="text-lg font-bold text-white">💰 Total Cost of Ownership</h2>
               <p className="text-xs text-zinc-500">The real cost of a flow meter goes far beyond purchase price. Energy loss from pressure drop and measurement error costs often dominate.</p>
-              {[['Purchase Price ($)', tPurchase, setTPurchase], ['Installation ($)', tInstall, setTInstall], ['Annual Maintenance ($)', tMaint, setTMaint], ['Annual Calibration ($)', tCal, setTCal], ['Annual Energy Loss ($)', tEnergy, setTEnergy], ['Annual Measurement Error Cost ($)', tError, setTError], ['Asset Life (years)', tLife, setTLife]].map(([label, val, set]) => (
-                <div key={label as string}><label className="text-[10px] text-zinc-500">{label as string}</label>
-                  <input type="number" value={val as string} onChange={e => (set as React.Dispatch<React.SetStateAction<string>>)(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-white text-sm" />
+              {[['Purchase Price ($)', tPurchase, setTPurchase], ['Installation ($)', tInstall, setTInstall], ['Annual Maintenance ($)', tMaint, setTMaint], ['Annual Calibration ($)', tCal, setTCal], ['Annual Energy Loss ($)', tEnergy, setTEnergy], ['Annual Measurement Error Cost ($)', tError, setTError], ['Asset Life (years)', tLife, setTLife]].map(([label, val, set]) => {
+                const fieldId = `tco-${String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                return (
+                <div key={label as string}><label htmlFor={fieldId} className="text-[10px] text-zinc-500">{label as string}</label>
+                  <input id={fieldId} title={label as string} placeholder={label as string} type="number" value={val as string} onChange={e => (set as React.Dispatch<React.SetStateAction<string>>)(e.target.value)} className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-white text-sm" />
                 </div>
-              ))}
+              )})}
               <button onClick={runTco} disabled={tcoLoading} className="w-full py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:opacity-90 transition">
                 {tcoLoading ? '⏳ Calculating…' : '💰 Calculate TCO'}
               </button>
@@ -272,7 +279,12 @@ export default function IndustrialPage() {
                     {tcoResult.breakdown.map(b => (
                       <div key={b.category} className="flex items-center gap-3">
                         <div className="w-20 text-[10px] text-zinc-500 text-right">{b.category}</div>
-                        <div className="flex-1 h-5 rounded-full bg-zinc-800 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-500" style={{width:`${b.pct}%`}} /></div>
+                        <progress
+                          aria-label={`${b.category} TCO share`}
+                          className="flex-1 h-5 overflow-hidden [&::-webkit-progress-bar]:bg-zinc-800 [&::-webkit-progress-value]:bg-amber-500 [&::-moz-progress-bar]:bg-amber-500"
+                          max={100}
+                          value={b.pct}
+                        />
                         <div className="w-20 text-xs text-white font-mono">${b.amount.toLocaleString()}</div>
                         <div className="w-10 text-[10px] text-zinc-500">{b.pct}%</div>
                       </div>

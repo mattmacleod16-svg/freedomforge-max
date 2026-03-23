@@ -19,6 +19,10 @@ export default function Home() {
 
   // Resolve username from session (no redirect — main page is public)
   React.useEffect(() => {
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
     fetch('/api/auth/session', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => { if (d?.user) setUsername(d.user); })

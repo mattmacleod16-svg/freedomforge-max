@@ -283,12 +283,12 @@ describe('Home page', () => {
       await waitFor(() => expect(screen.getByText('No answer')).toBeInTheDocument());
     });
 
-    it('shows "Error contacting Max" when fetch throws a network error', async () => {
+    it('shows the network failure message when fetch throws', async () => {
       vi.stubGlobal('fetch', mockFetchReject('Network failure'));
       render(<Home />);
       const input = screen.getByPlaceholderText('Ask for strategy, prediction, or execution guidance...');
       await userEvent.type(input, 'query{Enter}');
-      await waitFor(() => expect(screen.getByText('Error contacting Max')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('⚠️ Could not reach Max. Check your connection and try again.')).toBeInTheDocument());
     });
 
     it('adds the user message to chat history before the fetch resolves', async () => {
@@ -492,7 +492,8 @@ describe('Home page', () => {
       await userEvent.type(addrInput, '0xABC123');
       await userEvent.click(screen.getByRole('button', { name: 'Get Balance' }));
       expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-        '/api/alchemy/balance?address=0xABC123'
+        '/api/alchemy/balance?address=0xABC123',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
       );
     });
 
@@ -529,7 +530,10 @@ describe('Home page', () => {
       );
       render(<Home />);
       await userEvent.click(screen.getByRole('button', { name: 'Refresh Wallet Info' }));
-      expect(vi.mocked(fetch)).toHaveBeenCalledWith('/api/alchemy/wallet');
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        '/api/alchemy/wallet',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      );
     });
 
     it('Refresh Wallet Info shows result in the info banner', async () => {

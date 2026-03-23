@@ -42,6 +42,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".claude/**",
+    // Generated Capacitor web build output should not be linted as source.
+    "ios/App/App/public/**",
   ]),
 ]);
 
