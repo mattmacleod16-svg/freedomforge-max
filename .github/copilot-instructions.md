@@ -329,7 +329,10 @@ FreedomForge Commander (supreme authority)
 ├── FF-GrowthMarketing (social media, marketing, community growth)
 ├── FF-Infrastructure  (CI/CD, logs, deployments, monitoring)
 ├── FF-CodeQuality     (refactoring, lint, tech debt)
-└── FF-TestCoverage    (tests, coverage, quality assurance)
+├── FF-TestCoverage    (tests, coverage, quality assurance)
+├── FF-Blockchain      (DeFi, Solana, Alchemy, NFT, DAO, smart contracts, on-chain operations)
+├── FF-ModelOps        (AI/ML ensemble, forecasting, feature engineering, model health, API credit allocation)
+└── FF-MarketIntel     (market intelligence, portfolio risk, correlations, arbitrage, regime detection)
 ```
 
 **Escalation path**: Any bot → FF-SentinelWatch (for cross-system issues) → Commander (for decisions requiring authority)

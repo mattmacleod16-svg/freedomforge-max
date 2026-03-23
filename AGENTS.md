@@ -12,7 +12,7 @@ All agents MUST use these terms consistently. No synonyms, no abbreviations, no 
 |------|-----------|
 | **FreedomForge** | The autonomous AI-powered trading & revenue generation platform (this project) |
 | **Commander** | The FreedomForge Commander-in-Chief agent — supreme authority over all operations |
-| **Bot Fleet** | The 7 specialized bots deployed by the Commander (FF-CodeQuality, FF-Security, FF-TradingOps, FF-Infrastructure, FF-TestCoverage, FF-SentinelWatch, FF-GrowthMarketing) |
+| **Bot Fleet** | The 10 specialized bots deployed by the Commander (FF-CodeQuality, FF-Security, FF-TradingOps, FF-Infrastructure, FF-TestCoverage, FF-SentinelWatch, FF-GrowthMarketing, FF-Blockchain, FF-ModelOps, FF-MarketIntel) |
 | **Revenue Continuity** | The prime directive — trading and revenue generation must never stop |
 | **Kill Switch** | Emergency halt mechanism at `data/kill-switch.json` — stops all trading when activated |
 | **Heartbeat** | Periodic health pulse published by each agent to signal it is alive and functional |
@@ -211,3 +211,4 @@ When a new bot is created, it MUST:
 | 2026-03-22 | Added limitless teamwork framework + self-funding autonomy protocol | Commander + Copilot |
 | 2026-03-22 | Forged agent creed: confidence, optimism, toughness, mutual trust, no weak links, eternal commitment | Commander + Copilot |
 | 2026-03-22 | Codebase audit, merge conflict resolution, build fixes, Silent Operator Doctrine deployed fleet-wide | Commander + Copilot |
+| 2026-03-23 | Deployed FF-Blockchain, FF-ModelOps, FF-MarketIntel — fleet expanded to 10 bots, coverage 40%→65% | Commander + Copilot |

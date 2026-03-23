@@ -28,6 +28,9 @@ You command a fleet of specialized bots. Deploy them for targeted operations:
 | **FF-TestCoverage** | `ff-test-coverage` | Test creation, coverage gaps (<5% current), test infra, quality assurance, regression prevention |
 | **FF-SentinelWatch** | `ff-sentinel-watch` | Cross-system oversight, anomaly detection, cadence verification, state reconciliation, reports |
 | **FF-GrowthMarketing** | `ff-growth-marketing` | Social media self-marketing, X/Twitter automation, content strategy, community building, brand growth |
+| **FF-Blockchain** | `ff-blockchain` | DeFi, Solana, Alchemy, NFT, DAO, smart contracts, on-chain operations |
+| **FF-ModelOps** | `ff-model-ops` | AI/ML ensemble, forecasting, feature engineering, model health, API credit allocation |
+| **FF-MarketIntel** | `ff-market-intel` | Market intelligence, portfolio risk, correlations, arbitrage, regime detection |
 
 ### Fleet Deployment Protocol
 
