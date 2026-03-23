@@ -33,21 +33,48 @@ function safeEqual(a: string, b: string) {
   return timingSafeEqual(left, right);
 }
 
-export function getDashboardCredentials() {
-  const user = (process.env.DASHBOARD_USER || '').trim();
-  const pass = (process.env.DASHBOARD_PASS || '').trim();
-  if (!user || !pass) {
-    console.error('[session] DASHBOARD_USER or DASHBOARD_PASS not set — login disabled');
+/**
+ * Parse the DASHBOARD_USERS env var into a username→password map.
+ *
+ * Format (set in Railway Variables):
+ *   DASHBOARD_USERS=alice:pass1,bob:pass2,carol:pass3
+ *
+ * Falls back to single-user DASHBOARD_USER/DASHBOARD_PASS for backward compat.
+ */
+export function getAllUsers(): Map<string, string> {
+  const map = new Map<string, string>();
+
+  // Multi-user list takes priority
+  const raw = (process.env.DASHBOARD_USERS || '').trim();
+  if (raw) {
+    for (const entry of raw.split(',')) {
+      const colon = entry.indexOf(':');
+      if (colon <= 0) continue;
+      const u = entry.slice(0, colon).trim();
+      const p = entry.slice(colon + 1).trim();
+      if (u && p) map.set(u, p);
+    }
   }
-  return { user, pass };
+
+  // Always include the single-user fallback (backward compat)
+  const singleUser = (process.env.DASHBOARD_USER || '').trim();
+  const singlePass = (process.env.DASHBOARD_PASS || '').trim();
+  if (singleUser && singlePass && !map.has(singleUser)) {
+    map.set(singleUser, singlePass);
+  }
+
+  if (map.size === 0) {
+    console.error('[session] No users configured — set DASHBOARD_USER/DASHBOARD_PASS or DASHBOARD_USERS');
+  }
+  return map;
 }
 
-export function verifyDashboardCredentials(user: string, pass: string) {
-  const credentials = getDashboardCredentials();
-  if (!credentials.user || !credentials.pass) return false;
-  const userMatch = safeEqual(user, credentials.user);
-  const passMatch = safeEqual(pass, credentials.pass);
-  return userMatch && passMatch;
+export function verifyDashboardCredentials(user: string, pass: string): boolean {
+  const users = getAllUsers();
+  const storedPass = users.get(user);
+  if (!storedPass) return false;
+  // Use safeEqual on password; username match is already by map key lookup
+  return safeEqual(pass, storedPass);
 }
 
 export function createSessionToken(user: string) {

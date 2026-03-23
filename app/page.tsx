@@ -12,21 +12,34 @@ export default function Home() {
   const [response, setResponse] = React.useState('');
   const [textInput, setTextInput] = React.useState('');
   const [history, setHistory] = React.useState<Array<{role: string; text: string; ts: number}>>([]);
+  const [username, setUsername] = React.useState('');
 
-  // Load conversation history from localStorage on mount
+  // Per-user chat history key — anonymous users share a generic key
+  const historyKey = username ? `ff_chat_history_${username}` : 'ff_chat_history';
+
+  // Resolve username from session (no redirect — main page is public)
+  React.useEffect(() => {
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => { if (d?.user) setUsername(d.user); })
+      .catch(() => {});
+  }, []);
+
+  // Load conversation history once we know which key to use
   React.useEffect(() => {
     try {
-      const saved = localStorage.getItem('ff_chat_history');
+      const saved = localStorage.getItem(historyKey);
       if (saved) setHistory(JSON.parse(saved));
+      else setHistory([]);
     } catch { /* ignore */ }
-  }, []);
+  }, [historyKey]);
 
   // Save history to localStorage whenever it changes
   React.useEffect(() => {
     if (history.length > 0) {
-      try { localStorage.setItem('ff_chat_history', JSON.stringify(history.slice(-50))); } catch { /* ignore */ }
+      try { localStorage.setItem(historyKey, JSON.stringify(history.slice(-50))); } catch { /* ignore */ }
     }
-  }, [history]);
+  }, [history, historyKey]);
 
   // Shared function that processes any input (voice or text)
   const processInput = async (text: string) => {
