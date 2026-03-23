@@ -1,5 +1,6 @@
 [build]
 builder = "nixpacks"
+builder = "NIXPACKS"
 buildCommand = "npm ci && npm run build"
 
 [deploy]
@@ -8,4 +9,8 @@ healthcheckPath = "/api/alchemy/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 5
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
 numReplicas = 1

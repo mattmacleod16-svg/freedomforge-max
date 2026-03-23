@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'claude/**'
   pull_request:
 
 concurrency:
@@ -33,3 +35,40 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  deploy:
+    name: Deploy to Railway
+    needs: lint-build
+    runs-on: ubuntu-latest
+    # Only deploy on pushes to main (not PRs, not claude/* branches)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@latest
+
+      - name: Deploy
+        run: railway up --service "$RAILWAY_SERVICE_ID" --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+
+      - name: Wait for deployment health
+        # Poll /api/health every 10s for up to 3 minutes
+        run: |
+          echo "Waiting for deployment to become healthy..."
+          for i in $(seq 1 18); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$APP_BASE_URL/api/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "⏳ Attempt $i: status $STATUS — retrying in 10s..."
+            sleep 10
+          done
+          echo "❌ Deployment did not become healthy within 3 minutes"
+          exit 1
+        env:
+          APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge.one' }}

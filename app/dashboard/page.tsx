@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { apiFetch } from '@/lib/apiFetch';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -494,11 +495,15 @@ export default function CommandCenter() {
   const [lastRefresh, setLastRefresh] = useState<number>(0);
   const [tab, setTab] = useState<'overview' | 'trades' | 'risk' | 'intelligence' | 'treasury'>('overview');
   const [pulseHeader, setPulseHeader] = useState(false);
+  const mountedRef = useRef(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/status/empire', { cache: 'no-store' });
+      const res = await apiFetch('/api/status/empire', { cache: 'no-store', timeoutMs: 15_000 });
+      // 401 handled by apiFetch (redirects to /login) — skip stale state updates after redirect
+      if (res.status === 401 || !mountedRef.current) return;
       const json = await res.json();
+      if (!mountedRef.current) return;
       setData(json);
       setLastRefresh(Date.now());
       setPulseHeader(true);
@@ -506,23 +511,27 @@ export default function CommandCenter() {
     } catch (e) {
       console.error('Empire fetch failed:', e);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchData();
     const id = setInterval(fetchData, 12000);
-    return () => clearInterval(id);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(id);
+    };
   }, [fetchData]);
 
   useEffect(() => {
     const check = async () => {
       try {
-        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const res = await apiFetch('/api/auth/session', { cache: 'no-store', skipAuthRedirect: true });
         const d = await res.json();
         if (!d?.authenticated) router.replace('/login?next=/dashboard');
-      } catch {}
+      } catch { /* network error — keep showing dashboard, next poll will retry */ }
     };
     check();
     const id = setInterval(check, 5 * 60 * 1000);

@@ -154,7 +154,7 @@ export default function IndustrialPage() {
                   <th className="text-center py-2 px-2">Moving Parts</th>
                   <th className="text-left py-2 px-2">ΔP</th>
                   <th className="text-left py-2 px-2">Turndown</th>
-                  <th className="text-left py-2 px-2">Cost (4")</th>
+                  <th className="text-left py-2 px-2">Cost (4&quot;)</th>
                   <th className="text-left py-2 px-2">Best For</th>
                 </tr></thead>
                 <tbody>
