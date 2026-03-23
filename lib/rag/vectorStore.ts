@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createHash, randomBytes } from 'crypto';
 
-const { createLogger } = require('../logger');
+import { createLogger } from '../logger';
 const log = createLogger('vector-store');
 
 interface VectorDoc {

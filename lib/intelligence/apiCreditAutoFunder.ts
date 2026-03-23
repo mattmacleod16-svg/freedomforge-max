@@ -27,7 +27,7 @@ import {
   getCreditDashboard,
 } from './apiCreditMonitor';
 
-const { createLogger } = require('../logger');
+import { createLogger } from '../logger';
 const log = createLogger('api-auto-fund');
 
 // ── Types ──────────────────────────────────────────────────────────────────

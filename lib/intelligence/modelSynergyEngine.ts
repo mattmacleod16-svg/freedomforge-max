@@ -24,7 +24,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 
-const { createLogger } = require('../logger');
+import { createLogger } from '../logger';
 const log = createLogger('model-synergy');
 
 // ── Types ──────────────────────────────────────────────────────────────────
