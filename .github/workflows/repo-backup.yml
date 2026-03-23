@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout full history
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -34,7 +34,7 @@ jobs:
           sha256sum backups/* > "backups/SHA256SUMS-${ts}.txt"
 
       - name: Upload backup snapshot
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: freedomforge-max-backup-${{ github.run_id }}
           path: backups/

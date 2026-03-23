@@ -6,7 +6,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const unifiedLogger = require('./logger');
+const unifiedLogger = require('./logger.js');
 
 export async function logEvent(type: string, payload: Record<string, any>) {
   try {
