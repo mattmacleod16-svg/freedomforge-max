@@ -28,7 +28,7 @@ jobs:
       CONTINUOUS_CHAT_PROMPT: ${{ vars.CONTINUOUS_CHAT_PROMPT || 'Provide a concise BTC/ETH directional update with confidence, risk controls, and whether action should be taken now.' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

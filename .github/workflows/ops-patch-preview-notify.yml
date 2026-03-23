@@ -32,7 +32,7 @@ jobs:
       AUTO_APPLY_MAX_GAS_TOPUP_AMOUNT: ${{ vars.AUTO_APPLY_MAX_GAS_TOPUP_AMOUNT || '0.2' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
