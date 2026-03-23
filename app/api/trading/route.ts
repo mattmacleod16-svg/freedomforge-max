@@ -1,20 +1,15 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySessionToken } from '@/lib/auth/session';
+import { requireAuth } from '@/lib/auth/apiGuard';
 import {
   getTradingMode, getRiskLimits, getTradeLog,
   getDailyPnL, getAggregatedPortfolio, getExchangeStatus,
   isKillSwitchActive, setKillSwitch,
 } from '@/lib/trading/engine';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const jar = await cookies();
-    const token = jar.get('ff_session')?.value;
-    if (!token) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-
-    const session = verifySessionToken(token);
-    if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    const denied = await requireAuth(request);
+    if (denied) return denied;
 
     const [portfolio] = await Promise.allSettled([getAggregatedPortfolio()]);
 
@@ -36,12 +31,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const jar = await cookies();
-    const token = jar.get('ff_session')?.value;
-    if (!token) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-
-    const session = verifySessionToken(token);
-    if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    const denied = await requireAuth(request);
+    if (denied) return denied;
 
     const body = await request.json();
 
