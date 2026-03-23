@@ -1,8 +1,0 @@
-# Exclude runtime data files — Vercel proxies to the Oracle VM for live data
-data/
-logs/
-ios/
-monitoring/
-*.key
-*.pem
-.env.local

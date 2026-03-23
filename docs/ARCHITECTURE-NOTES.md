@@ -152,7 +152,7 @@ data/skills/
 ### Platform Coverage
 | Platform | Status | Method |
 |----------|--------|--------|
-| Web (Desktop) | Live | Next.js on Railway/Vercel |
+| Web (Desktop) | Live | Next.js on Railway |
 | iOS (iPhone) | Available | Capacitor native app |
 | iPad | Compatible | Responsive web + Capacitor |
 | Apple Watch | Planned | Capacitor extension |

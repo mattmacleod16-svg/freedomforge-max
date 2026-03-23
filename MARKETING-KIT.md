@@ -285,7 +285,7 @@ A: No. The web interface at freedomforge.one lets you chat with 50+ AI models ju
 A: Yes. FreedomForge uses HMAC-SHA256 cryptographic signing, multi-layer authentication, and runs on enterprise-grade Railway infrastructure with TLS encryption.
 
 **Q: Can I run this on my own server?**
-A: Absolutely. It's open source. Clone the GitHub repo, set your environment variables, and deploy anywhere — Railway, Vercel, AWS, your own hardware.
+A: Absolutely. It's open source. Clone the GitHub repo, set your environment variables, and deploy anywhere — Railway, AWS, your own hardware.
 
 **Q: What chains does it support?**
 A: EVM-compatible chains (Ethereum, Polygon, Arbitrum, etc.), Stellar, and Cosmos IBC. More chains are being added continuously.

@@ -15,7 +15,7 @@
  *   Domain 3 — SERVICE HEALTH (all systemd services + timers alive)
  *   Domain 4 — DATA INTEGRITY (JSON schemas, freshness, size bounds)
  *   Domain 5 — FINANCIAL SAFETY (capital, positions, drawdown, payout)
- *   Domain 6 — INFRASTRUCTURE (disk, memory, git, tunnel, Vercel sync)
+ *   Domain 6 — INFRASTRUCTURE (disk, memory, git, tunnel, Railway sync)
  *
  * Outputs:
  *   - logs/integrity-guardian-YYYY-MM-DD-HH.log (human-readable)

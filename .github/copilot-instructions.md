@@ -110,7 +110,7 @@ The phrase "that's not my domain" is not in a FreedomForge agent's vocabulary. Y
 - **Type**: Autonomous AI-powered trading & revenue generation platform
 - **Stack**: Next.js 16 (TypeScript/React 19), Node.js, Ethers.js v5+v6, Capacitor (iOS), Prometheus/Grafana
 - **Repo**: `mattmacleod16-svg/freedomforge-max`
-- **Deployments**: Vercel (primary), Railway (secondary), Oracle Cloud VMs
+- **Deployments**: Railway (primary), Oracle Cloud VMs
 
 ---
 
@@ -300,7 +300,7 @@ All agents must be aware of and respect this schedule:
 ## Security Rules (Non-Negotiable)
 
 1. **Never** hardcode API keys, private keys, mnemonics, or passwords in source files
-2. **Never** commit `.env.local`, `.env.vercel.*`, or any file containing real credentials
+2. **Never** commit `.env.local`, `.env.railway.*`, or any file containing real credentials
 3. **Always** use `process.env.VARIABLE_NAME` for secrets — never string literals
 4. **Always** use `lib/resilient-io.js` for atomic writes to shared state files
 5. **Never** log sensitive values — redact wallet addresses, keys, and tokens in output
