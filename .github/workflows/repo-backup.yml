@@ -34,7 +34,7 @@ jobs:
           sha256sum backups/* > "backups/SHA256SUMS-${ts}.txt"
 
       - name: Upload backup snapshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: freedomforge-max-backup-${{ github.run_id }}
           path: backups/
