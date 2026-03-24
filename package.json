@@ -90,6 +90,8 @@
     "ios:sync": "npx cap sync ios",
     "ios:open": "npx cap open ios",
     "ios:prepare": "npm run ios:build:web && npm run ios:sync",
+    "marketing:package": "node scripts/package-marketing-kit.js",
+    "marketing:ship": "node scripts/package-marketing-kit.js",
     "test:frontend": "vitest run --config vitest.config.ts"
   },
   "dependencies": {

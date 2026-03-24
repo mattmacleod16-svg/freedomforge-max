@@ -1,0 +1,19 @@
+Subject: FreedomForge Max is live — open-source autonomous intelligence for AI + DeFi
+
+Hi {{Name}},
+
+I’m launching FreedomForge Max: an open-source autonomous intelligence stack that unifies 50+ AI models across 20+ providers, supports 100+ languages, and adds institutional-grade risk controls for DeFi workflows.
+
+Live product: https://freedomforge.one
+GitHub: https://github.com/mattmacleod16-svg/freedomforge-max
+
+Why this matters:
+- Users no longer choose one model — the platform routes to the best model per task.
+- AI is globally accessible with native multilingual support.
+- Safety is built in: VaR-based risk controls, circuit breakers, and operational guardrails.
+- Fully open-source and auditable.
+
+If useful, I can share a short demo and launch assets.
+
+Best,
+{{Your Name}}

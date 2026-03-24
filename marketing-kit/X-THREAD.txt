@@ -1,0 +1,21 @@
+1) Introducing FreedomForge Max.
+Open-source autonomous intelligence for AI + DeFi.
+50+ models, 100+ languages, institutional risk controls.
+https://freedomforge.one
+
+2) Most products force one model.
+FreedomForge routes across 20+ providers so the best model handles each task.
+
+3) It is built for global users.
+Language is not a barrier: 100+ supported languages with automatic routing.
+
+4) This is not just chat.
+It includes DeFi intelligence + operational guardrails designed for real execution.
+
+5) Safety-first architecture:
+VaR controls, circuit breakers, and auditable workflows.
+
+6) Fully open source:
+https://github.com/mattmacleod16-svg/freedomforge-max
+
+7) If you believe AI infrastructure should be open and globally accessible, share this launch.
