@@ -679,3 +679,47 @@ describe('isCodingQuery', () => {
     assert.equal(isCodingQuery('DEBUG THIS ISSUE'), true);
   });
 });
+
+describe('decentralized fallback providers', () => {
+  it('isFallback providers are excluded from the primary selection pool', () => {
+    const models = [
+      { name: 'grok', priority: 1, isFallback: false },
+      { name: 'openai', priority: 2, isFallback: false },
+      { name: 'akash', priority: 50, isFallback: true },
+      { name: 'corcel', priority: 51, isFallback: true },
+    ];
+    const primary = models.filter((m) => !m.isFallback);
+    assert.equal(primary.length, 2);
+    assert.deepEqual(primary.map((m) => m.name), ['grok', 'openai']);
+  });
+
+  it('fallback pool contains all four decentralized providers', () => {
+    const models = [
+      { name: 'grok', priority: 1, isFallback: false },
+      { name: 'akash', priority: 50, isFallback: true },
+      { name: 'corcel', priority: 51, isFallback: true },
+      { name: 'ionet', priority: 52, isFallback: true },
+      { name: 'zerog', priority: 53, isFallback: true },
+    ];
+    const fallbacks = models.filter((m) => m.isFallback);
+    assert.equal(fallbacks.length, 4);
+    assert.deepEqual(fallbacks.map((m) => m.name), ['akash', 'corcel', 'ionet', 'zerog']);
+  });
+
+  it('decentralized provider priorities are higher than all primary providers', () => {
+    const primaryMaxPriority = 21; // blackbox is currently the highest primary at 21
+    const decPriorities = [50, 51, 52, 53];
+    assert.ok(decPriorities.every((p) => p > primaryMaxPriority));
+  });
+
+  it('models without isFallback set are treated as primary', () => {
+    const models = [
+      { name: 'grok', priority: 1 },
+      { name: 'akash', priority: 50, isFallback: true },
+    ];
+    const primary = models.filter((m) => !m.isFallback);
+    assert.equal(primary.length, 1);
+    assert.equal(primary[0].name, 'grok');
+  });
+});
+

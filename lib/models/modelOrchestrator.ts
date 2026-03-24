@@ -15,6 +15,7 @@ interface ModelConfig {
   model?: string;
   extraHeaders?: Record<string, string>;
   priority: number;
+  isFallback?: boolean;
 }
 
 interface ModelResponse {
@@ -326,6 +327,60 @@ export async function initializeModels() {
         priority: 21,
       });
     }
+  }
+
+  // ── Decentralized AI Networks (fallback-only — activated when all primary providers fail) ──
+
+  const akashKey = firstEnv('AKASH_API_KEY');
+  if (akashKey) {
+    upsertModel({
+      name: 'akash',
+      apiKey: akashKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('AKASH_ENDPOINT') || 'https://chatapi.akash.network/api/v1/chat/completions',
+      model: firstEnv('AKASH_MODEL') || 'Meta-Llama-3-1-405B-Instruct-FP8',
+      priority: 50,
+      isFallback: true,
+    });
+  }
+
+  const corcelKey = firstEnv('CORCEL_API_KEY');
+  if (corcelKey) {
+    upsertModel({
+      name: 'corcel',
+      apiKey: corcelKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('CORCEL_ENDPOINT') || 'https://api.corcel.io/v1/text/cortext/chat',
+      model: firstEnv('CORCEL_MODEL') || 'cortext-ultra',
+      priority: 51,
+      isFallback: true,
+    });
+  }
+
+  const ionetKey = firstEnv('IONET_API_KEY');
+  if (ionetKey) {
+    upsertModel({
+      name: 'ionet',
+      apiKey: ionetKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('IONET_ENDPOINT') || 'https://api.io.net/v1/chat/completions',
+      model: firstEnv('IONET_MODEL') || 'llama-3.1-70b',
+      priority: 52,
+      isFallback: true,
+    });
+  }
+
+  const zerogKey = firstEnv('ZEROG_API_KEY');
+  if (zerogKey) {
+    upsertModel({
+      name: 'zerog',
+      apiKey: zerogKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('ZEROG_ENDPOINT') || 'https://rpc.0g.ai/v1/chat/completions',
+      model: firstEnv('ZEROG_MODEL') || '0g-serving-model',
+      priority: 53,
+      isFallback: true,
+    });
   }
 }
 
@@ -668,7 +723,10 @@ export async function getMultiModelResponse(
     if (bPref !== -1) return 1;
     return a.priority - b.priority;
   });
-  const selectedModels = sortedModels.slice(0, Math.min(count, models.length));
+
+  const primaryModels = sortedModels.filter((m) => !m.isFallback);
+  const decentralizedFallbacks = sortedModels.filter((m) => m.isFallback);
+  const selectedModels = primaryModels.slice(0, Math.min(count, primaryModels.length));
 
   const responses: ModelResponse[] = await Promise.all(
     selectedModels.map(async (model) => {
@@ -723,7 +781,27 @@ export async function getMultiModelResponse(
     })
   );
 
-  return responses.filter((r) => r.confidence > 0);
+  const goodResponses = responses.filter((r) => r.confidence > 0);
+  if (goodResponses.length > 0) {
+    return goodResponses;
+  }
+
+  // All primary providers failed — try decentralized fallbacks sequentially
+  for (const model of decentralizedFallbacks) {
+    try {
+      const raw = await queryOpenAICompatible(prompt, model);
+      const normalized = normalizeResponseText(raw);
+      const confidence = scoreResponseConfidence(raw);
+      if (confidence > 0) {
+        try { recordApiSpend(model.name, Math.ceil(prompt.length / 4), Math.ceil(normalized.length / 4)); } catch {}
+        return [{ model: model.name, response: normalized, confidence, timestamp: Date.now() }];
+      }
+    } catch (error) {
+      console.error(`Decentralized fallback ${model.name} failed:`, error);
+    }
+  }
+
+  return responses;
 }
 
 export async function getBestResponse(prompt: string): Promise<string> {
