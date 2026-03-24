@@ -180,6 +180,26 @@ interface EmpireData {
       agents: Array<{ name: string; status: string; detail: string }>;
     }>;
   } | null;
+  integrations?: {
+    exchanges?: {
+      coinbase?: { configured: boolean; name: string };
+      kraken?: { configured: boolean; name: string };
+      viabtc?: { configured: boolean; name: string };
+    };
+    livePortfolioDiagnostics?: {
+      coinbase?: { configured: boolean; connected: boolean; error: string | null };
+      kraken?: { configured: boolean; connected: boolean; error: string | null };
+      viabtc?: { configured: boolean; connected: boolean; error: string | null };
+    };
+    mining?: {
+      viabtcConnected: boolean;
+      configuredPools: number;
+      onlineDevices: number;
+      totalDevices: number;
+      estimatedDailyUSD: number;
+      note: string | null;
+    };
+  };
 }
 
 /* ─── Utility ─────────────────────────────────────────────────────────────── */
@@ -749,6 +769,63 @@ export default function CommandCenter() {
           <StatCard icon="◇" label="Signals" color="text-purple-400" value={String(data.signalBus.totalActive)}
             sub={`${Object.keys(data.signalBus.types).length} classes active`} />
         </div>
+
+        {/* ─── Live Integrations ────────────────────────────────────────── */}
+        {data.integrations && (
+          <div className="rounded-2xl border border-purple-500/15 bg-black/25 p-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-300/70">Live Integrations</div>
+                <div className="text-[11px] text-slate-400 mt-1">Real account/mining connectivity from production APIs.</div>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">Updated {timeAgo(lastRefresh)}</div>
+            </div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {[
+                { name: 'Coinbase', key: 'coinbase' as const },
+                { name: 'Kraken', key: 'kraken' as const },
+                { name: 'ViaBTC', key: 'viabtc' as const },
+              ].map((entry) => {
+                const diag = data.integrations?.livePortfolioDiagnostics?.[entry.key];
+                const connected = !!diag?.connected;
+                const configured = !!diag?.configured;
+                return (
+                  <div key={entry.key} className="rounded-xl border border-slate-700/40 bg-slate-900/35 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono uppercase tracking-wider text-slate-300">{entry.name}</span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                        connected ? 'bg-emerald-500/20 text-emerald-300' : configured ? 'bg-amber-500/20 text-amber-300' : 'bg-slate-700/40 text-slate-400'
+                      }`}>
+                        {connected ? 'connected' : configured ? 'configured' : 'not configured'}
+                      </span>
+                    </div>
+                    {diag?.error && <div className="mt-2 text-[10px] text-amber-300/80 break-words">{diag.error}</div>}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-700/40 bg-slate-900/35 p-3">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Mining Devices</div>
+                <div className="mt-1 text-sm text-slate-200">{data.integrations.mining?.onlineDevices || 0}/{data.integrations.mining?.totalDevices || 0} online</div>
+              </div>
+              <div className="rounded-xl border border-slate-700/40 bg-slate-900/35 p-3">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Mining Pools</div>
+                <div className="mt-1 text-sm text-slate-200">{data.integrations.mining?.configuredPools || 0} configured</div>
+              </div>
+              <div className="rounded-xl border border-slate-700/40 bg-slate-900/35 p-3">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Est. Daily Mining</div>
+                <div className="mt-1 text-sm text-slate-200">{fmt$(data.integrations.mining?.estimatedDailyUSD || 0)}</div>
+              </div>
+            </div>
+
+            {data.integrations.mining?.note && (
+              <div className="mt-3 text-[11px] text-amber-300/85">{data.integrations.mining.note}</div>
+            )}
+          </div>
+        )}
 
         {/* ─── Tab Navigation ───────────────────────────────────────────── */}
         <div className="flex gap-1.5 rounded-2xl p-1.5 border border-slate-700/30" style={{ background: 'rgba(13, 6, 25, 0.6)', backdropFilter: 'blur(12px)' }}>
