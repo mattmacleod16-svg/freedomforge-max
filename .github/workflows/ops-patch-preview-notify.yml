@@ -51,7 +51,7 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Run dry-run preview
         id: preview
