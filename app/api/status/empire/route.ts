@@ -10,6 +10,8 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { requireAuth } from '@/lib/auth/apiGuard';
+import { getAggregatedPortfolio, getExchangeStatus } from '@/lib/trading/engine';
+import { getMiningOverview } from '@/lib/mining/monitor';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -383,8 +385,23 @@ export async function GET(req: Request) {
     const agentRoster = buildAgentRoster(orchState, brainState, scalerState, guardian, risk, busData, watchdog, trades);
 
     // ─── Portfolio Totals ──────────────────────────────────────────────
-    const cbBalance = guardianSummary.coinbase.totalBalance;
-    const krBalance = guardianSummary.kraken.equity;
+    const livePortfolio = await getAggregatedPortfolio().catch(() => null);
+    const miningOverview = await getMiningOverview().catch(() => null);
+    const exchangeStatus = getExchangeStatus();
+
+    const liveCoinbaseUsd = (livePortfolio?.balances || [])
+      .filter((b: any) => b.exchange === 'coinbase')
+      .reduce((sum: number, b: any) => sum + (b.usdValue || 0), 0);
+    const liveKrakenUsd = (livePortfolio?.balances || [])
+      .filter((b: any) => b.exchange === 'kraken')
+      .reduce((sum: number, b: any) => sum + (b.usdValue || 0), 0);
+
+    const cbBalance = guardianSummary.coinbase.totalBalance > 0
+      ? guardianSummary.coinbase.totalBalance
+      : liveCoinbaseUsd;
+    const krBalance = guardianSummary.kraken.equity > 0
+      ? guardianSummary.kraken.equity
+      : liveKrakenUsd;
     const totalPortfolioUsd = cbBalance + krBalance;
     const totalUnrealizedPnl = guardianSummary.coinbase.unrealizedPnl + guardianSummary.kraken.unrealizedPnl;
 
@@ -590,6 +607,20 @@ export async function GET(req: Request) {
         };
       })(),
       agents: agentRoster,
+      integrations: {
+        exchanges: exchangeStatus,
+        livePortfolioDiagnostics: livePortfolio?.diagnostics || null,
+        mining: {
+          viabtcConnected: !!livePortfolio?.diagnostics?.viabtc?.connected,
+          configuredPools: miningOverview?.pools?.length || 0,
+          onlineDevices: miningOverview?.onlineDevices || 0,
+          totalDevices: miningOverview?.totalDevices || 0,
+          estimatedDailyUSD: miningOverview?.estimatedDailyUSD || 0,
+          note: !miningOverview || (miningOverview.totalDevices === 0 && miningOverview.pools.length === 0)
+            ? 'No MINING_DEVICES/MINING_POOLS configured yet'
+            : null,
+        },
+      },
       // tunnelUrl removed — R6-H2: prevent internal VM URL leak
     });
   } catch (error) {

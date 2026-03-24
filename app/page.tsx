@@ -5,8 +5,25 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { apiFetch, RateLimitError } from '@/lib/apiFetch';
+import usePersonalSync from '@/lib/hooks/usePersonalSync';
 import InstallPrompt from './components/InstallPrompt';
 import ShareWidget from './components/ShareWidget';
+
+interface AutonomyPrefs {
+  autoSync: boolean;
+  autoRetry: boolean;
+  autoRefreshWallet: boolean;
+  smartPrompts: boolean;
+  humanGuardrails: boolean;
+}
+
+const DEFAULT_AUTONOMY_PREFS: AutonomyPrefs = {
+  autoSync: true,
+  autoRetry: true,
+  autoRefreshWallet: false,
+  smartPrompts: true,
+  humanGuardrails: true,
+};
 
 export default function Home() {
   const [transcript, setTranscript] = React.useState('');
@@ -14,9 +31,20 @@ export default function Home() {
   const [textInput, setTextInput] = React.useState('');
   const [history, setHistory] = React.useState<Array<{role: string; text: string; ts: number}>>([]);
   const [username, setUsername] = React.useState('');
+  const [autonomyPrefs, setAutonomyPrefs] = React.useState<AutonomyPrefs>(DEFAULT_AUTONOMY_PREFS);
+
+  const {
+    sync: syncPersonal,
+    status: syncStatus,
+    message: syncMessage,
+    isLoading: syncLoading,
+  } = usePersonalSync();
+  const syncTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Per-user chat history key — anonymous users share a generic key
   const historyKey = username ? `ff_chat_history_${username}` : 'ff_chat_history';
+  const prefsKey = username ? `ff_autonomy_prefs_${username}` : 'ff_autonomy_prefs';
+  const toolsKey = username ? `ff_frontend_tools_${username}` : 'ff_frontend_tools';
 
   // Resolve username from session (no redirect — main page is public)
   React.useEffect(() => {
@@ -46,20 +74,56 @@ export default function Home() {
     }
   }, [history, historyKey]);
 
+  // Load per-user autonomy preferences
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(prefsKey);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<AutonomyPrefs>;
+        setAutonomyPrefs({ ...DEFAULT_AUTONOMY_PREFS, ...parsed });
+      } else {
+        setAutonomyPrefs(DEFAULT_AUTONOMY_PREFS);
+      }
+    } catch {
+      setAutonomyPrefs(DEFAULT_AUTONOMY_PREFS);
+    }
+  }, [prefsKey]);
+
+  // Persist autonomy preferences
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(prefsKey, JSON.stringify(autonomyPrefs));
+    } catch { /* ignore */ }
+  }, [autonomyPrefs, prefsKey]);
+
   // Shared function that processes any input (voice or text)
   const processInput = async (text: string) => {
+    const sanitizedText = autonomyPrefs.humanGuardrails ? text.slice(0, 2000).trim() : text.trim();
+    if (!sanitizedText) return;
+
     setTranscript(text);
     setResponse('…loading');
-    setHistory((h) => [...h, { role: 'user', text, ts: Date.now() }]);
+    setHistory((h) => [...h, { role: 'user', text: sanitizedText, ts: Date.now() }]);
 
-    try {
+    const callChat = async () => {
       const res = await apiFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
-        timeoutMs: 60_000, // AI responses can take time
+        body: JSON.stringify({ message: sanitizedText }),
+        timeoutMs: 60_000,
       });
       const data = await res.json();
+      return { res, data };
+    };
+
+    try {
+      let { res, data } = await callChat();
+
+      if ((!res.ok || data.error) && autonomyPrefs.autoRetry) {
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        ({ res, data } = await callChat());
+      }
+
       if (!res.ok || data.error) {
         const errorMsg = '⚠️ All AI models failed to respond. Please check your API keys and model availability, or try again.';
         setResponse(errorMsg);
@@ -88,6 +152,62 @@ export default function Home() {
   const [withAddress, setWithAddress] = React.useState('');
   const [withAmount, setWithAmount] = React.useState('');
 
+  // Load persisted tool inputs
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(toolsKey);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as {
+        alchemyAddress?: string;
+        withAddress?: string;
+        withAmount?: string;
+      };
+      if (parsed.alchemyAddress) setAlchemyAddress(parsed.alchemyAddress);
+      if (parsed.withAddress) setWithAddress(parsed.withAddress);
+      if (parsed.withAmount) setWithAmount(parsed.withAmount);
+    } catch { /* ignore */ }
+  }, [toolsKey]);
+
+  // Persist tool input state for seamless cross-session UX
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(toolsKey, JSON.stringify({ alchemyAddress, withAddress, withAmount }));
+    } catch { /* ignore */ }
+  }, [alchemyAddress, withAddress, withAmount, toolsKey]);
+
+  // Debounced sync pulse when key front-end states change
+  React.useEffect(() => {
+    if (process.env.NODE_ENV === 'test' || !autonomyPrefs.autoSync) return;
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      void syncPersonal();
+    }, 1200);
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
+  }, [autonomyPrefs, history, alchemyAddress, withAddress, withAmount, syncPersonal]);
+
+  const runWalletRefresh = React.useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/alchemy/wallet');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch wallet');
+      setAlchemyInfo(`Revenue wallet ${data.address} balance ${data.balance}`);
+    } catch (err) {
+      const msg = err instanceof RateLimitError ? err.message : 'Failed to fetch wallet info';
+      setAlchemyInfo(`Error: ${msg}`);
+      toast.error(msg);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!autonomyPrefs.autoRefreshWallet || process.env.NODE_ENV === 'test') return;
+    const id = setInterval(() => {
+      void runWalletRefresh();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [autonomyPrefs.autoRefreshWallet, runWalletRefresh]);
+
   const fetchBalance = async () => {
     if (!alchemyAddress) return;
     try {
@@ -108,6 +228,10 @@ export default function Home() {
     if (textInput.trim()) {
       processInput(textInput.trim());
     }
+  };
+
+  const setPref = <K extends keyof AutonomyPrefs>(key: K, value: AutonomyPrefs[K]) => {
+    setAutonomyPrefs((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -143,6 +267,73 @@ export default function Home() {
           <section className="lg:col-span-2 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6 backdrop-blur">
             <h2 className="text-xl font-bold text-white">Agent Command</h2>
             <p className="mt-1 text-sm text-zinc-400">Send prompts and review live reasoning output.</p>
+
+            <div className="mt-4 rounded-2xl border border-zinc-700/70 bg-black/30 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-xs uppercase tracking-wider text-zinc-300">Human-Centered Autonomy Controls</p>
+                <div className="text-[11px] text-zinc-400">
+                  Sync: {syncLoading ? 'syncing...' : syncStatus} {autonomyPrefs.autoSync ? `(${syncMessage})` : '(disabled)'}
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {[
+                  { key: 'autoSync', label: 'Auto-Sync Frontend State' },
+                  { key: 'autoRetry', label: 'Auto-Retry AI on Failure' },
+                  { key: 'autoRefreshWallet', label: 'Auto-Refresh Wallet (60s)' },
+                  { key: 'smartPrompts', label: 'Smart Prompt Shortcuts' },
+                  { key: 'humanGuardrails', label: 'Human Safety Guardrails' },
+                ].map((item) => (
+                  <label key={item.key} className="flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-900/60 px-3 py-2">
+                    <span className="text-xs text-zinc-200">{item.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const k = item.key as keyof AutonomyPrefs;
+                        setPref(k, !autonomyPrefs[k]);
+                      }}
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                        autonomyPrefs[item.key as keyof AutonomyPrefs]
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-zinc-700 text-zinc-200'
+                      }`}
+                    >
+                      {autonomyPrefs[item.key as keyof AutonomyPrefs] ? 'ON' : 'OFF'}
+                    </button>
+                  </label>
+                ))}
+              </div>
+
+              {autonomyPrefs.smartPrompts && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    'Optimize my strategy for the next 24h',
+                    'Summarize my portfolio risk in plain language',
+                    'Give me one safe and one aggressive opportunity',
+                    'Check wallet status and recommend next action',
+                  ].map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => setTextInput(prompt)}
+                      className="rounded-full border border-zinc-600 px-3 py-1 text-[11px] text-zinc-300 hover:border-orange-500 hover:text-white"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => { void syncPersonal(); }}
+                  className="rounded-lg border border-zinc-600 px-3 py-1 text-[11px] text-zinc-200 hover:border-emerald-500 hover:text-white"
+                >
+                  Sync Now
+                </button>
+              </div>
+            </div>
 
             <form onSubmit={handleTextSubmit} className="mt-5 flex flex-col gap-3 md:flex-row">
               <input
@@ -198,7 +389,7 @@ export default function Home() {
                     📋 Copy
                   </button>
                   <button
-                    onClick={() => { setHistory([]); setTranscript(''); setResponse(''); localStorage.removeItem('ff_chat_history'); }}
+                    onClick={() => { setHistory([]); setTranscript(''); setResponse(''); localStorage.removeItem(historyKey); }}
                     className="text-[10px] text-zinc-500 hover:text-red-400 transition"
                   >
                     🗑 Clear
@@ -233,18 +424,7 @@ export default function Home() {
             <div className="space-y-3 rounded-2xl border border-zinc-800 bg-black/30 p-4">
               <p className="text-sm font-semibold text-zinc-200">Revenue Wallet</p>
               <button
-                onClick={async () => {
-                  try {
-                    const res = await apiFetch('/api/alchemy/wallet');
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Failed to fetch wallet');
-                    setAlchemyInfo(`Revenue wallet ${data.address} balance ${data.balance}`);
-                  } catch (err) {
-                    const msg = err instanceof RateLimitError ? err.message : 'Failed to fetch wallet info';
-                    setAlchemyInfo(`Error: ${msg}`);
-                    toast.error(msg);
-                  }
-                }}
+                onClick={runWalletRefresh}
                 className="w-full rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
               >
                 Refresh Wallet Info

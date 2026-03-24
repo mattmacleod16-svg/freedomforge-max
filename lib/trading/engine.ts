@@ -227,40 +227,61 @@ export async function getAggregatedPortfolio(): Promise<{
   balances: PortfolioBalance[];
   totalUSD: number;
   mining: MiningStats | null;
+  diagnostics: {
+    coinbase: { configured: boolean; connected: boolean; error: string | null };
+    kraken: { configured: boolean; connected: boolean; error: string | null };
+    viabtc: { configured: boolean; connected: boolean; error: string | null };
+  };
 }> {
   const balances: PortfolioBalance[] = [];
   let mining: MiningStats | null = null;
+  const diagnostics = {
+    coinbase: { configured: coinbaseClient.isConfigured(), connected: false, error: null as string | null },
+    kraken: { configured: krakenClient.isConfigured(), connected: false, error: null as string | null },
+    viabtc: { configured: viabtcClient.isConfigured(), connected: false, error: null as string | null },
+  };
 
   if (coinbaseClient.isConfigured()) {
     try {
       const accounts = await coinbaseClient.getAccounts();
+      diagnostics.coinbase.connected = true;
       for (const acct of accounts) {
         const val = parseFloat(acct.available_balance.value);
         if (val > 0) {
           balances.push({ exchange: 'coinbase', currency: acct.currency, available: val, usdValue: val });
         }
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      diagnostics.coinbase.error = err instanceof Error ? err.message : 'coinbase connection failed';
+    }
   }
 
   if (krakenClient.isConfigured()) {
     try {
       const bal = await krakenClient.getBalance();
+      diagnostics.kraken.connected = true;
       for (const [currency, amount] of Object.entries(bal)) {
         const val = parseFloat(amount);
         if (val > 0.001) {
           balances.push({ exchange: 'kraken', currency: currency.replace(/^[XZ]/, ''), available: val, usdValue: val });
         }
       }
-    } catch { /* silent */ }
+    } catch (err) {
+      diagnostics.kraken.error = err instanceof Error ? err.message : 'kraken connection failed';
+    }
   }
 
   if (viabtcClient.isConfigured()) {
-    try { mining = await viabtcClient.getMiningStats(); } catch { /* silent */ }
+    try {
+      mining = await viabtcClient.getMiningStats();
+      diagnostics.viabtc.connected = true;
+    } catch (err) {
+      diagnostics.viabtc.error = err instanceof Error ? err.message : 'viabtc connection failed';
+    }
   }
 
   const totalUSD = balances.reduce((sum, b) => sum + b.usdValue, 0);
-  return { balances, totalUSD, mining };
+  return { balances, totalUSD, mining, diagnostics };
 }
 
 /* ── Exchange Status ────────────────────────────────────────── */
