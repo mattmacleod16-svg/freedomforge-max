@@ -22,8 +22,10 @@ jobs:
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
-      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
-      RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID || vars.RAILWAY_SERVICE_ID || '' }}
+      RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID || vars.RAILWAY_ENVIRONMENT_ID || '' }}
+      RAILWAY_SERVICE_NAME: ${{ vars.RAILWAY_SERVICE_NAME || '' }}
+      RAILWAY_ENVIRONMENT_NAME: ${{ vars.RAILWAY_ENVIRONMENT_NAME || 'production' }}
       APPLY_KEYS: ${{ inputs.apply_keys }}
       DRY_RUN: ${{ inputs.dry_run }}
       OPS_PATCH_FILE: ops/recommended-env-overrides.env
@@ -46,14 +48,6 @@ jobs:
           fi
           if [ -z "$RAILWAY_PROJECT_ID" ]; then
             echo "Missing required secret: RAILWAY_PROJECT_ID"
-            exit 1
-          fi
-          if [ -z "$RAILWAY_SERVICE_ID" ]; then
-            echo "Missing required secret: RAILWAY_SERVICE_ID"
-            exit 1
-          fi
-          if [ -z "$RAILWAY_ENVIRONMENT_ID" ]; then
-            echo "Missing required secret: RAILWAY_ENVIRONMENT_ID"
             exit 1
           fi
 

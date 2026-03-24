@@ -27,6 +27,8 @@ const token = process.env.RAILWAY_TOKEN || '';
 const projectId = process.env.RAILWAY_PROJECT_ID || '';
 const serviceId = process.env.RAILWAY_SERVICE_ID || '';
 const environmentId = process.env.RAILWAY_ENVIRONMENT_ID || '';
+const serviceName = (process.env.RAILWAY_SERVICE_NAME || '').trim();
+const environmentName = (process.env.RAILWAY_ENVIRONMENT_NAME || 'production').trim();
 const applyKeysRaw = (process.env.APPLY_KEYS || '').trim();
 const patchFile = process.env.OPS_PATCH_FILE || 'ops/recommended-env-overrides.env';
 const dryRun = String(process.env.DRY_RUN || 'false').toLowerCase() === 'true';
@@ -74,6 +76,9 @@ async function upsertOne(key, value) {
     return;
   }
 
+  const targetServiceId = process.env.RAILWAY_SERVICE_ID || serviceId;
+  const targetEnvironmentId = process.env.RAILWAY_ENVIRONMENT_ID || environmentId;
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   let response;
@@ -89,8 +94,8 @@ async function upsertOne(key, value) {
         variables: {
           input: {
             projectId,
-            environmentId,
-            serviceId,
+            environmentId: targetEnvironmentId,
+            serviceId: targetServiceId,
             name: key,
             value: String(value),
           },
@@ -110,6 +115,80 @@ async function upsertOne(key, value) {
   }
 }
 
+async function gqlRequest(query, variables) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(RAILWAY_GQL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`railway graphql request failed: HTTP ${response.status} ${body}`);
+  }
+
+  const json = await response.json().catch(() => null);
+  if (json?.errors?.length) {
+    throw new Error(`railway graphql request failed: ${json.errors[0]?.message}`);
+  }
+  return json?.data || {};
+}
+
+function pickByNameOrFirst(nodes, preferredName, kind) {
+  if (!Array.isArray(nodes) || nodes.length === 0) {
+    throw new Error(`no Railway ${kind} found under project ${projectId}`);
+  }
+
+  const preferred = String(preferredName || '').trim().toLowerCase();
+  if (preferred) {
+    const match = nodes.find((node) => String(node?.name || '').trim().toLowerCase() === preferred);
+    if (match?.id) return match.id;
+  }
+
+  if (nodes.length === 1 && nodes[0]?.id) {
+    return nodes[0].id;
+  }
+
+  const fallback = nodes.find((node) => node?.id);
+  if (fallback?.id) return fallback.id;
+  throw new Error(`unable to resolve Railway ${kind} id`);
+}
+
+async function resolveTargetIds() {
+  if (serviceId && environmentId) {
+    return { resolvedServiceId: serviceId, resolvedEnvironmentId: environmentId };
+  }
+
+  const data = await gqlRequest(
+    'query ResolveProject($projectId: String!) { project(id: $projectId) { services { edges { node { id name } } } environments { edges { node { id name } } } } }',
+    { projectId }
+  );
+
+  const project = data?.project;
+  if (!project) {
+    throw new Error(`failed to load Railway project ${projectId}`);
+  }
+
+  const serviceNodes = (project.services?.edges || []).map((edge) => edge?.node).filter(Boolean);
+  const environmentNodes = (project.environments?.edges || []).map((edge) => edge?.node).filter(Boolean);
+
+  const resolvedServiceId = serviceId || pickByNameOrFirst(serviceNodes, serviceName, 'service');
+  const resolvedEnvironmentId = environmentId || pickByNameOrFirst(environmentNodes, environmentName, 'environment');
+
+  return { resolvedServiceId, resolvedEnvironmentId };
+}
+
 async function main() {
   const entries = parsePatchFile(path.resolve(process.cwd(), patchFile));
   const keys = pickKeys(entries);
@@ -122,12 +201,25 @@ async function main() {
   if (!dryRun) {
     if (!token) throw new Error('missing RAILWAY_TOKEN');
     if (!projectId) throw new Error('missing RAILWAY_PROJECT_ID');
-    if (!serviceId) throw new Error('missing RAILWAY_SERVICE_ID');
-    if (!environmentId) throw new Error('missing RAILWAY_ENVIRONMENT_ID');
+  }
+
+  let resolvedServiceId = serviceId;
+  let resolvedEnvironmentId = environmentId;
+  if (!dryRun) {
+    const resolved = await resolveTargetIds();
+    resolvedServiceId = resolved.resolvedServiceId;
+    resolvedEnvironmentId = resolved.resolvedEnvironmentId;
+    process.env.RAILWAY_SERVICE_ID = resolvedServiceId;
+    process.env.RAILWAY_ENVIRONMENT_ID = resolvedEnvironmentId;
   }
 
   console.log(`Applying ${keys.length} env key(s) to Railway service`);
   for (const key of keys) {
+    if (!dryRun) {
+      // Keep upsertOne API stable while targeting resolved ids.
+      process.env.RAILWAY_SERVICE_ID = resolvedServiceId;
+      process.env.RAILWAY_ENVIRONMENT_ID = resolvedEnvironmentId;
+    }
     await upsertOne(key, entries[key]);
   }
   console.log('apply-railway-env: done');
