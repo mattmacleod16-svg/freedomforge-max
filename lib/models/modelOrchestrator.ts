@@ -312,6 +312,21 @@ export async function initializeModels() {
       priority: 20,
     });
   }
+
+  // Blackbox AI (coding-specialized, OpenAI-compatible)
+  if (asBool(process.env.BLACKBOX_ENABLED)) {
+    const blackboxKey = firstEnv('BLACKBOX_KEY', 'BLACKBOX_API_KEY');
+    if (blackboxKey) {
+      upsertModel({
+        name: 'blackbox',
+        apiKey: blackboxKey,
+        type: 'openai-compatible',
+        endpoint: firstEnv('BLACKBOX_ENDPOINT') || 'https://api.blackbox.ai/api/chat',
+        model: firstEnv('BLACKBOX_MODEL') || 'blackbox-code-fast',
+        priority: 21,
+      });
+    }
+  }
 }
 
 function ensureModelsInitialized() {

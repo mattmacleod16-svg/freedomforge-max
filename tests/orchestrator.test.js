@@ -99,6 +99,12 @@ function isLowStakesQuery(query) {
   return false;
 }
 
+function isCodingQuery(query) {
+  return /(code|debug|function|class|implement|refactor|script|algorithm|typescript|javascript|python|api endpoint|unit test|bug fix|snippet|regex|sql query|shell command|dockerfile|lint|compile|build error)/i.test(
+    query
+  );
+}
+
 function estimateComplexityScore(input) {
   const words = countWords(input.userQuery);
   const query = input.userQuery.toLowerCase();
@@ -635,5 +641,41 @@ describe('orchestrator: shouldEscalateModelPass()', () => {
     });
     assert.ok(result.escalate);
     assert.ok(result.reasons.includes('bottom_line_protection'));
+  });
+});
+
+describe('isCodingQuery', () => {
+  it('detects code generation requests', () => {
+    assert.equal(isCodingQuery('write a function to sort an array'), true);
+    assert.equal(isCodingQuery('implement a binary search algorithm'), true);
+    assert.equal(isCodingQuery('create a TypeScript class for a user model'), true);
+  });
+
+  it('detects debugging requests', () => {
+    assert.equal(isCodingQuery('debug this TypeScript error'), true);
+    assert.equal(isCodingQuery('fix this bug in my python script'), true);
+    assert.equal(isCodingQuery('how do I compile this project?'), true);
+  });
+
+  it('detects refactoring and tooling requests', () => {
+    assert.equal(isCodingQuery('refactor this class to use composition'), true);
+    assert.equal(isCodingQuery('write a dockerfile for a node app'), true);
+    assert.equal(isCodingQuery('add a unit test for this function'), true);
+  });
+
+  it('returns false for non-coding queries', () => {
+    assert.equal(isCodingQuery('what is the current stock price?'), false);
+    assert.equal(isCodingQuery('how do I optimize my portfolio?'), false);
+    assert.equal(isCodingQuery('explain the tax implications of selling crypto'), false);
+  });
+
+  it('returns false for empty or trivial input', () => {
+    assert.equal(isCodingQuery(''), false);
+    assert.equal(isCodingQuery('hi'), false);
+  });
+
+  it('is case-insensitive', () => {
+    assert.equal(isCodingQuery('Write a JavaScript Function'), true);
+    assert.equal(isCodingQuery('DEBUG THIS ISSUE'), true);
   });
 });
