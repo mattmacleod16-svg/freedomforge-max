@@ -92,6 +92,8 @@
     "ios:prepare": "npm run ios:build:web && npm run ios:sync",
     "marketing:package": "node scripts/package-marketing-kit.js",
     "marketing:ship": "node scripts/package-marketing-kit.js",
+    "copyright:audit": "node scripts/copyright-compliance-audit.js",
+    "copyright:enforce": "node scripts/copyright-compliance-audit.js --enforce",
     "test:frontend": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
