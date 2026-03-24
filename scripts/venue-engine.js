@@ -61,6 +61,7 @@ const map = {
   alpaca: ['node', ['scripts/alpaca-equities-engine.js']],
   ibkr: ['node', ['scripts/ibkr-engine.js']],
   prediction: ['node', ['scripts/prediction-market-engine.js']],
+  solana: ['node', ['scripts/solana-engine.js']],
   multiversx: ['node', ['scripts/multiversx-engine.js']],
   predictions: ['node', ['scripts/multi-prediction-engine.js']],
   orchestrator: ['node', ['scripts/master-orchestrator.js']],
@@ -212,6 +213,8 @@ function isEnabledForVenue(name) {
   if (name === 'alpaca') return String(process.env.ALPACA_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'ibkr') return String(process.env.IBKR_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'prediction') return String(process.env.PRED_MARKET_ENABLED || 'false').toLowerCase() === 'true';
+  if (name === 'solana') return String(process.env.SOLANA_ENABLED || 'false').toLowerCase() === 'true';
+  if (name === 'multiversx') return String(process.env.MVX_ENABLED || 'false').toLowerCase() === 'true';
   if (name === 'orchestrator') return String(process.env.ORCHESTRATOR_ENABLED || 'false').toLowerCase() === 'true';
   return false;
 }

@@ -96,7 +96,7 @@ function createDefaultState() {
 function saveState(st) {
   try {
     if (rio) {
-      rio.writeJsonSafe(st.path, st.data);
+      rio.writeJsonAtomic(st.path, st.data);
     } else {
       fs.writeFileSync(st.path, JSON.stringify(st.data, null, 2));
     }
