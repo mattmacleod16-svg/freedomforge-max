@@ -11,6 +11,10 @@ const {
   validateHumanProfile,
   forgeUserPath,
 } = require('../lib/frontend-human-data');
+const {
+  buildPersonaPrompt,
+  buildPersonaChatHistory,
+} = require('./helpers/human-scenario-factory');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const PROFILE_FIXTURE_PATH = path.join(REPO_ROOT, 'data', 'human-frontend-profiles.json');
@@ -78,5 +82,28 @@ describe('frontend human-data contract', () => {
   it('should detect synthetic values at validator level', () => {
     assert.equal(hasSyntheticMarker('lorem ipsum profile'), true);
     assert.equal(hasSyntheticMarker('Maya Thompson'), false);
+  });
+
+  it('should cover conservative, balanced, and aggressive risk tiers', () => {
+    const profiles = JSON.parse(fs.readFileSync(PROFILE_FIXTURE_PATH, 'utf8'));
+    const riskSet = new Set(profiles.map((profile) => profile.riskTolerance));
+    const idSet = new Set(profiles.map((profile) => profile.id));
+
+    assert.deepStrictEqual(riskSet, new Set(['conservative', 'balanced', 'aggressive']));
+    assert.equal(idSet.size, profiles.length, 'profile ids must remain unique');
+  });
+
+  it('should generate synthetic-free persona prompts and histories', () => {
+    const profiles = JSON.parse(fs.readFileSync(PROFILE_FIXTURE_PATH, 'utf8'));
+
+    for (const profile of profiles) {
+      const prompt = buildPersonaPrompt(profile);
+      const history = buildPersonaChatHistory(profile, 6);
+
+      assert.equal(hasSyntheticMarker(prompt), false, `prompt contains synthetic marker for ${profile.id}`);
+      assert.equal(history.length, 6, 'history generation should honor requested length');
+      assert.ok(history.every((entry) => typeof entry.text === 'string' && entry.text.includes(profile.name)));
+      assert.ok(history.some((entry) => entry.text.includes(profile.riskTolerance)));
+    }
   });
 });

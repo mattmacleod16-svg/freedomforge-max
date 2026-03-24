@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/core.test.js tests/frontend-human-data.test.js tests/autonomy-mecca.test.js tests/unison-sync.test.js",
+    "test": "node --test tests/core.test.js tests/frontend-human-data.test.js tests/backend-human-data-scenarios.test.js tests/autonomy-mecca.test.js tests/unison-sync.test.js",
     "smoke:prod": "node scripts/smoke-prod.js",
     "smoke:alerts": "node scripts/smoke-alert-guard.js",
     "smoke:recipient": "node scripts/smoke-recipient-guard.js",
