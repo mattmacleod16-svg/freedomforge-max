@@ -7,7 +7,7 @@ interface RateLimitEntry {
   timestamps: number[];
 }
 
-let inMemoryFallback = true; // Use in-memory if Redis unavailable
+const inMemoryFallback = true; // Use in-memory if Redis unavailable
 
 const inMemoryStore = new Map<string, RateLimitEntry>();
 const MAX_KEYS = 10000;
