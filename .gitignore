@@ -49,6 +49,8 @@ next-env.d.ts
 
 # persistent data logs
 data/
+# keep test fixtures that must be version-controlled
+!data/human-frontend-profiles.json
 logs/
 
 # iOS local workspace noise (while iOS wrapper is paused)
