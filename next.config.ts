@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
       },
       // ── Optimized images ─────────────────────────────────────────────────────
       {
-        source: '/_next/image:path*',
+        source: '/_next/image/:path*',
         headers: [
           {
             key: 'Cache-Control',
@@ -65,7 +65,7 @@ const nextConfig: NextConfig = {
       },
       // ── Icons ────────────────────────────────────────────────────────────────
       {
-        source: '/:path*.png',
+        source: '/(.*)\.png',
         headers: [
           {
             key: 'Cache-Control',
