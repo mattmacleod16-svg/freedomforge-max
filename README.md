@@ -7,9 +7,11 @@
 **50+ AI Models · 20+ Providers · 100+ Languages · DeFi Intelligence · 52+ Autonomous Agents**
 
 [![Live](https://img.shields.io/badge/Live-freedomforge.one-brightgreen?style=for-the-badge)](https://freedomforge.one)
+[![CI](https://github.com/mattmacleod16-svg/freedomforge-max/actions/workflows/ci.yml/badge.svg?style=for-the-badge)](https://github.com/mattmacleod16-svg/freedomforge-max/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/Tests-166%20passing-success?style=for-the-badge)](#testing)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 [![Languages](https://img.shields.io/badge/Languages-100+-purple?style=for-the-badge)](#language-support)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https%3A%2F%2Fgithub.com%2Fmattmacleod16-svg%2Ffreedomforge-max)
 
 </div>
 

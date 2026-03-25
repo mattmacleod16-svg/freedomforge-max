@@ -64,12 +64,19 @@ export function createStreamingResponse(
     },
   });
 
+  // Restrict CORS to the configured origin — never allow wildcard in production
+  const allowedOrigin =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.APP_BASE_URL ||
+    'https://freedomforge.one';
+
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
+      Vary: 'Origin',
     },
   });
 }

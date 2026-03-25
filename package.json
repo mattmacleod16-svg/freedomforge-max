@@ -109,7 +109,9 @@
     "sync:all": "node scripts/sync-all-environments.js",
     "alchemy:verify": "node scripts/verify-alchemy.js",
     "token:verify": "node scripts/verify-token-launch.js",
-    "taskmasters:deploy": "node scripts/deploy-taskmasters.js"
+    "taskmasters:deploy": "node scripts/deploy-taskmasters.js",
+    "launch:sequence": "node scripts/launch-sequence.js",
+    "launch:sequence:live": "node scripts/launch-sequence.js --live"
   },
   "dependencies": {
     "@alch/alchemy-sdk": "^1.2.0",
