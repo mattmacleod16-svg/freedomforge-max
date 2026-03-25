@@ -1,0 +1,213 @@
+name: Sync All Environments
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_alchemy:
+        description: 'Skip Alchemy live RPC check'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: sync-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge.one' }}
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Job 1: Lint, Test, Build ─────────────────────────────────────────────────
+  verify:
+    name: Verify (Lint + Test + Build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Summary
+        run: echo "✅ Lint, test, and build all passed"
+
+  # ── Job 2: Environment Sync Check ────────────────────────────────────────────
+  env-sync:
+    name: Environment Sync Check
+    runs-on: ubuntu-latest
+    needs: verify
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run sync check
+        env:
+          APP_BASE_URL: ${{ env.APP_BASE_URL }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          ALCHEMY_NETWORK: ${{ vars.ALCHEMY_NETWORK || 'eth-mainnet' }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+          FORGE_TOKEN_ADDRESS: ${{ vars.FORGE_TOKEN_ADDRESS }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DASHBOARD_SESSION_SECRET: ${{ secrets.DASHBOARD_SESSION_SECRET }}
+        # Allow failure — this is diagnostic, not blocking
+        continue-on-error: true
+        run: node scripts/sync-all-environments.js
+
+  # ── Job 3: Alchemy API Health ─────────────────────────────────────────────────
+  alchemy-check:
+    name: Alchemy API Verification
+    runs-on: ubuntu-latest
+    needs: verify
+    if: |
+      github.event_name != 'pull_request' &&
+      github.event.inputs.skip_alchemy != 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Alchemy API
+        env:
+          APP_BASE_URL: ${{ env.APP_BASE_URL }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          ALCHEMY_NETWORK: ${{ vars.ALCHEMY_NETWORK || 'eth-mainnet' }}
+          TRACKED_TOKENS: ${{ vars.TRACKED_TOKENS || 'AERO,MATIC,ARB' }}
+        continue-on-error: true
+        run: node scripts/verify-alchemy.js
+
+  # ── Job 4: Token Launch Status ────────────────────────────────────────────────
+  token-status:
+    name: Token Launch Status
+    runs-on: ubuntu-latest
+    needs: verify
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Report token deployment status
+        env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          ALCHEMY_NETWORK: ${{ vars.ALCHEMY_NETWORK || 'eth-mainnet' }}
+          FORGE_TOKEN_ADDRESS: ${{ vars.FORGE_TOKEN_ADDRESS }}
+          SOLANA_FORGE_MINT: ${{ vars.SOLANA_FORGE_MINT }}
+          MULTIVERSX_FORGE_ADDRESS: ${{ vars.MULTIVERSX_FORGE_ADDRESS }}
+        run: node scripts/verify-token-launch.js
+
+  # ── Job 5: Deploy TaskMasters (main only) ─────────────────────────────────────
+  taskmasters:
+    name: Deploy TaskMasters
+    runs-on: ubuntu-latest
+    needs: [verify, env-sync]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy TaskMasters
+        env:
+          APP_BASE_URL: ${{ env.APP_BASE_URL }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          ALCHEMY_NETWORK: ${{ vars.ALCHEMY_NETWORK || 'eth-mainnet' }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+          FORGE_TOKEN_ADDRESS: ${{ vars.FORGE_TOKEN_ADDRESS }}
+          TRACKED_TOKENS: ${{ vars.TRACKED_TOKENS || 'AERO,MATIC,ARB' }}
+        run: node scripts/deploy-taskmasters.js
+
+  # ── Job 6: Notify Discord ─────────────────────────────────────────────────────
+  notify:
+    name: Notify Discord
+    runs-on: ubuntu-latest
+    needs: [verify, env-sync, alchemy-check, token-status]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      secrets.ALERT_WEBHOOK_URL != ''
+    steps:
+      - name: Send sync status to Discord
+        env:
+          WEBHOOK: ${{ secrets.ALERT_WEBHOOK_URL }}
+          STATUS_VERIFY: ${{ needs.verify.result }}
+          STATUS_ENV: ${{ needs.env-sync.result }}
+          STATUS_ALCHEMY: ${{ needs.alchemy-check.result }}
+          STATUS_TOKEN: ${{ needs.token-status.result }}
+        run: |
+          ICON="✅"
+          if [ "$STATUS_VERIFY" != "success" ]; then ICON="❌"; fi
+
+          curl -s -X POST "$WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"${ICON} FreedomForge Sync — $(date -u '+%Y-%m-%d %H:%M UTC')\",
+                \"color\": $([ \"$STATUS_VERIFY\" = \"success\" ] && echo 3066993 || echo 15158332),
+                \"fields\": [
+                  {\"name\": \"Build\", \"value\": \"$STATUS_VERIFY\", \"inline\": true},
+                  {\"name\": \"Env Sync\", \"value\": \"$STATUS_ENV\", \"inline\": true},
+                  {\"name\": \"Alchemy\", \"value\": \"$STATUS_ALCHEMY\", \"inline\": true},
+                  {\"name\": \"Token\", \"value\": \"$STATUS_TOKEN\", \"inline\": true},
+                  {\"name\": \"Commit\", \"value\": \"${{ github.sha }}\", \"inline\": false}
+                ],
+                \"footer\": {\"text\": \"FreedomForge Max · sync-all-environments\"}
+              }]
+            }" || true

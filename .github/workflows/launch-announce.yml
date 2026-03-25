@@ -1,0 +1,145 @@
+name: Launch Announcement
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      live_post:
+        description: 'Post to X and Discord for real (true = live, false = dry-run)'
+        required: false
+        default: 'false'
+
+env:
+  APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge.one' }}
+  NODE_VERSION: '20'
+
+jobs:
+  # ── Pre-launch health check ───────────────────────────────────────────────────
+  sync-check:
+    name: Pre-Launch Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify environment sync
+        env:
+          APP_BASE_URL: ${{ env.APP_BASE_URL }}
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          ALCHEMY_NETWORK: ${{ vars.ALCHEMY_NETWORK || 'eth-mainnet' }}
+          FORGE_TOKEN_ADDRESS: ${{ vars.FORGE_TOKEN_ADDRESS }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DASHBOARD_SESSION_SECRET: ${{ secrets.DASHBOARD_SESSION_SECRET }}
+        continue-on-error: true
+        run: node scripts/sync-all-environments.js
+
+  # ── Token deployment report ───────────────────────────────────────────────────
+  token-report:
+    name: Token Launch Status
+    runs-on: ubuntu-latest
+    needs: sync-check
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Report per-chain token status
+        env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+          FORGE_TOKEN_ADDRESS: ${{ vars.FORGE_TOKEN_ADDRESS }}
+          SOLANA_FORGE_MINT: ${{ vars.SOLANA_FORGE_MINT }}
+          MULTIVERSX_FORGE_ADDRESS: ${{ vars.MULTIVERSX_FORGE_ADDRESS }}
+        run: node scripts/verify-token-launch.js
+
+  # ── X/Twitter announcement ────────────────────────────────────────────────────
+  announce-x:
+    name: X/Twitter Announcement
+    runs-on: ubuntu-latest
+    needs: sync-check
+    if: github.event_name == 'release' || github.event.inputs.live_post == 'true'
+    steps:
+      - name: Post to X via automation endpoint
+        env:
+          APP_BASE_URL: ${{ env.APP_BASE_URL }}
+          X_AUTOMATION_SECRET: ${{ secrets.X_AUTOMATION_SECRET }}
+          RELEASE_NAME: ${{ github.event.release.name || 'FreedomForge Max Launch' }}
+          RELEASE_BODY: ${{ github.event.release.body || '' }}
+        run: |
+          IS_LIVE="${{ github.event.inputs.live_post || 'true' }}"
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "$APP_BASE_URL/api/x/automation" \
+            -H "Content-Type: application/json" \
+            -H "x-api-secret: $X_AUTOMATION_SECRET" \
+            -d "{
+              \"dryRun\": $([ \"$IS_LIVE\" = \"true\" ] && echo false || echo true),
+              \"context\": \"release_launch\",
+              \"trendHint\": \"$RELEASE_NAME autonomous AI financial freedom\"
+            }" \
+            --max-time 15 || echo -e "\nERROR")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+
+          echo "Response: $BODY"
+          echo "HTTP: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            echo "✅ X automation succeeded"
+          else
+            echo "⚠️  X automation returned $HTTP_CODE — check X API key configuration"
+          fi
+
+  # ── Discord launch embed ──────────────────────────────────────────────────────
+  discord-announce:
+    name: Discord Launch Announcement
+    runs-on: ubuntu-latest
+    needs: [sync-check, token-report]
+    if: always() && (github.event_name == 'release' || github.event.inputs.live_post == 'true')
+    steps:
+      - name: Send Discord launch embed
+        env:
+          WEBHOOK: ${{ secrets.ALERT_WEBHOOK_URL }}
+          RELEASE_NAME: ${{ github.event.release.name || 'FreedomForge Max' }}
+          RELEASE_URL: ${{ github.event.release.html_url || 'https://github.com/mattmacleod16-svg/freedomforge-max/releases' }}
+          APP_BASE_URL: ${{ env.APP_BASE_URL }}
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "⚠️  ALERT_WEBHOOK_URL not set — skipping Discord"
+            exit 0
+          fi
+
+          curl -s -X POST "$WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🚀 FreedomForge Max ${TAG} — Now Live\",
+                \"color\": 3066993,
+                \"description\": \"The world's first open-source Autonomous Intelligence Stack.\n50+ AI Models · 20+ Providers · 100+ Languages · DeFi Intelligence · 52+ Agents\",
+                \"fields\": [
+                  {\"name\": \"Live App\", \"value\": \"[$APP_BASE_URL]($APP_BASE_URL)\", \"inline\": true},
+                  {\"name\": \"Release\", \"value\": \"[${RELEASE_NAME}](${RELEASE_URL})\", \"inline\": true},
+                  {\"name\": \"Chains\", \"value\": \"Ethereum · Base · Solana · MultiversX · Polygon + more\", \"inline\": false},
+                  {\"name\": \"Deploy Your Own\", \"value\": \"[Railway Deploy](https://railway.com/new/template?template=https://github.com/mattmacleod16-svg/freedomforge-max)\", \"inline\": true}
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+                \"footer\": {\"text\": \"FreedomForge Max · Autonomous Intelligence Stack\"}
+              }]
+            }" || echo "Discord webhook failed"

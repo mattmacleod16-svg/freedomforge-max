@@ -107,11 +107,15 @@ export function middleware(request: NextRequest) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-inline/eval
+      // Next.js requires unsafe-inline for styles; unsafe-eval only needed in dev (HMR/turbopack)
+      process.env.NODE_ENV === 'production'
+        ? "script-src 'self' 'unsafe-inline'"
+        : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https:",
+      "connect-src 'self' https://openrouter.ai https://*.alchemy.com https://*.g.alchemy.com https://backboard.railway.app wss: https:",
+      "worker-src 'self' blob:",
       "frame-src 'self' https://*.grafana.net https://*.grafana.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
