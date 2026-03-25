@@ -1,0 +1,29 @@
+[
+  {
+    "id": "maya-thompson",
+    "name": "Maya Thompson",
+    "region": "Pacific Northwest",
+    "occupation": "Environmental Engineer",
+    "goals": ["Build emergency fund", "Start index fund portfolio"],
+    "riskTolerance": "conservative",
+    "timePreference": "monthly"
+  },
+  {
+    "id": "carlos-mendez",
+    "name": "Carlos Mendez",
+    "region": "Southwest US",
+    "occupation": "Restaurant Owner",
+    "goals": ["Expand second location", "Diversify revenue streams"],
+    "riskTolerance": "balanced",
+    "timePreference": "weekly"
+  },
+  {
+    "id": "priya-sharma",
+    "name": "Priya Sharma",
+    "region": "Southeast Asia",
+    "occupation": "Fintech Product Manager",
+    "goals": ["Maximize yield farming returns", "Launch DeFi analytics tool"],
+    "riskTolerance": "aggressive",
+    "timePreference": "daily"
+  }
+]
