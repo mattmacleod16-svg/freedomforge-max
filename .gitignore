@@ -62,3 +62,6 @@ xcuserdata/
 
 # monitoring stack (docker-compose, grafana, prometheus)
 monitoring/
+
+# Claude Code agent worktrees (temporary)
+.claude/worktrees/
