@@ -20,6 +20,7 @@ export type PartnerCategory =
   | 'ai-network'
   | 'data'
   | 'trading'
+  | 'prediction-markets'
   | 'payments'
   | 'identity'
   | 'investigative'
@@ -131,6 +132,18 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     priority: 0,
     capabilities: ['prediction-markets', 'clob', 'market-data', 'gamma-api'],
     forgeIntegration: 'Core prediction market trading, forecast calibration data',
+  },
+  {
+    id: 'azuro',
+    name: 'Azuro Protocol',
+    category: 'prediction-markets',
+    description: 'Decentralized prediction market protocol — sports, finance, crypto events with shared liquidity pool model',
+    website: 'https://azuro.org',
+    token: 'AZUR',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['prediction-markets', 'liquidity-pools', 'sports-betting', 'on-chain-odds', 'graphql-subgraph'],
+    forgeIntegration: 'Real-time prediction market odds and event data for AI-driven trading signals and sentiment analysis',
   },
 
   // ─── DePIN Infrastructure ───────────────────────────────────────────
