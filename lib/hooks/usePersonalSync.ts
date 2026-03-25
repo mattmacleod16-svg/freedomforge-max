@@ -83,8 +83,8 @@ export function usePersonalSync() {
       }
 
       // Step 2: Full state or delta push
-      let deltas = [];
-      let clock = {};
+      const deltas = [];
+      const clock = {};
 
       if (options?.full) {
         // Pull full resolved state
