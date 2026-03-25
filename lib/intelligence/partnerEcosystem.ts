@@ -22,7 +22,8 @@ export type PartnerCategory =
   | 'trading'
   | 'payments'
   | 'identity'
-  | 'investigative';
+  | 'investigative'
+  | 'wallet';
 
 export type IntegrationPhase = 'live' | 'building' | 'planned' | 'researching';
 
@@ -258,6 +259,19 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     priority: 1,
     capabilities: ['agent-identity', 'verifiable-credentials', 'on-chain-identity'],
     forgeIntegration: 'On-chain verifiable identity for FreedomForge autonomous agents',
+  },
+
+  // ─── Wallets & Tooling ───────────────────────────────────────────────
+  {
+    id: 'backpack',
+    name: 'Backpack (coral-xyz)',
+    category: 'wallet',
+    description: 'Multi-chain wallet with xNFT app store — Wallet Standard protocol, Solana + Ethereum, EIP-6963',
+    website: 'https://backpack.app',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['solana-wallet', 'ethereum-wallet', 'wallet-standard', 'eip6963', 'xnft', 'siws'],
+    forgeIntegration: 'Solana wallet connection for on-chain ops; EIP-6963 Ethereum provider as alternative to MetaMask',
   },
 
   // ─── Payments ───────────────────────────────────────────────────────
