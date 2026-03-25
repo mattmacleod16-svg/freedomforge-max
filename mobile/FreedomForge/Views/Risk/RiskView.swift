@@ -228,9 +228,53 @@ struct RiskView: View {
                 HorizontalBar(value: marginPct, maxValue: 100, color: marginColor(marginPct), height: 6)
 
                 if let positions = h?.positions, !positions.isEmpty {
-                    Text("\(positions.count) positions")
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    Divider().background(FFDesign.border).padding(.vertical, 2)
+                    Text("\(positions.count) OPEN POSITIONS")
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundColor(FFDesign.textTertiary)
+                        .tracking(1.0)
+                    ForEach(positions.indices, id: \.self) { i in
+                        let pos = positions[i]
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    if let side = pos.side {
+                                        StatusBadge(text: side.uppercased(), color: FF.sideColor(pos.side))
+                                    }
+                                    Text(pos.productId ?? pos.pair ?? "?")
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                        .foregroundColor(FFDesign.textPrimary)
+                                }
+                                if let contracts = pos.contracts, contracts > 0 {
+                                    Text("\(contracts) contracts")
+                                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                        .foregroundColor(FFDesign.textTertiary)
+                                } else if let volume = pos.volume {
+                                    Text(FF.usd(volume))
+                                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                        .foregroundColor(FFDesign.textTertiary)
+                                }
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                if let upnl = pos.unrealizedPnl ?? pos.pnl {
+                                    Text(FF.pnl(upnl))
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundColor(FF.pnlColor(upnl))
+                                        .contentTransition(.numericText())
+                                }
+                                if let price = pos.currentPrice {
+                                    Text(FF.usd(price))
+                                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                        .foregroundColor(FFDesign.textTertiary)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        if i < positions.count - 1 {
+                            Divider().background(FFDesign.border.opacity(0.5))
+                        }
+                    }
                 }
             }
         }

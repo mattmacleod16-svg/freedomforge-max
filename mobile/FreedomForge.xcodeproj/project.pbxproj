@@ -24,6 +24,7 @@
 		2AF4C1199109185F6D471547 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66FC1475E44B8CD0A8093222 /* SettingsView.swift */; };
 		F395D67735E57D31250589A0 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD09B30B2C76CCEA04D62EE /* SplashView.swift */; };
 		5E7994C1A68DBC0350DA86F2 /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0A3B1459DD91DD91CA72B4 /* MoreView.swift */; };
+		CC4A1B2D3E5F6A7B8C9D0E1F /* CapitalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5A2B3C4E6F7A8B9C0D1E2F /* CapitalView.swift */; };
 		592833D47527B48D4A3A9F00 /* Charts.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 54E323E032C6FBC1E18C0587 /* Charts.framework */; };
 /* End PBXBuildFile section */
 
@@ -45,6 +46,7 @@
 		66FC1475E44B8CD0A8093222 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9DD09B30B2C76CCEA04D62EE /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		BD0A3B1459DD91DD91CA72B4 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
+		DD5A2B3C4E6F7A8B9C0D1E2F /* CapitalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapitalView.swift; sourceTree = "<group>"; };
 		0096DDB5D5C93DB7732319BF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		71CCD365E3A654DA84DBA191 /* FreedomForge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FreedomForge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		54E323E032C6FBC1E18C0587 /* Charts.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Charts.framework; path = System/Library/Frameworks/Charts.framework; sourceTree = SDKROOT; };
@@ -119,11 +121,20 @@
 				EBDFCE0DDBE4A195A51062FF /* Trades */,
 				5F6D3CC208B961D3D12FDF51 /* Risk */,
 				ACE1BCFCDA2C1585293B91DE /* Brain */,
+				EE1A2C3D4F5B6C7D8E9F0A1B /* Capital */,
 				4A5F3504CB2924506472D6FC /* Signals */,
 				81AE8B5F38944C21B905C3B7 /* Infrastructure */,
 				EDE9ED559C85F2196FEE83BC /* Settings */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		EE1A2C3D4F5B6C7D8E9F0A1B /* Capital */ = {
+			isa = PBXGroup;
+			children = (
+				DD5A2B3C4E6F7A8B9C0D1E2F /* CapitalView.swift */,
+			);
+			path = Capital;
 			sourceTree = "<group>";
 		};
 		99807FED640630700B87C5C7 /* Dashboard */ = {
@@ -272,6 +283,7 @@
 				2AF4C1199109185F6D471547 /* SettingsView.swift in Sources */,
 				F395D67735E57D31250589A0 /* SplashView.swift in Sources */,
 				5E7994C1A68DBC0350DA86F2 /* MoreView.swift in Sources */,
+				CC4A1B2D3E5F6A7B8C9D0E1F /* CapitalView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

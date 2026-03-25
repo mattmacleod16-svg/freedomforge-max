@@ -227,7 +227,14 @@ export async function getBalance(address: string, networkOverride?: string): Pro
 export async function getTokenBalances(address: string, tokens?: string[], networkOverride?: string): Promise<{[token:string]: {balance: string | null; symbol?: string; decimals?: number}} | null> {
   const client = initAlchemy(networkOverride);
   if (!client) return null;
-  const list = tokens || (process.env.TRACKED_TOKENS || '').split(',').map(t => t.trim()).filter(t => t);
+  const rawList = tokens || (process.env.TRACKED_TOKENS || '').split(',').map(t => t.trim()).filter(t => t);
+  // Filter out the zero address and native-token sentinel — these are not ERC-20
+  // contracts and will cause Alchemy to error or return meaningless data.
+  const SKIP_ADDRS = new Set([
+    '0x0000000000000000000000000000000000000000',
+    '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  ]);
+  const list = rawList.filter(t => /^0x[0-9a-fA-F]{40}$/.test(t) && !SKIP_ADDRS.has(t.toLowerCase()));
   if (list.length === 0) return null;
   try {
     const result: {[token:string]: {balance: string | null; symbol?: string; decimals?: number}} = {};

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { checkRateLimit } from '@/lib/auth/rateLimiter';
+import { checkRateLimit } from '@/lib/cache/rateLimiter-redis';
 
 /**
  * Rate limit rules per endpoint pattern.

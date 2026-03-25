@@ -9,36 +9,50 @@ This is FreedomForge Max — an autonomous intelligence engine for financial emp
 - AI Backend: OpenRouter multi-model routing (26 MAX + 10 Advisor models)
 - Trading Backend: OCI (Oracle Cloud Infrastructure)
 - Auth: HMAC-SHA256 sessions
-- Testing: Vitest 4.1 (109+ tests)
+- Testing: Vitest 4.1 (189+ tests)
 - Deploy: Railway (https://freedomforge.one)
+- Connection Stability: Offline queue (IndexedDB), health checks (pre-flight), distributed rate limiter
 
 ## File Structure
 - app/ — Next.js App Router pages and API routes
 - lib/ — Core business logic, models, utilities
+    - db/ — Offline queue (IndexedDB wrapper)
+    - web3/ — Health checks for OCI/exchanges
+    - cache/ — Rate limiting (Redis-ready)
+    - streaming/ — SSE chat formatter
+    - hooks/ — usePolling for dashboard real-time
 - middleware.ts — Edge auth, rate limiting, CSRF
 - public/ — PWA assets, service worker
+- scripts/ — deployment and setup scripts
 
 ## Critical Files (Handle With Care)
 - lib/ucfee-virtues.ts — 5,600+ line behavioral framework (UCFEE-2.0)
 - lib/advisor-knowledge.ts — 916 line tax/legal knowledge base
 - lib/models.ts — AI model registry
-- middleware.ts — Security middleware
+- middleware.ts — Security middleware, rate limiting
+- public/sw.js — Service Worker v5 (offline sync, mutation queueing)
 
 ## Coding Rules
 1. TypeScript strict mode — no `any` types unless unavoidable
 2. Tests live next to source files (*.test.ts / *.test.tsx)
 3. Run `npm test` before committing
 4. All AI API calls go through OpenRouter
-5. API routes use SSE (Server-Sent Events) for streaming
-6. Environment variables in .env.local (never commit secrets)
-7. Follow existing code patterns — check similar files first
+5. API routes support SSE (Server-Sent Events) for streaming (?stream=true for chat)
+6. Chat errors return 503 + queued status when exchanges unreachable
+7. Dashboard uses visibility-aware polling (pauses when tab hidden)
+8. Rate limiting is distributed-ready (Redis fallback to in-memory)
+9. Environment variables in .env.local (never commit secrets)
+10. Follow existing code patterns — check similar files first
 
-## Agent Context
-This project is managed by multiple AI agents sharing context:
-- Blackbox AI (you) — code editing and autocomplete
-- GitHub Copilot — via .github/agents/freedomforge.agent.md
-- Claude — via CLAUDE.md
-All agents should produce consistent, compatible changes.
+## Extension Protocol (BlackBox AI)
+BlackBox extension communicates with FreedomForge via HTTP polling (no WebSocket):
+- **Health endpoint:** GET /api/status/extension (returns agent_state, models_available, circuit_breakers)
+- **Chat endpoint:** POST /api/chat (supports ?stream=true for SSE)
+- **Queue sync:** POST /api/sync/queue (triggered by Service Worker on reconnect)
+- **Polling frequency:** 5-30s recommended (register at /api/status/extension to discover)
+- **Auth:** Session cookie (ff_session) required in all requests
+- **Heartbeat:** /api/health every 30s; if 503 → circuit breaker is OPEN
+- **Exponential backoff:** On connection loss, retry with 2s, 4s, 8s... max 60s jitter
 
 ## When Generating Code
 - Use React Server Components where possible
@@ -47,6 +61,16 @@ All agents should produce consistent, compatible changes.
 - Use the circuit breaker pattern for external API calls
 - Follow the existing error handling patterns
 - Keep security in mind — validate inputs, sanitize outputs
+- Add health checks before all mutations (trades, payouts, etc.)
+- Queue mutations if external services are unreachable (don't fail silently)
+
+## Agent Context
+This project is managed by multiple AI agents sharing context:
+- Blackbox AI (you) — code editing and autocomplete
+- GitHub Copilot — via .github/agents/freedomforge.agent.md
+- Claude — via CLAUDE.md
+All agents should produce consistent, compatible changes.
+
 
 ## Models Available
 Use lib/models.ts as the source of truth for available AI models.

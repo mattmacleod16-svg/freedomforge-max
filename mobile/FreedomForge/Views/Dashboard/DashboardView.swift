@@ -26,6 +26,8 @@ struct DashboardView: View {
                             if let snapshots = appState.capital?.treasury?.dailySnapshots, snapshots.count >= 2 {
                                 equityCurveChart(snapshots)
                                     .staggered(index: 1)
+                                dailyPnlChart(snapshots)
+                                    .staggered(index: 1)
                             }
 
                             // Hero KPIs
@@ -109,11 +111,12 @@ struct DashboardView: View {
                             // Skeleton loading
                             VStack(spacing: 14) {
                                 SkeletonCard(height: 60)
+                                SkeletonCard(height: 250)
                                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                                     SkeletonCard(height: 100)
                                     SkeletonCard(height: 100)
                                 }
-                                SkeletonCard(height: 180)
+                                SkeletonCard(height: 140)
                                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                                     SkeletonCard(height: 80)
                                     SkeletonCard(height: 80)
@@ -332,6 +335,74 @@ struct DashboardView: View {
         return dateStr
     }
 
+    // MARK: - Daily P&L Bar Chart
+
+    @ViewBuilder
+    private func dailyPnlChart(_ allSnapshots: [CapitalData.DailySnapshot]) -> some View {
+        let snapshots = filteredSnapshots(allSnapshots)
+        let pnlValues = snapshots.compactMap { $0.pnl }
+        guard pnlValues.count >= 2 else { return }
+
+        let maxPnl = max(pnlValues.map { abs($0) }.max() ?? 1, 1.0)
+        let wins = pnlValues.filter { $0 >= 0 }.count
+        let losses = pnlValues.filter { $0 < 0 }.count
+        let netPnl = pnlValues.reduce(0, +)
+
+        PremiumCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("DAILY P&L")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(FFDesign.textTertiary)
+                            .tracking(0.8)
+                        Text(FF.pnl(netPnl))
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundColor(FF.pnlColor(netPnl))
+                            .contentTransition(.numericText())
+                    }
+                    Spacer()
+                    HStack(spacing: 10) {
+                        Label("\(wins)W", systemImage: "arrow.up")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(FFDesign.positive)
+                        Label("\(losses)L", systemImage: "arrow.down")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(FFDesign.negative)
+                    }
+                }
+
+                Chart {
+                    ForEach(Array(snapshots.enumerated()), id: \.offset) { index, snap in
+                        let pnl = snap.pnl ?? 0
+                        BarMark(
+                            x: .value("Day", index),
+                            y: .value("P&L", pnl)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: pnl >= 0
+                                    ? [FFDesign.positive.opacity(0.9), FFDesign.positive.opacity(0.5)]
+                                    : [FFDesign.negative.opacity(0.5), FFDesign.negative.opacity(0.9)],
+                                startPoint: pnl >= 0 ? .top : .bottom,
+                                endPoint: pnl >= 0 ? .bottom : .top
+                            )
+                        )
+                        .cornerRadius(2)
+                    }
+                    RuleMark(y: .value("Zero", 0))
+                        .foregroundStyle(FFDesign.border)
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3]))
+                }
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .chartLegend(.hidden)
+                .chartYScale(domain: -maxPnl * 1.15 ... maxPnl * 1.15)
+                .frame(height: 80)
+            }
+        }
+    }
+
     // MARK: - System Banner
 
     @ViewBuilder
@@ -418,10 +489,8 @@ struct DashboardView: View {
     // MARK: - Helpers
 
     private func pnlTrend(_ value: Double?) -> String? {
-        guard let v = value else { return nil }
-        if v > 0 { return "+\(String(format: "%.1f%%", v))" }
-        if v < 0 { return "\(String(format: "%.1f%%", v))" }
-        return nil
+        guard let v = value, v != 0 else { return nil }
+        return FF.pnl(v)
     }
 
     private func drawdownColor(_ pct: Double?) -> Color {

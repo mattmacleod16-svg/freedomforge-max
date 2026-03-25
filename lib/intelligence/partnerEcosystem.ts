@@ -21,7 +21,9 @@ export type PartnerCategory =
   | 'trading'
   | 'payments'
   | 'identity'
-  | 'investigative';
+  | 'investigative'
+  | 'ai-network'
+  | 'wallet';
 
 export type IntegrationPhase = 'live' | 'building' | 'planned' | 'researching';
 
@@ -77,6 +79,84 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     priority: 1,
     capabilities: ['esdt-tokens', 'sovereign-chains', 'space-vm', 'smart-contracts'],
     forgeIntegration: 'Existing MultiversX client, $FORGE ESDT deployment planned',
+  },
+
+  {
+    id: 'ontology',
+    name: 'Ontology',
+    category: 'blockchain',
+    description: 'Enterprise blockchain with native W3C DID (ONT ID), dual-token model (ONT/ONG), and sponsor gas for gasless UX',
+    website: 'https://ont.io',
+    token: 'ONT',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['ont-id', 'decentralized-identity', 'verifiable-credentials', 'gasless-ux', 'ong-yield', 'multi-sig', 'sm2-crypto'],
+    forgeIntegration: 'ONT ID for agent identity/reputation; ONG unbonding yield tracking in dashboard; sponsor gas for user onboarding',
+  },
+  {
+    id: 'xrpl',
+    name: 'XRP Ledger (XRPL)',
+    category: 'blockchain',
+    description: 'Fast settlement L1 optimized for payments and tokenized value transfer',
+    website: 'https://xrpl.org',
+    chain: 'XRP Ledger',
+    token: 'XRP',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['payments', 'account-info', 'transaction-status', 'ledger-inspection', 'server-health'],
+    forgeIntegration: 'Chain client for payment rails, account balance/status checks, and transaction confirmation workflows',
+  },
+  {
+    id: 'starknet',
+    name: 'StarkNet',
+    category: 'blockchain',
+    description: 'ZK-rollup for scalable smart contracts and account abstraction',
+    website: 'https://www.starknet.io',
+    chain: 'StarkNet',
+    token: 'STRK',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['zk-rollup', 'contract-calls', 'nonce-tracking', 'transaction-status', 'network-health'],
+    forgeIntegration: 'Chain client for ZK-aware execution routes, nonce reads, and status-driven automation',
+  },
+  {
+    id: 'injective',
+    name: 'Injective',
+    category: 'trading',
+    description: 'DeFi-focused L1 with spot and derivatives primitives for advanced exchange workflows',
+    website: 'https://injective.com',
+    chain: 'Injective',
+    token: 'INJ',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['spot-markets', 'derivative-markets', 'orderbooks', 'portfolio-balances', 'market-health'],
+    forgeIntegration: 'Trading chain adapter for spot/derivative discovery, liquidity reads, and portfolio-aware routing',
+  },
+  {
+    id: 'polygon',
+    name: 'Polygon',
+    category: 'blockchain',
+    description: 'EVM-compatible network family for low-cost transactions and broad DeFi interoperability',
+    website: 'https://polygon.technology',
+    chain: 'Polygon PoS, zkEVM',
+    token: 'POL',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['evm-rpc', 'balance-checks', 'receipt-status', 'contract-calls', 'gas-estimation'],
+    forgeIntegration: 'EVM execution adapter for transaction verification, gas-aware planning, and contract read flows',
+  },
+  {
+    id: 'internet-computer',
+    name: 'Internet Computer (ICP)',
+    category: 'blockchain',
+    description: 'Canister-based decentralized compute network with web-native smart contract model',
+    website: 'https://internetcomputer.org',
+    chain: 'Internet Computer',
+    token: 'ICP',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['canister-status', 'network-metrics', 'subnet-observability', 'ledger-balance', 'gateway-health'],
+    forgeIntegration: 'Canister and subnet observability client for distributed task execution and runtime health checks',
   },
 
   // ─── DeFi Protocols ─────────────────────────────────────────────────
@@ -150,10 +230,34 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     description: 'Decentralized cloud marketplace — alternative to centralized clouds',
     website: 'https://akash.network',
     token: 'AKT',
-    phase: 'planned',
+    phase: 'live',
     priority: 1,
     capabilities: ['cloud-marketplace', 'gpu-compute', 'cpu-compute', 'storage'],
     forgeIntegration: 'Cost-optimized compute for batch ML training and non-latency-critical inference',
+  },
+  {
+    id: 'ionet',
+    name: 'io.net',
+    category: 'ai-compute',
+    description: 'Solana-based DePIN GPU network — 130+ countries, sub-90s cluster spin-up',
+    website: 'https://io.net',
+    token: 'IO',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['gpu-compute', 'distributed-inference', 'ray-clusters', 'depin'],
+    forgeIntegration: 'Decentralized inference fallback; geographic redundancy for burst workloads',
+  },
+  {
+    id: 'zerog',
+    name: '0G (Zero Gravity)',
+    category: 'ai-compute',
+    description: 'TEE-verified sealed inference + on-chain settlement for private AI compute',
+    website: 'https://0g.ai',
+    token: '0G',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['tee-inference', 'sealed-compute', 'on-chain-settlement', 'privacy-first'],
+    forgeIntegration: 'Privacy-sensitive inference fallback; verifiable compute proofs for compliance',
   },
   {
     id: 'render',
@@ -181,6 +285,20 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     forgeIntegration: 'NVIDIA NIM model provider (live), NemoClaw local deployment target',
   },
 
+  // ─── AI Networks ────────────────────────────────────────────────────
+  {
+    id: 'bittensor',
+    name: 'Bittensor',
+    category: 'ai-network',
+    description: 'Decentralized AI network with 128+ specialized subnets and Yuma consensus incentivizing truthful outputs',
+    website: 'https://bittensor.com',
+    token: 'TAO',
+    phase: 'live',
+    priority: 0,
+    capabilities: ['text-generation', 'trading-signals', 'search-augmented', 'creative', 'collective-intelligence', 'subnet-routing'],
+    forgeIntegration: 'Subnet-aware routing via Corcel gateway (netuid 18) + direct metagraph monitoring via taostats.io',
+  },
+
   // ─── Data & Intelligence ────────────────────────────────────────────
   {
     id: 'occrp',
@@ -206,6 +324,19 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     priority: 1,
     capabilities: ['agent-identity', 'verifiable-credentials', 'on-chain-identity'],
     forgeIntegration: 'On-chain verifiable identity for FreedomForge autonomous agents',
+  },
+
+  // ─── Wallets & Tooling ───────────────────────────────────────────────
+  {
+    id: 'backpack',
+    name: 'Backpack (coral-xyz)',
+    category: 'wallet',
+    description: 'Multi-chain wallet with xNFT app store — Wallet Standard protocol, Solana + Ethereum, EIP-6963',
+    website: 'https://backpack.app',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['solana-wallet', 'ethereum-wallet', 'wallet-standard', 'eip6963', 'xnft', 'siws'],
+    forgeIntegration: 'Solana wallet connection for on-chain ops; EIP-6963 Ethereum provider as alternative to MetaMask',
   },
 
   // ─── Payments ───────────────────────────────────────────────────────

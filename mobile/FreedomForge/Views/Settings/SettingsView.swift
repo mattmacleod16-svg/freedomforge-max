@@ -300,16 +300,26 @@ struct SettingsView: View {
 
         Task {
             do {
-                let api = APIClient.shared
-                api.configure(baseURL: tempURL, token: tempToken)
-
-                struct HealthResponse: Codable {
-                    let status: String?
-                    let uptime: Int?
-                    let version: String?
+                let baseURL = tempURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                guard let url = URL(string: baseURL + "/api/health") else {
+                    throw APIError.invalidURL
                 }
 
-                let health: HealthResponse = try await api.get("/api/health")
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 10
+                if !tempToken.isEmpty {
+                    request.setValue("Bearer \(tempToken)", forHTTPHeaderField: "Authorization")
+                }
+
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    throw APIError.httpError(code)
+                }
+
+                struct HealthResponse: Codable { let status: String?; let uptime: Int? }
+                let health = try JSONDecoder.ff.decode(HealthResponse.self, from: data)
                 testResult = "OK — \(health.status ?? "up"), uptime: \(FF.uptime(health.uptime))"
             } catch {
                 testResult = "FAILED: \(error.localizedDescription)"

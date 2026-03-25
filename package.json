@@ -84,6 +84,11 @@
     "edge:signal": "node -e \"const e=require('./lib/edge-detector'); e.getCompositeSignal({asset:'BTC'}).then(s=>console.log(JSON.stringify(s,null,2)))\"",
     "journal:stats": "node -e \"const j=require('./lib/trade-journal'); console.log(JSON.stringify(j.getStats(),null,2))\"",
     "journal:evolution": "node -e \"const j=require('./lib/trade-journal'); console.log(JSON.stringify(j.getStrategyEvolution(),null,2))\"",
+    "contract:compile": "solc --optimize --bin --abi contracts/FreedomForgeToken.sol -o contracts/build/ && echo '✅ Contract compiled to contracts/build/'",
+    "contract:deploy:sepolia": "DEPLOY_NETWORK=sepolia npx ts-node contracts/deploy.ts",
+    "contract:deploy:base-sepolia": "DEPLOY_NETWORK=base-sepolia npx ts-node contracts/deploy.ts",
+    "contract:deploy:ethereum": "DEPLOY_NETWORK=ethereum npx ts-node contracts/deploy.ts",
+    "contract:deploy:base": "DEPLOY_NETWORK=base npx ts-node contracts/deploy.ts",
     "deploy:vm": "bash scripts/deploy-to-vm.sh",
     "oracle:enable:autonomy": "bash scripts/oracle-enable-superagent-autonomy.sh",
     "oracle:console:self-heal": "bash scripts/oracle-console-self-heal.sh",
@@ -98,7 +103,9 @@
     "marketing:ship": "node scripts/package-marketing-kit.js",
     "copyright:audit": "node scripts/copyright-compliance-audit.js",
     "copyright:enforce": "node scripts/copyright-compliance-audit.js --enforce",
-    "test:frontend": "vitest run --config vitest.config.ts"
+    "test:frontend": "vitest run --config vitest.config.ts",
+    "sync:personal": "node scripts/sync-personal-info.js http://localhost:3000",
+    "sync:personal:prod": "node scripts/sync-personal-info.js https://freedomforge.one"
   },
   "dependencies": {
     "@alch/alchemy-sdk": "^1.2.0",

@@ -16,6 +16,8 @@ import { initializeMemoryEngine, recallMemories, rememberEpisode } from '@/lib/i
 import { getAdaptiveOpportunityPlan } from '@/lib/intelligence/opportunityEngine';
 import { buildVendorStrategyContext } from '@/lib/intelligence/vendorStack';
 import { buildBehavioralContext } from '@/lib/intelligence/behavioralIntel';
+import { detectLanguage, getModelForLanguage } from '@/lib/intelligence/limitlessGrowth';
+import { resolveSkillRoutingContext } from '@/lib/intelligence/skillsMatrix';
 import { logEvent } from '@/lib/logger';
 
 /** Sentinel string returned when all model response paths fail. */
@@ -23,6 +25,8 @@ export const SYNTHESIS_FALLBACK_RESPONSE = 'Unable to generate response';
 
 /** Maximum characters to include in diagnostic log snippets. */
 const LOG_SNIPPET_MAX_LENGTH = 80;
+const RESPONSE_LANGUAGE_POLICY = 'english_us';
+const RESPONSE_LANGUAGE_INSTRUCTION = 'IMPORTANT: You must always respond in English (en-US). Do not use any other language under any circumstances, regardless of the language of the user message or browser settings.\n\n';
 
 function isMaxModeEnabled() {
   return String(process.env.MAX_INTELLIGENCE_MODE || process.env.AUTONOMY_MAX_MODE || 'false').toLowerCase() === 'true';
@@ -429,6 +433,35 @@ interface SynthesisResult {
     escalation_reasons: string[];
     agreement_score: number;
   };
+  interoperability?: {
+    detected_language: {
+      code: string;
+      name: string;
+      confidence: number;
+    };
+    response_language_policy: typeof RESPONSE_LANGUAGE_POLICY;
+    matched_skills: Array<{
+      id: string;
+      name: string;
+      domain: string;
+      level: string;
+      confidence: number;
+    }>;
+    unresolved_skill_gaps: Array<{
+      id: string;
+      name: string;
+      domain: string;
+      level: string;
+      elo: number;
+    }>;
+    routing_signals: {
+      inferred_domains: string[];
+      skill_affinity_models: string[];
+      language_preferred_models: string[];
+      champion: string | null;
+      challenger: string | null;
+    };
+  };
   timestamp: number;
 }
 
@@ -454,7 +487,10 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
   const startTime = Date.now();
   const maxMode = isMaxModeEnabled();
   const sources: string[] = [];
-  let enhancedPrompt = userQuery;
+  const detectedLanguage = detectLanguage(userQuery);
+  const skillContext = resolveSkillRoutingContext(userQuery, { limit: 4, gapLimit: 4 });
+  const languagePreferredModels = getModelForLanguage(detectedLanguage.code).map((name) => name.toLowerCase());
+  let enhancedPrompt = RESPONSE_LANGUAGE_INSTRUCTION + userQuery;
   let searchResultCount = 0;
   let kbHitCount = 0;
   let marketContext: Awaited<ReturnType<typeof maybeRefreshMarketFeatureStore>> = null;
@@ -491,7 +527,7 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
     // Step 1: Enhance with web search
     console.log('🔍 Searching web for current information...');
     const webContext = await enhancePromptWithWebSearch(userQuery);
-    enhancedPrompt = webContext.withContext;
+    enhancedPrompt = RESPONSE_LANGUAGE_INSTRUCTION + webContext.withContext;
     searchResultCount = webContext.sources.length;
     sources.push(...webContext.sources.map((s) => s.url));
 
@@ -570,6 +606,9 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       forecastBrierScore: forecastContext.brier,
       forecastConfidence: forecastContext.confidence,
       marketConfidence: marketContext?.confidence ?? 0.5,
+      skillAffinityModels: skillContext.rankedModelAffinities,
+      detectedLanguage: detectedLanguage.code,
+      languagePreferredModels,
     });
 
     if (maxMode) {
@@ -632,6 +671,12 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
       agreementScore: consensus.agreementScore,
       maxMode,
       routingRationale: routing.rationale,
+      routingBridge: {
+        detectedLanguage,
+        skillAffinityModels: skillContext.rankedModelAffinities,
+        inferredDomains: skillContext.inferredDomains,
+        languagePreferredModels,
+      },
       reasoningProfile,
       escalated: escalationDecision.escalate,
       escalationReasons: escalationDecision.reasons,
@@ -780,6 +825,25 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
         escalated: escalationDecision.escalate,
         escalation_reasons: escalationDecision.reasons,
         agreement_score: consensus.agreementScore,
+      },
+      interoperability: {
+        detected_language: detectedLanguage,
+        response_language_policy: RESPONSE_LANGUAGE_POLICY,
+        matched_skills: skillContext.matchedSkills.map((skill) => ({
+          id: skill.id,
+          name: skill.name,
+          domain: skill.domain,
+          level: skill.level,
+          confidence: skill.confidence,
+        })),
+        unresolved_skill_gaps: skillContext.unresolvedGaps,
+        routing_signals: {
+          inferred_domains: skillContext.inferredDomains,
+          skill_affinity_models: skillContext.rankedModelAffinities,
+          language_preferred_models: languagePreferredModels,
+          champion: routing.champion,
+          challenger: routing.challenger,
+        },
       },
       timestamp: Date.now(),
     };

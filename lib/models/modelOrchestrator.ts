@@ -15,6 +15,7 @@ interface ModelConfig {
   model?: string;
   extraHeaders?: Record<string, string>;
   priority: number;
+  isFallback?: boolean;
 }
 
 interface ModelResponse {
@@ -310,6 +311,74 @@ export async function initializeModels() {
       endpoint: firstEnv('AI21_ENDPOINT') || 'https://api.ai21.com/studio/v1/chat/completions',
       model: firstEnv('AI21_MODEL') || 'jamba-1.5-large',
       priority: 20,
+    });
+  }
+
+  // Blackbox AI — coding-specialized (OpenAI-compatible)
+  if (asBool(process.env.BLACKBOX_ENABLED)) {
+    const blackboxKey = firstEnv('BLACKBOX_KEY', 'BLACKBOX_API_KEY');
+    if (blackboxKey) {
+      upsertModel({
+        name: 'blackbox',
+        apiKey: blackboxKey,
+        type: 'openai-compatible',
+        endpoint: firstEnv('BLACKBOX_ENDPOINT') || 'https://api.blackbox.ai/api/chat',
+        model: firstEnv('BLACKBOX_MODEL') || 'blackbox-code-fast',
+        priority: 21,
+      });
+    }
+  }
+
+  // ── Decentralized AI Networks (fallback-only — try when all primary providers fail) ──
+  const akashKey = firstEnv('AKASH_API_KEY');
+  if (akashKey) {
+    upsertModel({
+      name: 'akash',
+      apiKey: akashKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('AKASH_ENDPOINT') || 'https://chatapi.akash.network/api/v1/chat/completions',
+      model: firstEnv('AKASH_MODEL') || 'Meta-Llama-3-1-405B-Instruct-FP8',
+      priority: 50,
+      isFallback: true,
+    });
+  }
+
+  const corcelKey = firstEnv('CORCEL_API_KEY');
+  if (corcelKey) {
+    upsertModel({
+      name: 'corcel',
+      apiKey: corcelKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('CORCEL_ENDPOINT') || 'https://api.corcel.io/v1/text/cortext/chat',
+      model: firstEnv('CORCEL_MODEL') || 'cortext-ultra',
+      priority: 51,
+      isFallback: true,
+    });
+  }
+
+  const ionetKey = firstEnv('IONET_API_KEY');
+  if (ionetKey) {
+    upsertModel({
+      name: 'ionet',
+      apiKey: ionetKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('IONET_ENDPOINT') || 'https://api.io.net/v1/chat/completions',
+      model: firstEnv('IONET_MODEL') || 'llama-3.1-70b',
+      priority: 52,
+      isFallback: true,
+    });
+  }
+
+  const zerogKey = firstEnv('ZEROG_API_KEY');
+  if (zerogKey) {
+    upsertModel({
+      name: 'zerog',
+      apiKey: zerogKey,
+      type: 'openai-compatible',
+      endpoint: firstEnv('ZEROG_ENDPOINT') || 'https://rpc.0g.ai/v1/chat/completions',
+      model: firstEnv('ZEROG_MODEL') || '0g-serving-model',
+      priority: 53,
+      isFallback: true,
     });
   }
 }
@@ -653,7 +722,10 @@ export async function getMultiModelResponse(
     if (bPref !== -1) return 1;
     return a.priority - b.priority;
   });
-  const selectedModels = sortedModels.slice(0, Math.min(count, models.length));
+  const primaryModels = sortedModels.filter((m) => !m.isFallback);
+  const fallbackModels = sortedModels.filter((m) => m.isFallback);
+  const poolForSelection = primaryModels.length > 0 ? primaryModels : fallbackModels;
+  const selectedModels = poolForSelection.slice(0, Math.min(count, poolForSelection.length));
 
   const responses: ModelResponse[] = await Promise.all(
     selectedModels.map(async (model) => {
@@ -708,7 +780,29 @@ export async function getMultiModelResponse(
     })
   );
 
-  return responses.filter((r) => r.confidence > 0);
+  const good = responses.filter((r) => r.confidence > 0);
+  // If primary providers all failed and we have decentralized fallbacks, try those.
+  if (good.length === 0 && primaryModels.length > 0 && fallbackModels.length > 0) {
+    const fallbackSelected = fallbackModels.slice(0, Math.min(count, fallbackModels.length));
+    const fallbackResponses = await Promise.all(
+      fallbackSelected.map(async (model) => {
+        try {
+          const response = await queryOpenAICompatible(prompt, model);
+          const normalized = normalizeResponseText(response);
+          if (normalized && !isWeakResponse(normalized)) {
+            const inputTokens = Math.ceil(prompt.length / 4);
+            const outputTokens = Math.ceil(normalized.length / 4);
+            try { recordApiSpend(model.name, inputTokens, outputTokens); } catch {}
+          }
+          return { model: model.name, response: normalized, confidence: scoreResponseConfidence(response), timestamp: Date.now() };
+        } catch (error) {
+          return { model: model.name, response: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`, confidence: 0, timestamp: Date.now() };
+        }
+      })
+    );
+    return fallbackResponses.filter((r) => r.confidence > 0);
+  }
+  return good;
 }
 
 export async function getBestResponse(prompt: string): Promise<string> {

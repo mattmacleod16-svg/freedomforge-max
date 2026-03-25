@@ -308,6 +308,20 @@ function detectEthicsFlags(query: string, response: string) {
   return flags;
 }
 
+function isLowRiskConversationalQuery(query: string) {
+  const text = (query || '').trim().toLowerCase();
+  if (!text) return true;
+  if (text.length <= 24 && /^(hi|hello|hey|yo|gm|gn|sup|ping|status\??)$/.test(text)) return true;
+  if (/^(how are you|what can you do|who are you|thanks|thank you)[\s!?.,]*$/.test(text)) return true;
+  return false;
+}
+
+function isHighImpactOperationalQuery(query: string) {
+  return /(transfer|wire|withdraw|execute|autopilot|rebalance|all-in|leverage|private key|custody|liquidate|deploy capital)/i.test(
+    query || ''
+  );
+}
+
 function updateApiAdapters() {
   const adapters = [
     { id: 'alchemy', available: Boolean(process.env.ALCHEMY_API_KEY) },
@@ -390,9 +404,16 @@ function runTeamOrchestration(input: AutonomyInput, confidence: number): TeamRev
   return reviews;
 }
 
-function runPeerJury(teamReviews: TeamReview[], ethicsFlags: string[], confidence: number, riskScore: number): JuryDecision {
+function runPeerJury(teamReviews: TeamReview[], ethicsFlags: string[], confidence: number, riskScore: number, userQuery: string): JuryDecision {
   const avgScore = avg(teamReviews.map((review) => review.score));
   const policy = state.governance.approvalPolicy;
+  const lowRiskConversation = isLowRiskConversationalQuery(userQuery);
+  const highImpact = isHighImpactOperationalQuery(userQuery);
+
+  // Keep human interaction natural: low-risk social prompts should not hard-stop.
+  if (lowRiskConversation && !highImpact && ethicsFlags.length === 0) {
+    return 'approve';
+  }
 
   if (ethicsFlags.length > 0 && policy.alwaysEscalateOnEthicsFlags) return 'escalate';
 
@@ -412,10 +433,13 @@ function runPeerJury(teamReviews: TeamReview[], ethicsFlags: string[], confidenc
   return 'approve';
 }
 
-function runReflectionAtScale(response: string, juryDecision: JuryDecision): string {
+function runReflectionAtScale(response: string, juryDecision: JuryDecision, userQuery: string): string {
   if (juryDecision === 'approve') return response;
   if (juryDecision === 'revise') {
     return `${response}\n\nReflection: confidence is moderate; plan incremental execution, monitor outcomes, and re-evaluate with fresh evidence.`;
+  }
+  if (isLowRiskConversationalQuery(userQuery) && !isHighImpactOperationalQuery(userQuery)) {
+    return `${response}\n\nNote: high-autonomy actions are paused for safety, but I can continue helping conversationally with guidance, analysis, and planning.`;
   }
   return `${response}\n\nHuman-in-the-loop required: elevated ethical or operational risk detected; pause autonomous execution until reviewed.`;
 }
@@ -769,8 +793,8 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
 
   const teamReviews = runTeamOrchestration(input, confidence);
   const ethicsFlags = detectEthicsFlags(input.userQuery, input.selectedResponse);
-  const juryDecision = runPeerJury(teamReviews, ethicsFlags, confidence, input.riskScore);
-  const responseWithReflection = runReflectionAtScale(input.selectedResponse, juryDecision);
+  const juryDecision = runPeerJury(teamReviews, ethicsFlags, confidence, input.riskScore, input.userQuery);
+  const responseWithReflection = runReflectionAtScale(input.selectedResponse, juryDecision, input.userQuery);
 
   const selfPlayEpisode = runSelfPlay(input.modelResponses, input.riskScore);
   const retrainTriggered = maybeTriggerRetraining(input.driftScore, confidence, juryDecision);
@@ -900,7 +924,7 @@ export async function runAutonomyDirector(input: AutonomyInput): Promise<Autonom
       signalsUsed: groundTruthSignals + marketSignalCount + forecastSignalCount,
     },
     symbiosis: {
-      humanRequired: juryDecision === 'escalate',
+      humanRequired: juryDecision === 'escalate' && isHighImpactOperationalQuery(input.userQuery),
       reason: juryDecision === 'escalate' ? 'Ethical or high-risk operational signal detected.' : undefined,
     },
     ethicalAlignment: {

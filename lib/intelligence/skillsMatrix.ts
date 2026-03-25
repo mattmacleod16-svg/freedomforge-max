@@ -113,6 +113,30 @@ export interface KBIndex {
   updatedAt: number;
 }
 
+export interface ResolvedSkillMatch {
+  id: string;
+  name: string;
+  domain: string;
+  level: SkillLevel;
+  confidence: number;
+  modelAffinities: string[];
+}
+
+export interface ResolvedSkillGap {
+  id: string;
+  name: string;
+  domain: string;
+  level: SkillLevel;
+  elo: number;
+}
+
+export interface ResolvedSkillContext {
+  matchedSkills: ResolvedSkillMatch[];
+  inferredDomains: string[];
+  unresolvedGaps: ResolvedSkillGap[];
+  rankedModelAffinities: string[];
+}
+
 // ─── Persistence Helpers ──────────────────────────────────────────────────────
 
 function ensureDirs() {
@@ -137,6 +161,14 @@ function saveJSON(filePath: string, data: unknown) {
 
 function hashContent(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 16);
+}
+
+function tokenizeSearchText(text: string): string[] {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length > 2);
 }
 
 // ─── Elo Rating System ────────────────────────────────────────────────────────
@@ -303,6 +335,100 @@ export function getBestModelForSkill(skillId: string): string[] {
   const skill = state.skills[skillId];
   if (!skill) return [];
   return skill.modelAffinities;
+}
+
+export function resolveSkillRoutingContext(query: string, options?: { limit?: number; gapLimit?: number }): ResolvedSkillContext {
+  const state = loadMatrix();
+  const terms = Array.from(new Set(tokenizeSearchText(query)));
+  const limit = Math.max(1, options?.limit || 5);
+  const gapLimit = Math.max(1, options?.gapLimit || 5);
+
+  const scored = Object.values(state.skills)
+    .map((skill) => {
+      const haystack = [
+        skill.name,
+        skill.domain,
+        skill.subdomain,
+        skill.description,
+        ...(skill.tags || []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      let score = 0;
+      for (const term of terms) {
+        if (skill.name.toLowerCase().includes(term)) score += 4;
+        if (skill.domain.toLowerCase().includes(term)) score += 3;
+        if ((skill.subdomain || '').toLowerCase().includes(term)) score += 2;
+        if (haystack.includes(term)) score += 1;
+      }
+
+      if (skill.lastUsedAt > 0) score += 0.25;
+      score += Math.min(2, Math.max(0, (skill.elo - 1000) / 500));
+      score += Math.min(1, skill.confidence);
+
+      return { skill, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || b.skill.elo - a.skill.elo)
+    .slice(0, limit);
+
+  const knowledgeHits = searchKnowledge(query, undefined, limit);
+  const domainScores = new Map<string, number>();
+
+  for (const hit of knowledgeHits) {
+    domainScores.set(hit.domain, (domainScores.get(hit.domain) || 0) + 1.5 + hit.qualityScore);
+  }
+
+  for (const entry of scored) {
+    domainScores.set(entry.skill.domain, (domainScores.get(entry.skill.domain) || 0) + entry.score);
+  }
+
+  const matchedSkills = scored.map(({ skill, score }) => ({
+    id: skill.id,
+    name: skill.name,
+    domain: skill.domain,
+    level: skill.level,
+    confidence: Number(Math.min(1, score / 8).toFixed(4)),
+    modelAffinities: [...skill.modelAffinities],
+  }));
+
+  const inferredDomains = [...domainScores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([domain]) => domain);
+
+  const affinityWeights = new Map<string, number>();
+  matchedSkills.forEach((skill, skillIndex) => {
+    skill.modelAffinities.forEach((model, affinityIndex) => {
+      const normalized = model.toLowerCase();
+      const score = Math.max(0.1, (limit - skillIndex) * 2 - affinityIndex * 0.35);
+      affinityWeights.set(normalized, (affinityWeights.get(normalized) || 0) + score);
+    });
+  });
+
+  const rankedModelAffinities = [...affinityWeights.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([model]) => model);
+
+  const unresolvedGaps = getSkillGaps()
+    .filter((skill) => inferredDomains.length === 0 || inferredDomains.includes(skill.domain))
+    .slice(0, gapLimit)
+    .map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      domain: skill.domain,
+      level: skill.level,
+      elo: skill.elo,
+    }));
+
+  return {
+    matchedSkills,
+    inferredDomains,
+    unresolvedGaps,
+    rankedModelAffinities,
+  };
 }
 
 /**

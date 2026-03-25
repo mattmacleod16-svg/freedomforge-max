@@ -40,6 +40,9 @@ interface RoutingInput {
   forecastBrierScore: number;
   forecastConfidence: number;
   marketConfidence: number;
+  skillAffinityModels?: string[];
+  detectedLanguage?: string;
+  languagePreferredModels?: string[];
 }
 
 interface OutcomeInput {
@@ -90,6 +93,12 @@ function clamp(value: number, min = 0, max = 1) {
 
 function scoreModel(stats: ModelStats) {
   return (stats.ewmaReward * 0.62) + ((1 - stats.ewmaRisk) * 0.23) + ((1 - stats.ewmaCalibrationPenalty) * 0.15);
+}
+
+function preferenceBoost(modelName: string, preferred: string[], maxBoost: number) {
+  const index = preferred.findIndex((entry) => entry.toLowerCase() === modelName.toLowerCase());
+  if (index === -1) return 0;
+  return Math.max(0, maxBoost - index * (maxBoost / Math.max(1, preferred.length + 1)));
 }
 
 function defaultStats(): ModelStats {
@@ -152,17 +161,21 @@ export function selectChampionChallengerRouting(input: RoutingInput) {
   }));
 
   const enoughData = stats.some((item) => item.stats.uses >= MIN_USES_FOR_CHAMPION);
+  const skillAffinityModels = (input.skillAffinityModels || []).map((name) => name.toLowerCase());
+  const languagePreferredModels = (input.languagePreferredModels || []).map((name) => name.toLowerCase());
 
   const ranked = [...stats].sort((a, b) => {
-    const aScore = scoreModel(a.stats);
-    const bScore = scoreModel(b.stats);
+    const aScore = scoreModel(a.stats)
+      + preferenceBoost(a.model, skillAffinityModels, 0.18)
+      + preferenceBoost(a.model, languagePreferredModels, 0.08);
+    const bScore = scoreModel(b.stats)
+      + preferenceBoost(b.model, skillAffinityModels, 0.18)
+      + preferenceBoost(b.model, languagePreferredModels, 0.08);
     if (bScore !== aScore) return bScore - aScore;
     return b.stats.uses - a.stats.uses;
   });
 
-  const preferredModels = enoughData
-    ? ranked.map((item) => item.model)
-    : available;
+  const preferredModels = ranked.map((item) => item.model);
 
   let modelCount = 2;
   if (input.regime === 'risk_off') modelCount = 3;
@@ -182,8 +195,8 @@ export function selectChampionChallengerRouting(input: RoutingInput) {
     champion: preferredModels[0] || null,
     challenger: preferredModels[1] || null,
     rationale: enoughData
-      ? `regime=${regime}, champion performance-ranked with calibration-aware scoring${maxMode ? '; max_mode=ensemble' : ''}`
-      : `regime=${regime}, insufficient history so fallback to configured model priority${maxMode ? '; max_mode=ensemble' : ''}`,
+      ? `regime=${regime}, champion performance-ranked with calibration-aware scoring; skill_affinities=${skillAffinityModels.slice(0, 3).join(',') || 'none'}; detected_language=${input.detectedLanguage || 'en'}; language_preferences=${languagePreferredModels.slice(0, 3).join(',') || 'none'}${maxMode ? '; max_mode=ensemble' : ''}`
+      : `regime=${regime}, insufficient history so fallback to configured model priority; skill_affinities=${skillAffinityModels.slice(0, 3).join(',') || 'none'}; detected_language=${input.detectedLanguage || 'en'}; language_preferences=${languagePreferredModels.slice(0, 3).join(',') || 'none'}${maxMode ? '; max_mode=ensemble' : ''}`,
   };
 }
 

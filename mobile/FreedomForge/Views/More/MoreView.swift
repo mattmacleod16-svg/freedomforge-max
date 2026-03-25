@@ -13,6 +13,7 @@ private struct MoreMenuItem: Identifiable {
 
 private enum MoreDestination {
     case brain
+    case capital
     case signals
     case infrastructure
     case settings
@@ -30,6 +31,13 @@ struct MoreView: View {
             icon: "brain.head.profile",
             color: FFDesign.premium,
             destination: .brain
+        ),
+        MoreMenuItem(
+            title: "Capital & Treasury",
+            subtitle: "Mandate stats, capital breakdown, lifetime ledger, and daily history",
+            icon: "banknote.fill",
+            color: FFDesign.gold,
+            destination: .capital
         ),
         MoreMenuItem(
             title: "Signals & Events",
@@ -120,6 +128,8 @@ struct MoreView: View {
         switch destination {
         case .brain:
             BrainView()
+        case .capital:
+            CapitalView()
         case .signals:
             SignalsView()
         case .infrastructure:

@@ -11,7 +11,8 @@ type VendorId =
   | 'acuity'
   | 'threecommas'
   | 'optionsai'
-  | 'kavout';
+  | 'kavout'
+  | 'ontology';
 
 type VendorDefinition = {
   id: VendorId;
@@ -109,6 +110,12 @@ const VENDOR_DEFINITIONS: VendorDefinition[] = [
     label: 'Kavout-style ranking signals',
     benefits: ['AI ranking overlays', 'multi-factor scoring', 'selection prioritization'],
     strategyHooks: ['rank-threshold watchlists', 'score momentum checks', 'degradation-based exits'],
+  },
+  {
+    id: 'ontology',
+    label: 'Ontology (ONT ID)',
+    benefits: ['native-w3c-did', 'gasless-sponsor-model', 'ong-yield-tracking'],
+    strategyHooks: ['ont-id-agent-identity', 'ong-yield-display', 'verifiable-claims'],
   },
 ];
 

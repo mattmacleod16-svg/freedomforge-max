@@ -115,6 +115,22 @@ async function main() {
   const gasPrice = (await provider.getFeeData()).gasPrice;
   console.log(`Gas price: ${ethers.formatUnits(gasPrice || BigInt(0), 'gwei')} gwei`);
 
+  // Estimate gas before committing
+  let gasEstimate = BigInt(600_000); // conservative fallback
+  try {
+    const deployTx = await factory.getDeployTransaction(treasury);
+    gasEstimate = await provider.estimateGas(deployTx);
+  } catch {
+    console.warn('⚠️  Gas estimation failed — using fallback of 600,000 units');
+  }
+  const gasCostWei = gasEstimate * (gasPrice || BigInt(1_500_000_000));
+  console.log(`Gas estimate: ${gasEstimate.toString()} units (~${ethers.formatEther(gasCostWei)} ETH)`);
+
+  if (balance < gasCostWei) {
+    console.error(`ERROR: Insufficient ETH for gas. Need ~${ethers.formatEther(gasCostWei)} ETH, wallet has ${ethers.formatEther(balance)} ETH`);
+    process.exit(1);
+  }
+
   const contract = await factory.deploy(treasury);
   console.log(`TX submitted: ${contract.deploymentTransaction()?.hash}`);
 
@@ -146,11 +162,15 @@ async function main() {
 
   // Post-deployment instructions
   console.log('\n═══ Next Steps ═══');
-  console.log(`1. Set FORGE_TOKEN_ADDRESS=${address} in environment`);
-  console.log(`2. Set PAYOUT_TOKEN_ADDRESS=${address} to enable token distributions`);
-  console.log(`3. Add ${address} to TRACKED_TOKENS for balance monitoring`);
-  console.log(`4. Verify on explorer: ${config.explorer}/address/${address}#code`);
-  console.log(`5. Create liquidity pool on DEX`);
+  console.log(`1. Set env var:  FORGE_TOKEN_ADDRESS=${address}`);
+  console.log(`2. Set env var:  PAYOUT_TOKEN_ADDRESS=${address}  (to route token distributions to $FORGE)`);
+  console.log(`3. Append to TRACKED_TOKENS: add ${address} (comma-separated, no spaces)`);
+  console.log(`4. Verify contract source on explorer:`);
+  console.log(`      ${config.explorer}/address/${address}#code`);
+  console.log(`   Verification command (requires hardhat/foundry or etherscan CLI):`);
+  console.log(`      npx hardhat verify --network ${network} ${address} "${treasury}"`);
+  console.log(`5. Create liquidity pool on a DEX (Uniswap v3 / Aerodrome on Base)`);
+  console.log(`6. Configure staking rewards emission via owner() wallet`);
 }
 
 main().catch((err) => {

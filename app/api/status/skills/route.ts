@@ -15,7 +15,9 @@ import {
   getKBSummary,
   ingestKnowledge,
   searchKnowledge,
+  resolveSkillRoutingContext,
 } from '@/lib/intelligence/skillsMatrix';
+import { detectLanguage, getModelForLanguage } from '@/lib/intelligence/limitlessGrowth';
 
 export async function GET(req: Request) {
   const denied = await requireAuth(req);
@@ -32,6 +34,30 @@ export async function GET(req: Request) {
     const q = url.searchParams.get('q') || '';
     const domain = url.searchParams.get('domain') || undefined;
     return NextResponse.json({ results: searchKnowledge(q, domain) });
+  }
+
+  if (action === 'resolve') {
+    const q = url.searchParams.get('q') || '';
+    if (!q.trim()) {
+      return NextResponse.json({ error: 'Query parameter q is required' }, { status: 400 });
+    }
+
+    const detectedLanguage = detectLanguage(q);
+    const skillContext = resolveSkillRoutingContext(q, { limit: 4, gapLimit: 4 });
+    return NextResponse.json({
+      query: q,
+      interoperability: {
+        detected_language: detectedLanguage,
+        response_language_policy: 'english_us',
+        matched_skills: skillContext.matchedSkills,
+        unresolved_skill_gaps: skillContext.unresolvedGaps,
+        routing_signals: {
+          inferred_domains: skillContext.inferredDomains,
+          skill_affinity_models: skillContext.rankedModelAffinities,
+          language_preferred_models: getModelForLanguage(detectedLanguage.code).map((name) => name.toLowerCase()),
+        },
+      },
+    });
   }
 
   if (action === 'bootstrap') {

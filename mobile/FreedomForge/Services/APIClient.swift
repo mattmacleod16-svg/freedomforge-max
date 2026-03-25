@@ -73,6 +73,11 @@ class APIClient {
 
                         guard let httpResponse = response as? HTTPURLResponse,
                               httpResponse.statusCode == 200 else {
+                            // Auth failures should not be retried — stop the stream
+                            if let httpResponse = response as? HTTPURLResponse,
+                               httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                                break
+                            }
                             try await Task.sleep(nanoseconds: 5_000_000_000)
                             continue
                         }

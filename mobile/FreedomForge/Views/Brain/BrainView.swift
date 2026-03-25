@@ -136,6 +136,31 @@ struct BrainView: View {
                     }
                 }
 
+                // Decision Thresholds
+                if let thresholds = b.thresholds, !thresholds.isEmpty {
+                    SectionHeader(title: "Decision Thresholds", icon: "slider.vertical.3")
+                    let sorted = thresholds.sorted(by: { $0.key < $1.key })
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(sorted, id: \.key) { key, val in
+                            PremiumCard {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(formatIndicatorName(key).uppercased())
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(FFDesign.textTertiary)
+                                        .tracking(0.7)
+                                        .lineLimit(2)
+                                    Text(thresholdString(val))
+                                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                        .foregroundColor(FFDesign.accent)
+                                        .contentTransition(.numericText())
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.6)
+                                }
+                            }
+                        }
+                    }
+                }
+
             } else {
                 EmptyState(icon: "brain.head.profile", message: "Pull to refresh brain data")
             }
@@ -334,5 +359,13 @@ struct BrainView: View {
         name.replacingOccurrences(of: "([A-Z])", with: " $1", options: .regularExpression)
             .trimmingCharacters(in: .whitespaces)
             .capitalized
+    }
+
+    func thresholdString(_ val: AnyCodable) -> String {
+        if let d = val.value as? Double { return String(format: "%.3g", d) }
+        if let i = val.value as? Int { return "\(i)" }
+        if let s = val.value as? String { return s }
+        if let b = val.value as? Bool { return b ? "true" : "false" }
+        return "--"
     }
 }

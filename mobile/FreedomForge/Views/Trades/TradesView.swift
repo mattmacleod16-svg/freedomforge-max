@@ -4,6 +4,24 @@ import SwiftUI
 struct TradesView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedTab = 0
+    @State private var searchText = ""
+    @State private var sideFilter = "ALL"  // ALL / BUY / SELL
+
+    private let sideOptions = ["ALL", "BUY", "SELL"]
+
+    private var filteredTrades: [Trade] {
+        guard let trades = appState.trades?.trades else { return [] }
+        return trades.filter { trade in
+            let matchesSearch = searchText.isEmpty
+                || (trade.asset?.localizedCaseInsensitiveContains(searchText) == true)
+                || (trade.venue?.localizedCaseInsensitiveContains(searchText) == true)
+            let matchesSide = sideFilter == "ALL"
+                || trade.side?.uppercased() == sideFilter
+                || (sideFilter == "BUY" && trade.side?.lowercased() == "long")
+                || (sideFilter == "SELL" && trade.side?.lowercased() == "short")
+            return matchesSearch && matchesSide
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -45,27 +63,95 @@ struct TradesView: View {
     // MARK: - Recent Trades
 
     var recentTradesView: some View {
-        ScrollView {
-            if let trades = appState.trades?.trades, !trades.isEmpty {
-                let maxAbsPnl = trades.compactMap { $0.pnl }.map { abs($0) }.max() ?? 1.0
-                LazyVStack(spacing: 8) {
-                    ForEach(trades, id: \.displayId) { trade in
-                        TradeRow(trade: trade, maxAbsPnl: maxAbsPnl)
+        VStack(spacing: 0) {
+            // Search + Filter bar
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(FFDesign.textTertiary)
+                    TextField("Search asset or venue…", text: $searchText)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundColor(FFDesign.textPrimary)
+                        #if os(iOS)
+                        .autocapitalization(.none)
+                        #endif
+                        .disableAutocorrection(true)
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(FFDesign.textTertiary)
+                        }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 20)
-            } else if appState.trades == nil {
-                // Skeleton loading placeholders
-                LazyVStack(spacing: 8) {
-                    ForEach(0..<6, id: \.self) { _ in
-                        SkeletonRow()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(FFDesign.surface)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(FFDesign.border, lineWidth: 1)
+                        )
+                )
+
+                HStack(spacing: 6) {
+                    ForEach(sideOptions, id: \.self) { option in
+                        Button(action: {
+                            HapticManager.light()
+                            sideFilter = option
+                        }) {
+                            Text(option)
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(0.5)
+                                .foregroundColor(sideFilter == option ? .white : FFDesign.textTertiary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(
+                                    sideFilter == option
+                                        ? (option == "BUY" ? FFDesign.positive : option == "SELL" ? FFDesign.negative : FFDesign.accent)
+                                        : FFDesign.surface
+                                )
+                                .clipShape(Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(sideFilter == option ? Color.clear : FFDesign.border, lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
                     }
+                    Spacer()
+                    let count = filteredTrades.count
+                    Text("\(count) trade\(count == 1 ? "" : "s")")
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .foregroundColor(FFDesign.textTertiary)
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 20)
-            } else {
-                EmptyState(icon: "tray", message: "No trades found")
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+
+            ScrollView {
+                if appState.trades == nil {
+                    LazyVStack(spacing: 8) {
+                        ForEach(0..<6, id: \.self) { _ in
+                            SkeletonRow()
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 20)
+                } else if filteredTrades.isEmpty {
+                    EmptyState(icon: "tray", message: searchText.isEmpty ? "No trades found" : "No trades matching \"\(searchText)\"")
+                } else {
+                    let maxAbsPnl = filteredTrades.compactMap { $0.pnl }.map { abs($0) }.max() ?? 1.0
+                    LazyVStack(spacing: 8) {
+                        ForEach(filteredTrades, id: \.displayId) { trade in
+                            TradeRow(trade: trade, maxAbsPnl: maxAbsPnl)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 20)
+                }
             }
         }
     }
