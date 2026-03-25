@@ -17,6 +17,7 @@ export type PartnerCategory =
   | 'defi'
   | 'depin'
   | 'ai-compute'
+  | 'ai-network'
   | 'data'
   | 'trading'
   | 'payments'
@@ -77,6 +78,19 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     priority: 1,
     capabilities: ['esdt-tokens', 'sovereign-chains', 'space-vm', 'smart-contracts'],
     forgeIntegration: 'Existing MultiversX client, $FORGE ESDT deployment planned',
+  },
+
+  {
+    id: 'ontology',
+    name: 'Ontology',
+    category: 'blockchain',
+    description: 'Enterprise blockchain with native W3C DID (ONT ID), dual-token model (ONT/ONG), and sponsor gas for gasless UX',
+    website: 'https://ont.io',
+    token: 'ONT',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['ont-id', 'decentralized-identity', 'verifiable-credentials', 'gasless-ux', 'ong-yield', 'multi-sig', 'sm2-crypto'],
+    forgeIntegration: 'ONT ID for agent identity/reputation; ONG unbonding yield tracking in dashboard; sponsor gas for user onboarding',
   },
 
   // ─── DeFi Protocols ─────────────────────────────────────────────────
@@ -203,6 +217,20 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     priority: 0,
     capabilities: ['nim-inference', 'nemoclaw', 'gpu-cloud', 'rtx-local', 'tensorrt'],
     forgeIntegration: 'NVIDIA NIM model provider (live), NemoClaw local deployment target',
+  },
+
+  // ─── AI Networks ────────────────────────────────────────────────────
+  {
+    id: 'bittensor',
+    name: 'Bittensor',
+    category: 'ai-network',
+    description: 'Decentralized AI network — 128+ specialized subnets with Yuma consensus incentivizing truthful outputs',
+    website: 'https://bittensor.com',
+    token: 'TAO',
+    phase: 'live',
+    priority: 0,
+    capabilities: ['text-generation', 'trading-signals', 'search-augmented', 'creative', 'collective-intelligence', 'subnet-routing'],
+    forgeIntegration: 'Subnet-aware routing via Corcel gateway (netuid 18) + direct metagraph monitoring via taostats.io',
   },
 
   // ─── Data & Intelligence ────────────────────────────────────────────
