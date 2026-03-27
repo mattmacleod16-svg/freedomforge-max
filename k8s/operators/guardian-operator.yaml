@@ -1,0 +1,97 @@
+# FreedomForge Guardian Operator
+# Watches FreedomForgeAgent CRs and reconciles guardian deployments.
+# Build with Kubebuilder: https://book.kubebuilder.io/
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: guardian-operator
+  namespace: freedomforge-system
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: guardian-operator-role
+rules:
+  - apiGroups: ["freedomforge.max"]
+    resources: ["freedomforgeagents"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["freedomforge.max"]
+    resources: ["freedomforgeagents/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: guardian-operator-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: guardian-operator
+    namespace: freedomforge-system
+roleRef:
+  kind: ClusterRole
+  name: guardian-operator-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guardian-operator
+  namespace: freedomforge-system
+  labels:
+    app: guardian-operator
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guardian-operator
+  template:
+    metadata:
+      labels:
+        app: guardian-operator
+    spec:
+      serviceAccountName: guardian-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: operator
+          image: freedomforge/guardian-operator:latest
+          imagePullPolicy: IfNotPresent
+          command: ["./operator"]
+          args: ["--crd=Guardian", "--leader-elect"]
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10

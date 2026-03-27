@@ -1,0 +1,58 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: freedomforgeagents.freedomforge.max
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+spec:
+  group: freedomforge.max
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                replicas:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  description: Number of agent replicas to run
+                bciHardware:
+                  type: string
+                  enum: [eeg, emg, eyetracking, gyro, none]
+                  description: BCI hardware device type attached to this agent
+                capability:
+                  type: string
+                  description: Guardian capability domain (trading, ai-budget, wallet, risk, etc.)
+                intervalMs:
+                  type: integer
+                  minimum: 1000
+                  description: Check interval in milliseconds
+                alertThreshold:
+                  type: number
+                  description: Metric threshold that triggers an alert
+            status:
+              type: object
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Running, Alerted, Offline]
+                lastAlertTime:
+                  type: string
+                  format: date-time
+                alertCount:
+                  type: integer
+                readyReplicas:
+                  type: integer
+  scope: Namespaced
+  names:
+    plural: freedomforgeagents
+    singular: freedomforgeagent
+    kind: FreedomForgeAgent
+    shortNames:
+      - ffa
