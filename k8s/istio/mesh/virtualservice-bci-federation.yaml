@@ -1,0 +1,30 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: bci-federation
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  hosts:
+    - bci-decoder.freedomforge.max
+  gateways:
+    - istio-system/east-west-gateway
+  http:
+    - name: weighted-federation
+      timeout: 5s
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: bci-decoder.freedomforge-earth.svc.cluster.local
+            port:
+              number: 3000
+          weight: 70
+        - destination:
+            host: bci-decoder.freedomforge-lunar.svc.cluster.local
+            port:
+              number: 3000
+          weight: 30
