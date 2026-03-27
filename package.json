@@ -117,6 +117,7 @@
     "@alch/alchemy-sdk": "^1.2.0",
     "@noble/hashes": "1.8.0",
     "@polymarket/clob-client": "^5.8.0",
+    "@vercel/speed-insights": "^2.0.0",
     "chart.js": "^4.5.1",
     "chartjs-adapter-date-fns": "^3.0.0",
     "dotenv": "^17.3.1",
