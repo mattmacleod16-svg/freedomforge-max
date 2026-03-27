@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import type { Metadata, Viewport } from 'next';
 import GlobalNav from './components/GlobalNav';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://freedomforge.one';
 const SITE_NAME = 'FreedomForge Max';
@@ -196,6 +197,7 @@ export default function RootLayout({
         <GlobalNav />
         <ErrorBoundary>{children}</ErrorBoundary>
         <Toaster position="top-center" richColors />
+        <SpeedInsights />
         <script
           dangerouslySetInnerHTML={{
             __html: `if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}`,
