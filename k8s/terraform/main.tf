@@ -4,6 +4,16 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
+  }
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = "~/.kube/config"
   }
 }
 
@@ -174,5 +184,89 @@ resource "kubernetes_service" "freedomforge_core" {
     }
 
     type = "ClusterIP"
+  }
+}
+
+# ─── Istio Service Mesh (Helm) ────────────────────────────────────────────────
+
+resource "helm_release" "istio_base" {
+  name             = "istio-base"
+  repository       = "https://istio-release.storage.googleapis.com/charts"
+  chart            = "base"
+  namespace        = "istio-system"
+  create_namespace = true
+  version          = "1.22.0"
+
+  depends_on = [kubernetes_namespace.freedomforge_system]
+}
+
+resource "helm_release" "istiod" {
+  name       = "istiod"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "istiod"
+  namespace  = "istio-system"
+  version    = "1.22.0"
+
+  set {
+    name  = "global.meshID"
+    value = "freedomforge-mesh"
+  }
+
+  set {
+    name  = "global.network"
+    value = "network1"
+  }
+
+  depends_on = [helm_release.istio_base]
+}
+
+resource "helm_release" "istio_ingress" {
+  name       = "istio-ingressgateway"
+  repository = "https://istio-release.storage.googleapis.com/charts"
+  chart      = "gateway"
+  namespace  = "istio-system"
+  version    = "1.22.0"
+
+  depends_on = [helm_release.istiod]
+}
+
+# ─── ArgoCD ───────────────────────────────────────────────────────────────────
+
+resource "helm_release" "argocd" {
+  name             = "argocd"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argo-cd"
+  namespace        = "argocd"
+  create_namespace = true
+  version          = "6.7.0"
+
+  set {
+    name  = "server.extraArgs[0]"
+    value = "--insecure"
+  }
+
+  depends_on = [helm_release.istiod]
+}
+
+# Enable Istio sidecar injection in app namespaces
+resource "kubernetes_labels" "istio_injection_earth" {
+  api_version = "v1"
+  kind        = "Namespace"
+  metadata {
+    name = kubernetes_namespace.freedomforge_earth.metadata[0].name
+  }
+  labels = {
+    "istio-injection" = "enabled"
+  }
+}
+
+resource "kubernetes_labels" "istio_injection_system" {
+  api_version = "v1"
+  kind        = "Namespace"
+  metadata {
+    name = kubernetes_namespace.freedomforge_system.metadata[0].name
+  }
+  labels = {
+    "istio-injection" = "enabled"
   }
 }

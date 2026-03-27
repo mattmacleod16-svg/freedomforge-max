@@ -1,0 +1,30 @@
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: freedomforge-gateway
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: freedomforge-tls
+      hosts:
+        - freedomforge.one
+        - "*.freedomforge.one"
+    - port:
+        number: 80
+        name: http-redirect
+        protocol: HTTP
+      tls:
+        httpsRedirect: true
+      hosts:
+        - freedomforge.one
+        - "*.freedomforge.one"

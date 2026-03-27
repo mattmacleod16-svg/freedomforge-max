@@ -1,0 +1,41 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: guardian-service
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  host: guardian-service.freedomforge-earth.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: UPGRADE
+        idleTimeout: 90s
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: freedomforge-core
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  host: freedomforge-core.freedomforge-earth.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+  subsets:
+    - name: v1
+      labels:
+        version: v1
