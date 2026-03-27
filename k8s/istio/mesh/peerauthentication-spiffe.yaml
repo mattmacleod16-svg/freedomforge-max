@@ -1,0 +1,32 @@
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: spiffe-federation
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+  annotations:
+    # SPIFFE trust bundle federation is managed automatically by istiod
+    # when multiCluster.enabled=true in the Helm values.
+    # Each cluster's trust domain: spiffe://earth.freedomforge.max
+    #                               spiffe://lunar.freedomforge.max
+    #                               spiffe://mars.freedomforge.max
+    trust-domain: earth.freedomforge.max
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# Namespace-wide STRICT mTLS for freedomforge-system (operator + guardian pods)
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: spiffe-federation-system
+  namespace: freedomforge-system
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+  annotations:
+    trust-domain: earth.freedomforge.max
+spec:
+  mtls:
+    mode: STRICT

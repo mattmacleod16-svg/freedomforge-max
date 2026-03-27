@@ -270,3 +270,24 @@ resource "kubernetes_labels" "istio_injection_system" {
     "istio-injection" = "enabled"
   }
 }
+
+# ─── WASM Guardian Filter + SPIFFE federation manifests ──────────────────────
+
+resource "kubernetes_manifest" "wasm_guardian_filter" {
+  manifest = yamldecode(file("${path.module}/../istio/wasm/guardian-filter.yaml"))
+
+  depends_on = [
+    helm_release.istiod,
+    kubernetes_namespace.freedomforge_earth,
+  ]
+}
+
+resource "kubernetes_manifest" "spiffe_federation" {
+  manifest = yamldecode(file("${path.module}/../istio/mesh/peerauthentication-spiffe.yaml"))
+
+  depends_on = [
+    helm_release.istiod,
+    kubernetes_namespace.freedomforge_earth,
+    kubernetes_namespace.freedomforge_system,
+  ]
+}
