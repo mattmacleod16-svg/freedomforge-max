@@ -6,7 +6,10 @@
  * emits confidence-scored signals for downstream fusion.
  */
 
-import { BCIDeviceType, BCISignal } from '@/lib/types';
+import { BCIDeviceType, BCISignal, RawBCIData, IntentVector, UserProfile } from '@/lib/types';
+import { fuseBCISignals } from './fusion-engine';
+import { ReptileAdapter } from '@/lib/meta/meta-learning';
+import { ZeroKnowledgeProver } from './security';
 
 export interface BCIAdapterConfig {
   deviceType: BCIDeviceType;
@@ -76,6 +79,23 @@ export class HybridBCIAdapter {
 
   getLastSignal(): BCISignal | null {
     return this.lastSignal;
+  }
+
+  /**
+   * High-level intent decoder: converts raw BCI data (Neuralink spikes or
+   * Synchron LFPs) into a ZK-proved IntentVector via FusionEngine + ReptileAdapter.
+   */
+  async decodeIntent(raw: RawBCIData, profile?: UserProfile): Promise<IntentVector> {
+    const channels = raw.neuralinkSpikes ?? raw.synchronLfps ?? [];
+    const signal: BCISignal = {
+      deviceType:  'eeg',
+      channels,
+      confidence:  0.8,
+      timestampMs: Date.now(),
+    };
+    const result  = fuseBCISignals([signal]);
+    const adapted = await new ReptileAdapter().adapt(result, profile);
+    return new ZeroKnowledgeProver().proveIntent(adapted);
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
@@ -157,3 +177,6 @@ export function createDefaultEEGAdapter(): HybridBCIAdapter {
     sampleRateHz: 256,
   });
 }
+
+/** Pre-built singleton for use across the application. */
+export const bciAdapter = createDefaultEEGAdapter();

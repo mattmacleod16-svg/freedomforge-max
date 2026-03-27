@@ -114,6 +114,20 @@ export class GuardianAgent {
     return alert;
   }
 
+  /**
+   * Watch a raw BCI signal and trigger a happiness gift if the intent
+   * carries a negative fulfillment delta.
+   * Uses dynamic imports to avoid circular module resolution at load time.
+   */
+  async watchAndProtect(signals: unknown): Promise<void> {
+    const { bciAdapter }     = await import('@/lib/deviceforge/hybrid-bci-adapter');
+    const { happinessForge } = await import('@/lib/happinessforge/happiness-engine');
+    const intent = await bciAdapter.decodeIntent(signals as import('@/lib/types').RawBCIData);
+    if ((intent as Record<string, unknown>)['fulfillmentDelta'] as number < 0) {
+      await happinessForge.giftFulfillment({ userId: this.config.id });
+    }
+  }
+
   // ─── Private ───────────────────────────────────────────────────────────────
 
   private determineSeverity(value: number): GuardianAlert['severity'] {

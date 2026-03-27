@@ -154,6 +154,13 @@ export class FusionEngine {
 
     return 'idle';
   }
+
+  /** Convenience wrapper: accepts raw unknown input and returns a simple intent/confidence pair. */
+  async fuse(raw: unknown): Promise<{ fusedIntent: unknown; confidence: number }> {
+    const signals = Array.isArray(raw) ? (raw as BCISignal[]) : [];
+    const result = this.fuseBCISignals(signals);
+    return { fusedIntent: result.intent, confidence: result.confidence };
+  }
 }
 
 // ─── Singleton ─────────────────────────────────────────────────────────────────

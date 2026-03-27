@@ -126,3 +126,13 @@ export function getMetaMetaEngine(): MetaMetaEngine {
   if (!_instance) _instance = new MetaMetaEngine();
   return _instance;
 }
+
+// ─── MetaMetaLearner ──────────────────────────────────────────────────────────
+
+/** High-level façade that evolves an adapted signal through the MetaMetaEngine. */
+export class MetaMetaLearner {
+  async evolve(adapted: unknown): Promise<unknown> {
+    getMetaMetaEngine().evolve();
+    return { ...(adapted as object), metaMetaUpdated: true };
+  }
+}

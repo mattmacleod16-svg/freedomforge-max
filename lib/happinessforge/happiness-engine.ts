@@ -141,3 +141,20 @@ export function calculateHappinessScore(metrics: UserMetrics): HappinessScore {
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
+
+// ─── Class wrapper + singleton ────────────────────────────────────────────────
+
+export class HappinessForge {
+  async giftFulfillment(profile: { userId: string }): Promise<{ joyUplift: number }> {
+    const score = calculateHappinessScore({
+      financialReturnPct:      10,
+      timeFreedomHrsPerWeek:   5,
+      openAlertCount:          0,
+      aiSatisfactionScore:     4,
+      autonomyRatio:           0.5,
+    });
+    return { joyUplift: score.total / 100 };
+  }
+}
+
+export const happinessForge = new HappinessForge();

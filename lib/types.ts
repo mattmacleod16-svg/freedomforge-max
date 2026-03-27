@@ -129,3 +129,21 @@ export interface OnchainCompanyInfo {
   owner: string;
   launchedAt: number;
 }
+
+// ─── Higher-level BCI / User types ───────────────────────────────────────────
+
+export interface RawBCIData {
+  neuralinkSpikes?: number[];
+  synchronLfps?: number[];
+}
+
+export interface IntentVector {
+  fusedIntent: unknown;
+  confidence: number;
+  zkProof?: string;
+}
+
+export interface UserProfile {
+  userId: string;
+  planetary?: 'earth' | 'lunar' | 'mars';
+}

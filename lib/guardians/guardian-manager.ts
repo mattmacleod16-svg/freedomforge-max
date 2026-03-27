@@ -76,6 +76,26 @@ class GuardianManagerClass {
     return this.globalAlertLog.slice(-limit).reverse();
   }
 
+  /**
+   * Return (or create) a system-health guardian scoped to a specific user.
+   * Provides the user-centric API: `guardianManager.getGuardian(userId)`.
+   */
+  getGuardian(userId: string): GuardianAgent {
+    const key = `user-${userId}`;
+    const existing = this.agents.get(key);
+    if (existing) return existing;
+    return this.register(
+      {
+        id:             key,
+        name:           `user-guardian-${userId}`,
+        capability:     'system-health',
+        intervalMs:     60_000,
+        alertThreshold: 10,
+      },
+      async () => 0,
+    );
+  }
+
   /** Stop all guardians (e.g. on server shutdown). */
   shutdownAll(): void {
     for (const agent of this.agents.values()) {

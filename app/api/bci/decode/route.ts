@@ -1,15 +1,21 @@
 /**
  * POST /api/bci/decode
  *
- * Accepts an array of BCISignal objects (from one or more device adapters),
- * runs them through the FusionEngine, and returns a BCIDecodeResult.
+ * Accepts two payload shapes:
  *
- * Request body: { signals: BCISignal[] }
- * Response:     BCIDecodeResult
+ *   1. High-level:  { rawSignals: RawBCIData, userId?: string, profile?: UserProfile }
+ *      → Uses bciAdapter.decodeIntent() + guardian watchAndProtect()
+ *
+ *   2. Low-level:   { signals: BCISignal[] }
+ *      → Direct FusionEngine path (original implementation)
+ *
+ * Response: BCIDecodeResult | IntentVector
  */
 
 import { fuseBCISignals } from '@/lib/deviceforge/fusion-engine';
-import { BCISignal } from '@/lib/types';
+import { bciAdapter }     from '@/lib/deviceforge/hybrid-bci-adapter';
+import { GuardianManager } from '@/lib/guardians/guardian-manager';
+import { BCISignal, RawBCIData, UserProfile } from '@/lib/types';
 
 export async function POST(req: Request): Promise<Response> {
   let body: unknown;
@@ -19,20 +25,36 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  if (
-    typeof body !== 'object' ||
-    body === null ||
-    !Array.isArray((body as { signals?: unknown }).signals)
-  ) {
+  if (typeof body !== 'object' || body === null) {
+    return Response.json({ error: 'Request body must be a JSON object' }, { status: 400 });
+  }
+
+  const b = body as Record<string, unknown>;
+
+  // ── Path 1: high-level rawSignals payload ──────────────────────────────────
+  if ('rawSignals' in b) {
+    const rawSignals = b['rawSignals'] as RawBCIData;
+    const userId     = typeof b['userId'] === 'string' ? b['userId'] : 'anonymous';
+    const profile    = (b['profile'] ?? undefined) as UserProfile | undefined;
+
+    const intent = await bciAdapter.decodeIntent(rawSignals, profile);
+
+    // Run guardian watch asynchronously — do not block the response
+    GuardianManager.getGuardian(userId).watchAndProtect(rawSignals).catch(() => {});
+
+    return Response.json({ success: true, intent });
+  }
+
+  // ── Path 2: low-level signals array payload ────────────────────────────────
+  if (!Array.isArray(b['signals'])) {
     return Response.json(
-      { error: 'Request body must be { signals: BCISignal[] }' },
+      { error: 'Request body must be { rawSignals: RawBCIData } or { signals: BCISignal[] }' },
       { status: 400 },
     );
   }
 
-  const signals = (body as { signals: unknown[] }).signals;
+  const signals = b['signals'] as unknown[];
 
-  // Validate each signal has required shape
   const valid = signals.every(
     s =>
       typeof s === 'object' &&
@@ -54,6 +76,5 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const result = fuseBCISignals(signals as BCISignal[]);
-
   return Response.json(result);
 }
