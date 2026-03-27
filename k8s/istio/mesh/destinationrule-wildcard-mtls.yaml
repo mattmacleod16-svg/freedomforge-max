@@ -1,0 +1,27 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: freedomforge-mtls
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  host: "*.freedomforge.max"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    loadBalancer:
+      localityLbSetting:
+        enabled: true
+        # Prefer same-zone traffic; spill over to next zone before cross-planet
+        failover:
+          - from: earth
+            to: lunar
+          - from: lunar
+            to: earth
+          - from: mars
+            to: earth
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s

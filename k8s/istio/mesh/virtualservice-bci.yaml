@@ -1,0 +1,34 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: bci-decode-vs
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  hosts:
+    - freedomforge.one
+  gateways:
+    - istio-system/freedomforge-gateway
+  http:
+    - name: bci-decode
+      match:
+        - uri:
+            prefix: /api/bci/decode
+      timeout: 5s
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+      route:
+        - destination:
+            host: freedomforge-core.freedomforge-earth.svc.cluster.local
+            port:
+              number: 3000
+
+    - name: default
+      route:
+        - destination:
+            host: freedomforge-core.freedomforge-earth.svc.cluster.local
+            port:
+              number: 3000

@@ -1,0 +1,53 @@
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: guardian-enforced
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  selector:
+    matchLabels:
+      app: freedomforge
+  action: ALLOW
+  rules:
+    # Ingress from Istio gateway
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account
+      to:
+        - operation:
+            methods: ["POST"]
+            paths: ["/api/bci/decode"]
+
+    # Internal service-to-service (guardian agents calling core)
+    - from:
+        - source:
+            namespaces:
+              - freedomforge-earth
+              - freedomforge-system
+      to:
+        - operation:
+            paths: ["/api/*"]
+
+    # Health checks from kubelet / monitoring
+    - to:
+        - operation:
+            methods: ["GET"]
+            paths: ["/api/health"]
+
+---
+# Deny all other inbound traffic to the freedomforge pods by default
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: freedomforge-earth
+spec:
+  selector:
+    matchLabels:
+      app: freedomforge
+  action: DENY
+  rules:
+    - {} # matches everything not explicitly ALLOWed above

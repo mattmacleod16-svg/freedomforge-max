@@ -1,0 +1,23 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: ServiceEntry
+metadata:
+  name: cross-cluster-bci
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  hosts:
+    # namespace-style (freedomforge-{zone})
+    - bci-decoder.freedomforge-earth.svc.cluster.local
+    - bci-decoder.freedomforge-lunar.svc.cluster.local
+    - bci-decoder.freedomforge-mars.svc.cluster.local
+    # subdomain-style ({zone}.freedomforge)
+    - bci-decoder.earth.freedomforge.svc.cluster.local
+    - bci-decoder.lunar.freedomforge.svc.cluster.local
+    - bci-decoder.mars.freedomforge.svc.cluster.local
+  ports:
+    - number: 3000
+      name: http
+      protocol: HTTP
+  location: MESH_INTERNAL
+  resolution: DNS

@@ -1,0 +1,58 @@
+# Guardian WASM filter ConfigMap
+# The compiled guardian-filter.wasm binary is mounted into bci-decoder pods
+# at /etc/istio/wasm/guardian-filter.wasm via an initContainer or plugin volume.
+#
+# Build the WASM module:
+#   cd wasm/guardian-filter && tinygo build -o guardian-filter.wasm -scheduler=none -target=wasi .
+#
+# Load into cluster:
+#   kubectl create configmap guardian-wasm \
+#     --from-file=guardian-filter.wasm=./guardian-filter.wasm \
+#     -n freedomforge-earth
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guardian-wasm
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+binaryData:
+  # Populated at deploy time by CI/CD from the compiled .wasm artifact.
+  # Placeholder keeps Terraform/ArgoCD from erroring on a missing file.
+  guardian-filter.wasm: ""
+
+---
+# Mount the ConfigMap into bci-decoder pods via a VolumeMount patch
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bci-decoder
+  namespace: freedomforge-earth
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: copy-wasm
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - cp /wasm-src/guardian-filter.wasm /etc/istio/wasm/guardian-filter.wasm
+          volumeMounts:
+            - name: wasm-src
+              mountPath: /wasm-src
+            - name: wasm-dst
+              mountPath: /etc/istio/wasm
+      containers:
+        - name: bci-decoder
+          volumeMounts:
+            - name: wasm-dst
+              mountPath: /etc/istio/wasm
+              readOnly: true
+      volumes:
+        - name: wasm-src
+          configMap:
+            name: guardian-wasm
+        - name: wasm-dst
+          emptyDir: {}

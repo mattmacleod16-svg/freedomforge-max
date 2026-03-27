@@ -1,0 +1,49 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: east-west-gateway
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+    topology.istio.io/network: network1
+spec:
+  selector:
+    istio: eastwestgateway
+  servers:
+    - port:
+        number: 15443
+        name: tls
+        protocol: TLS
+      tls:
+        mode: AUTO_PASSTHROUGH
+      hosts:
+        - "*.freedomforge.max"
+
+---
+# Expose all internal services through the east-west gateway
+# so remote clusters can reach them via SNI-based routing.
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: east-west-expose
+  namespace: istio-system
+spec:
+  hosts:
+    - "*.freedomforge.max"
+  gateways:
+    - east-west-gateway
+  tls:
+    - match:
+        - port: 15443
+          sniHosts:
+            - "*.freedomforge-earth.svc.cluster.local"
+      route:
+        - destination:
+            host: "*.freedomforge-earth.svc.cluster.local"
+    - match:
+        - port: 15443
+          sniHosts:
+            - "*.freedomforge-system.svc.cluster.local"
+      route:
+        - destination:
+            host: "*.freedomforge-system.svc.cluster.local"

@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+data:
+  # Custom health checks for Istio resources
+  # ArgoCD doesn't know Istio CRDs by default — these tell it they're always Healthy once synced.
+  resource.customizations.health.networking.istio.io_VirtualService: |
+    hs = {}
+    hs.status = "Healthy"
+    hs.message = "VirtualService synced"
+    return hs
+
+  resource.customizations.health.networking.istio.io_Gateway: |
+    hs = {}
+    hs.status = "Healthy"
+    hs.message = "Gateway synced"
+    return hs
+
+  resource.customizations.health.security.istio.io_AuthorizationPolicy: |
+    hs = {}
+    hs.status = "Healthy"
+    hs.message = "AuthorizationPolicy synced"
+    return hs
+
+  resource.customizations.health.security.istio.io_PeerAuthentication: |
+    hs = {}
+    hs.status = "Healthy"
+    hs.message = "PeerAuthentication synced"
+    return hs
+
+  # Ignore differences ArgoCD can't reconcile cleanly on Istio webhook configs
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+    jsonPointers:
+    - /webhooks/0/clientConfig/caBundle
+    - /webhooks/1/clientConfig/caBundle
+
+  # Allow ArgoCD to manage istio-system namespace resources
+  application.instanceLabelKey: argocd.argoproj.io/app-name
