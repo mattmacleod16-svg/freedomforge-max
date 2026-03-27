@@ -1,0 +1,42 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: bci-decoder-mtls
+  namespace: freedomforge-earth
+  labels:
+    app.kubernetes.io/part-of: freedomforge-max
+spec:
+  host: bci-decoder.freedomforge.max
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: UPGRADE
+        idleTimeout: 90s
+    outlierDetection:
+      consecutive5xxErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 33
+  subsets:
+    - name: earth
+      labels:
+        zone: earth
+      trafficPolicy:
+        tls:
+          mode: ISTIO_MUTUAL
+    - name: lunar
+      labels:
+        zone: lunar
+      trafficPolicy:
+        tls:
+          mode: ISTIO_MUTUAL
+    - name: mars
+      labels:
+        zone: mars
+      trafficPolicy:
+        tls:
+          mode: ISTIO_MUTUAL

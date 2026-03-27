@@ -22,9 +22,17 @@ spec:
             host: bci-decoder.freedomforge-earth.svc.cluster.local
             port:
               number: 3000
+            subset: earth
           weight: 70
         - destination:
             host: bci-decoder.freedomforge-lunar.svc.cluster.local
             port:
               number: 3000
-          weight: 30
+            subset: lunar
+          weight: 20
+        - destination:
+            host: bci-decoder.freedomforge-mars.svc.cluster.local
+            port:
+              number: 3000
+            subset: mars
+          weight: 10
