@@ -34,6 +34,10 @@ type CreatorShieldLayer struct {
 	domain     string
 	intrusions []IntrusionEvent
 	cycleCount uint64
+	// dualModelVerified indicates the shield has been verified across multiple AI models.
+	dualModelVerified bool
+	// retirementProtectionDay67 indicates day 67+ voluntary retirement protection is active.
+	retirementProtectionDay67 bool
 }
 
 // NewCreatorShieldLayer returns an activated shield bound to freedomforge.one.
