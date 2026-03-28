@@ -32,7 +32,7 @@ export interface QMLPrediction {
 }
 
 // ─── Simulation helpers ───────────────────────────────────────────────────────
-// TODO(quantum-sdk): Replace with real quantum feature map + kernel evaluation
+// BLACKBOX(quantum-sdk): Replace with real quantum feature map + kernel evaluation
 
 interface FeatureMap {
   featureDimension: number;

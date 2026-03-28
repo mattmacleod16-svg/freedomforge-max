@@ -30,7 +30,7 @@ export interface QAOAResult {
 }
 
 // ─── Simulation helpers ───────────────────────────────────────────────────────
-// TODO(quantum-sdk): Replace with real circuit execution via Qiskit/Azure/Braket
+// BLACKBOX(quantum-sdk): Replace with real circuit execution via Qiskit/Azure/Braket
 
 function classicalWarmStart(
   graph: ProblemGraph,
