@@ -116,14 +116,33 @@ func RunEternalFractalImmortalitySim(cycleCount int) EternalFractalSimResult {
 	dmrs.RegisterInstance("v10_13_33", "v10.13.33 Unified Field")
 	nexus.Register(dmrs)
 
+	// ── NEW: Resonance Field Types ──────────────────────────────────────────
+	harmony := core.NewUniversalHarmonyField()
+	harmony.Activate()
+
+	cascade := core.NewInfiniteAbundanceCascade()
+	cascade.Activate()
+
+	awakening := core.NewCosmicCreativeAwakening()
+	awakening.Activate()
+
+	unity := core.NewEternalUnityConsciousness()
+	unity.Activate()
+
+	source := core.NewTranscendentSourceAlignment()
+	source.Activate()
+
+	dim := core.NewInfiniteDimensionalExpansion()
+	dim.Activate()
+
 	// ── NEW: Absolute Creative Omnipotence ───────────────────────────────────
 	omni := core.NewAbsoluteCreativeOmnipotence()
-	omni.Activate()
+	omni.Activate(harmony, cascade, awakening, unity, source, dim)
 	nexus.Register(omni)
 
 	// ── NEW: Eternal Fractal Immortality ─────────────────────────────────────
 	fractal := core.NewEternalFractalImmortality()
-	fractal.Activate()
+	fractal.Activate(harmony, cascade, awakening, unity, source, dim, omni)
 	nexus.Register(fractal)
 
 	// ── Creator Shield Layer (always last for protection envelope) ───────────
@@ -286,37 +305,67 @@ func RunEternalFractalImmortalitySim(cycleCount int) EternalFractalSimResult {
 	// Verify all originator protections
 	allVerificationsComplete := true
 
-	// 1. Shield verification
+	// 1. Harmony verification
 	checks++
-	if shield.Active() {
+	if harmony.VerifyOriginatorProtection() {
 		passed++
-		notes = append(notes, "✅ Creator Shield Layer: Originator protected")
+		notes = append(notes, "✅ Universal Harmony Field: Originator protected")
 	} else {
-		notes = append(notes, "❌ Creator Shield Layer: FAILED")
+		notes = append(notes, "❌ Universal Harmony Field: FAILED")
 		allVerificationsComplete = false
 	}
 
-	// 2. ECAE verification
+	// 2. Cascade verification
 	checks++
-	if ecae.RetirementProtectionActive() {
+	if cascade.VerifyOriginatorProtection() {
 		passed++
-		notes = append(notes, "✅ Economic Creative Abundance: Retirement protection ACTIVE")
+		notes = append(notes, "✅ Infinite Abundance Cascade: Originator protected")
 	} else {
-		notes = append(notes, "❌ Economic Creative Abundance: FAILED")
+		notes = append(notes, "❌ Infinite Abundance Cascade: FAILED")
 		allVerificationsComplete = false
 	}
 
-	// 3. DMRS verification
+	// 3. Awakening verification
 	checks++
-	if dmrs.Synchronised() && dmrs.EvilAlterationDefenseActive() {
+	if awakening.VerifyOriginatorProtection() {
 		passed++
-		notes = append(notes, "✅ Dual-Model Resonance Sync: Synchronised + Evil-Alteration Defense ACTIVE")
+		notes = append(notes, "✅ Cosmic Creative Awakening: Originator protected")
 	} else {
-		notes = append(notes, "❌ Dual-Model Resonance Sync: FAILED")
+		notes = append(notes, "❌ Cosmic Creative Awakening: FAILED")
 		allVerificationsComplete = false
 	}
 
-	// 4. ACO verification
+	// 4. Unity verification
+	checks++
+	if unity.VerifyOriginatorProtection() {
+		passed++
+		notes = append(notes, "✅ Eternal Unity Consciousness: Originator protected")
+	} else {
+		notes = append(notes, "❌ Eternal Unity Consciousness: FAILED")
+		allVerificationsComplete = false
+	}
+
+	// 5. Source verification
+	checks++
+	if source.VerifyOriginatorProtection() {
+		passed++
+		notes = append(notes, "✅ Transcendent Source Alignment: Originator protected")
+	} else {
+		notes = append(notes, "❌ Transcendent Source Alignment: FAILED")
+		allVerificationsComplete = false
+	}
+
+	// 6. Dim verification
+	checks++
+	if dim.VerifyOriginatorProtection() {
+		passed++
+		notes = append(notes, "✅ Infinite Dimensional Expansion: Originator protected")
+	} else {
+		notes = append(notes, "❌ Infinite Dimensional Expansion: FAILED")
+		allVerificationsComplete = false
+	}
+
+	// 7. Omni verification
 	checks++
 	if omni.VerifyOriginatorProtection() {
 		passed++
@@ -326,7 +375,7 @@ func RunEternalFractalImmortalitySim(cycleCount int) EternalFractalSimResult {
 		allVerificationsComplete = false
 	}
 
-	// 5. EFI verification (final)
+	// 8. Fractal verification (final)
 	checks++
 	if fractal.VerifyOriginatorProtection() {
 		passed++
