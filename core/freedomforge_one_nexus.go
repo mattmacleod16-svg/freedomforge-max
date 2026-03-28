@@ -11,7 +11,7 @@ import (
 )
 
 // Version marks the platform release that introduced the Nexus.
-const Version = "v10.13.21"
+const Version = "v10.13.33"
 
 // Domain is the canonical public endpoint for the living platform.
 const Domain = "freedomforge.one"
