@@ -123,7 +123,7 @@ export class GuardianAgent {
     const { bciAdapter }     = await import('@/lib/deviceforge/hybrid-bci-adapter');
     const { happinessForge } = await import('@/lib/happinessforge/happiness-engine');
     const intent = await bciAdapter.decodeIntent(signals as import('@/lib/types').RawBCIData);
-    if ((intent as unknown as Record<string, unknown>)['fulfillmentDelta'] as number < 0) {
+    if ((intent.fulfillmentDelta ?? 0) < 0) {
       await happinessForge.giftFulfillment({ userId: this.config.id });
     }
   }
