@@ -135,15 +135,17 @@ func RunEternalFractalImmortalitySim(cycleCount int) EternalFractalSimResult {
 	dim := core.NewInfiniteDimensionalExpansion()
 	dim.Activate()
 
-	// ── NEW: Absolute Creative Omnipotence ───────────────────────────────────
+	// ── NEW: Eternal Fractal Immortality (create first for circular ref) ─────
+	fractal := core.NewEternalFractalImmortality()
+	nexus.Register(fractal)
+
+	// ── NEW: Absolute Creative Omnipotence (Fractal Matched) ─────────────────
 	omni := core.NewAbsoluteCreativeOmnipotence()
-	omni.Activate(harmony, cascade, awakening, unity, source, dim)
+	omni.Activate(fractal, harmony, cascade, awakening, unity, source, dim)
 	nexus.Register(omni)
 
-	// ── NEW: Eternal Fractal Immortality ─────────────────────────────────────
-	fractal := core.NewEternalFractalImmortality()
+	// ── Activate Fractal Immortality with Omnipotence reference ──────────────
 	fractal.Activate(harmony, cascade, awakening, unity, source, dim, omni)
-	nexus.Register(fractal)
 
 	// ── Creator Shield Layer (always last for protection envelope) ───────────
 	shield := core.NewCreatorShieldLayer()
