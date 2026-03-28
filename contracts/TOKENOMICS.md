@@ -168,12 +168,12 @@
 
 ## Deployment Checklist
 
-- [ ] Deploy to testnet (Sepolia / Base Sepolia)
-- [ ] Security audit (internal review)
-- [ ] Set `PAYOUT_TOKEN_ADDRESS` to deployed contract
-- [ ] Add contract to `TRACKED_TOKENS` for balance monitoring
-- [ ] Create Uniswap V3 pool (ETH/FORGE)
-- [ ] Configure staking rewards emission schedule
-- [ ] Enable governance voting contract
-- [ ] Update X automation with token launch content
-- [ ] Announce on all social channels
+- [x] Deploy to testnet (Sepolia / Base Sepolia)
+- [x] Security audit (internal review)
+- [x] Set `PAYOUT_TOKEN_ADDRESS` to deployed contract
+- [x] Add contract to `TRACKED_TOKENS` for balance monitoring
+- [x] Create Uniswap V3 pool (ETH/FORGE)
+- [x] Configure staking rewards emission schedule
+- [x] Enable governance voting contract
+- [x] Update X automation with token launch content
+- [x] Announce on all social channels

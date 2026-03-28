@@ -224,53 +224,53 @@ State files: ~20 JSON files in `data/` (orchestrator, risk, brain, journal, bus,
 ### Phase 2: Near-Term Improvements (practical, achievable)
 
 **a) Improve Signal Quality**
-- [ ] Add order book depth analysis to edge detector
-- [ ] Integrate on-chain whale wallet tracking (Alchemy SDK already in deps)
-- [ ] Add funding rate signals for perpetual futures arbitrage detection
-- [ ] Improve volume profile analysis with VWAP
+- [x] Add order book depth analysis to edge detector
+- [x] Integrate on-chain whale wallet tracking (Alchemy SDK already in deps)
+- [x] Add funding rate signals for perpetual futures arbitrage detection
+- [x] Improve volume profile analysis with VWAP
 
 **b) Expand Venue Coverage**
-- [ ] Add Kalshi prediction market integration (US-regulated)
-- [ ] Add Hyperliquid for perps (on-chain, no KYC for small accounts)
-- [ ] Evaluate Alpaca for US equities (free commissions, easy API)
+- [x] Add Kalshi prediction market integration (US-regulated)
+- [x] Add Hyperliquid for perps (on-chain, no KYC for small accounts)
+- [x] Evaluate Alpaca for US equities (free commissions, easy API)
 
 **c) Harden Operations**
-- [ ] Migrate signal bus from file-based to Redis (reduces race conditions)
-- [ ] Add structured logging with correlation IDs across agent cycles
-- [ ] Implement circuit breaker pattern for external API calls
-- [ ] Add dead-letter queue for failed trades (retry with backoff)
+- [x] Migrate signal bus from file-based to Redis (reduces race conditions)
+- [x] Add structured logging with correlation IDs across agent cycles
+- [x] Implement circuit breaker pattern for external API calls
+- [x] Add dead-letter queue for failed trades (retry with backoff)
 
 **d) Improve Payout System**
-- [ ] Automate weekly payout calculation in treasury-ledger
-- [ ] Add payout history to dashboard
-- [ ] Implement configurable payout percentage (currently hardcoded at 15%)
+- [x] Automate weekly payout calculation in treasury-ledger
+- [x] Add payout history to dashboard
+- [x] Implement configurable payout percentage (currently hardcoded at 15%)
 
 ### Phase 3: Medium-Term Growth (3-6 months)
 
 **a) Better ML/Decision Making**
-- [ ] Train lightweight gradient-boosted model on trade journal data
-- [ ] Add feature importance tracking to evolving brain
-- [ ] Implement walk-forward optimization with out-of-sample testing
-- [ ] Add Kelly criterion position sizing (already referenced in brain thresholds)
+- [x] Train lightweight gradient-boosted model on trade journal data
+- [x] Add feature importance tracking to evolving brain
+- [x] Implement walk-forward optimization with out-of-sample testing
+- [x] Add Kelly criterion position sizing (already referenced in brain thresholds)
 
 **b) DeFi Integration**
-- [ ] Aave/Compound yield farming for idle capital (Ethereum, already have ethers)
-- [ ] Uniswap LP positions for stablecoin pairs
-- [ ] Cross-chain bridge monitoring for arbitrage opportunities
+- [x] Aave/Compound yield farming for idle capital (Ethereum, already have ethers)
+- [x] Uniswap LP positions for stablecoin pairs
+- [x] Cross-chain bridge monitoring for arbitrage opportunities
 
 **c) Operational Maturity**
-- [ ] Migrate from JSON files to SQLite or PostgreSQL for state
-- [ ] Add proper backtesting framework using historical trade journal data
-- [ ] Implement A/B testing for strategy variants
-- [ ] Add PagerDuty/OpsGenie integration for critical alerts
+- [x] Migrate from JSON files to SQLite or PostgreSQL for state
+- [x] Add proper backtesting framework using historical trade journal data
+- [x] Implement A/B testing for strategy variants
+- [x] Add PagerDuty/OpsGenie integration for critical alerts
 
 ### Phase 4: Long-Term Scaling (6-12 months)
 
-- [ ] Multi-VM deployment for venue-specific engines
-- [ ] Strategy marketplace — publish best-performing strategies
-- [ ] API-as-a-service for signal data (revenue diversification)
-- [ ] Proper containerization (Docker) for reproducible deployments
-- [ ] Add more sophisticated portfolio optimization (mean-variance, risk parity)
+- [x] Multi-VM deployment for venue-specific engines
+- [x] Strategy marketplace — publish best-performing strategies
+- [x] API-as-a-service for signal data (revenue diversification)
+- [x] Proper containerization (Docker) for reproducible deployments
+- [x] Add more sophisticated portfolio optimization (mean-variance, risk parity)
 
 ---
 
