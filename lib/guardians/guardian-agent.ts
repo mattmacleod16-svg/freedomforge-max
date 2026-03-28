@@ -7,6 +7,19 @@ function hasFulfillmentDelta(x: unknown): x is { fulfillmentDelta: number } {
   );
 }
 
+  /**
+   * Watch a raw BCI signal and trigger a happiness gift if the intent
+   * carries a negative fulfillment delta.
+   * Uses dynamic imports to avoid circular module resolution at load time.
+   */
+  async watchAndProtect(signals: unknown): Promise<void> {
+    const { bciAdapter }     = await import('@/lib/deviceforge/hybrid-bci-adapter');
+    const { happinessForge } = await import('@/lib/happinessforge/happiness-engine');
+    const intent = await bciAdapter.decodeIntent(signals as import('@/lib/types').RawBCIData);
+    if ((intent.fulfillmentDelta ?? 0) < 0) {
+      await happinessForge.giftFulfillment({ userId: this.config.id });
+    }
+  }
 async watchAndProtect(signals: unknown): Promise<void> {
   const { bciAdapter }     = await import('@/lib/deviceforge/hybrid-bci-adapter');
   const { happinessForge } = await import('@/lib/happinessforge/happiness-engine');

@@ -138,9 +138,10 @@ export interface RawBCIData {
 }
 
 export interface IntentVector {
-  fusedIntent: unknown;
-  confidence: number;
-  zkProof?: string;
+  fusedIntent:       unknown;
+  confidence:        number;
+  zkProof?:          string;
+  fulfillmentDelta?: number;   // negative → trigger happiness gift
 }
 
 export interface UserProfile {
