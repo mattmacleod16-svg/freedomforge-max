@@ -92,6 +92,33 @@ export interface HappinessScore {
   timestamp: number;
 }
 
+// ─── McCainForge ─────────────────────────────────────────────────────────────
+
+export interface MaverickMetrics {
+  /** Fraction of ensemble models that agree on the same direction (0–1) */
+  ensembleAgreementPct: number;
+  /** Market sentiment score: -1 (extreme fear) to +1 (extreme greed) */
+  sentimentScore: number;
+  /** Maximum drawdown the position holder will tolerate (0–1) */
+  drawdownTolerance: number;
+  /** Annualised volatility of the underlying (0–1) */
+  volatility: number;
+  /** How long the current position has been held, in days */
+  positionAgeDays: number;
+}
+
+export interface MaverickDecision {
+  maverickScore: number; // 0–100 composite
+  recommendation: 'hold-contrarian' | 'align-with-consensus' | 'wait-for-signal';
+  breakdown: {
+    independence: number;
+    contrarianConfidence: number;
+    resilience: number;
+  };
+  signals: string[];
+  timestamp: number;
+}
+
 // ─── Meta-Learning ────────────────────────────────────────────────────────────
 
 export interface MetaEpisode {
