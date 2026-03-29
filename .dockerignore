@@ -1,0 +1,15 @@
+.git
+.gitignore
+.next/cache
+node_modules
+k8s
+tests
+*.test.ts
+*.test.tsx
+*.test.js
+.env*
+README*
+*.md
+scripts
+mobile
+.github
