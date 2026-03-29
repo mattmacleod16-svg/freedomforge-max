@@ -32,6 +32,8 @@ export default function Home() {
   const [history, setHistory] = React.useState<Array<{role: string; text: string; ts: number}>>([]);
   const [username, setUsername] = React.useState('');
   const [autonomyPrefs, setAutonomyPrefs] = React.useState<AutonomyPrefs>(DEFAULT_AUTONOMY_PREFS);
+  const [ttsEnabled, setTtsEnabled] = React.useState(true);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   const {
     sync: syncPersonal,
@@ -96,6 +98,27 @@ export default function Home() {
     } catch { /* ignore */ }
   }, [autonomyPrefs, prefsKey]);
 
+  // Speak AI reply via ElevenLabs TTS (best-effort — never blocks chat)
+  const speakReply = React.useCallback(async (text: string) => {
+    if (!ttsEnabled) return;
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+      }
+      audioRef.current = new Audio(url);
+      void audioRef.current.play();
+    } catch { /* TTS is best-effort */ }
+  }, [ttsEnabled]);
+
   // Shared function that processes any input (voice or text)
   const processInput = async (text: string) => {
     const sanitizedText = autonomyPrefs.humanGuardrails ? text.slice(0, 2000).trim() : text.trim();
@@ -132,6 +155,7 @@ export default function Home() {
         const reply = data.reply || 'No answer';
         setResponse(reply);
         setHistory((h) => [...h, { role: 'assistant', text: reply, ts: Date.now() }]);
+        void speakReply(reply);
       }
     } catch (err) {
       const msg = err instanceof RateLimitError
@@ -348,6 +372,14 @@ export default function Home() {
                 className="rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 px-6 py-4 text-sm font-bold text-white transition hover:from-orange-600 hover:to-red-700"
               >
                 SEND
+              </button>
+              <button
+                type="button"
+                onClick={() => setTtsEnabled(v => !v)}
+                title={ttsEnabled ? 'Mute voice' : 'Unmute voice'}
+                className="rounded-2xl border border-zinc-700 bg-black/50 px-4 py-4 text-lg transition hover:border-orange-500"
+              >
+                {ttsEnabled ? '🔊' : '🔇'}
               </button>
             </form>
 

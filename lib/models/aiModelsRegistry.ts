@@ -471,7 +471,7 @@ export const AI_MODEL_PROVIDERS: AIModelProvider[] = [
     regions: ['US', 'EU', 'Global'],
     pricing: 'freemium',
     openSource: false,
-    integrationStatus: 'planned',
+    integrationStatus: 'active',
     models: [
       { id: 'eleven_multilingual_v2', name: 'Multilingual v2', contextWindow: 0, maxOutput: 0, capabilities: ['audio'], released: '2024', recommended: true },
     ],
