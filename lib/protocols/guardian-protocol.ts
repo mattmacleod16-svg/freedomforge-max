@@ -6,6 +6,7 @@
  */
 
 import { GuardianManager } from '@/lib/guardians/guardian-manager';
+import { RawBCIData } from '@/lib/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,7 +14,7 @@ type GuardianProtocolKind = 'guardian';
 
 export interface GuardianProtocolPayload {
   userId:   string;
-  signals?: unknown;
+  signals?: RawBCIData;
   action:   'watch' | 'alert' | 'resolve';
 }
 
