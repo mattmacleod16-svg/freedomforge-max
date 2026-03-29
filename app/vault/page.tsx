@@ -686,6 +686,7 @@ export default function VaultPage() {
                       { name: 'MultiversX (EGLD)', type: 'Wallet', status: 'Ready', icon: '✕' },
                       { name: 'Coinbase', type: 'Exchange', status: 'Ready', icon: '📈' },
                       { name: 'Kraken', type: 'Exchange', status: 'Ready', icon: '🐙' },
+                      { name: 'NonKyc.io', type: 'Exchange', status: 'Ready', icon: '🔓' },
                       { name: 'Antminer (S19/S21)', type: 'ASIC Miner', status: 'Ready', icon: '⛏️' },
                       { name: 'Whatsminer (M50/M60)', type: 'ASIC Miner', status: 'Ready', icon: '⛏️' },
                       { name: 'GPU Rigs', type: 'GPU Mining', status: 'Ready', icon: '🖥️' },
