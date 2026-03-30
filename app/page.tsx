@@ -281,12 +281,30 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 text-xs text-zinc-300">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-300">
               <Link href="/ai-models" className="rounded-full border border-purple-500/30 px-3 py-1 text-purple-300 hover:bg-purple-500/10 transition">
                 AI Models
               </Link>
+              <Link href="/intelligence" className="rounded-full border border-cyan-500/30 px-3 py-1 text-cyan-300 hover:bg-cyan-500/10 transition">
+                Intelligence
+              </Link>
               <Link href="/token" className="rounded-full border border-amber-500/30 px-3 py-1 text-amber-300 hover:bg-amber-500/10 transition">
                 $FORGE Token
+              </Link>
+              <Link href="/cipher-lab" className="rounded-full border border-emerald-500/30 px-3 py-1 text-emerald-300 hover:bg-emerald-500/10 transition">
+                Cipher Lab
+              </Link>
+              <Link href="/vault" className="rounded-full border border-pink-500/30 px-3 py-1 text-pink-300 hover:bg-pink-500/10 transition">
+                Vault
+              </Link>
+              <Link href="/life" className="rounded-full border border-emerald-500/30 px-3 py-1 text-emerald-300 hover:bg-emerald-500/10 transition">
+                Life
+              </Link>
+              <Link href="/watchdog" className="rounded-full border border-red-500/30 px-3 py-1 text-red-300 hover:bg-red-500/10 transition">
+                Watchdog
+              </Link>
+              <Link href="/discover" className="rounded-full border border-blue-500/30 px-3 py-1 text-blue-300 hover:bg-blue-500/10 transition">
+                Discover
               </Link>
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
