@@ -1,0 +1,64 @@
+name: Apply Recommended Env Overrides
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_keys:
+        description: Optional comma-separated keys to apply (blank = all from patch file)
+        required: false
+        default: ''
+      dry_run:
+        description: Preview only (no write)
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      # Railway (primary)
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+      # Vercel (legacy fallback)
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+      APPLY_KEYS: ${{ inputs.apply_keys }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      OPS_PATCH_FILE: ops/recommended-env-overrides.env
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate platform credentials
+        if: inputs.dry_run == false
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ] && [ -z "$VERCEL_TOKEN" ]; then
+            echo "Missing deployment platform credentials. Set RAILWAY_TOKEN or VERCEL_TOKEN."
+            exit 1
+          fi
+
+      - name: Ensure patch file exists
+        run: |
+          if [ ! -f "$OPS_PATCH_FILE" ]; then
+            echo "Patch file not found: $OPS_PATCH_FILE"
+            echo "Run the Monthly Ops Patch PR workflow first or generate it locally."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply recommended env values
+        run: npm run apply-env

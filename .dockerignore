@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+ios
+data
+logs
+monitoring
+*.key
+*.pem
+.env*
+!.env.example
+.vscode
+.vercelignore
