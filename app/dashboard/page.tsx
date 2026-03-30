@@ -20,6 +20,24 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2';
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Filler, Tooltip, Legend);
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
+
+interface PhaseMilestone { id: string; label: string; done: boolean; }
+interface PhaseStatus { id: number; name: string; description: string; milestones: PhaseMilestone[]; complete: boolean; daysRange: string; }
+interface TxStatus { hash: string; status: 'pending' | 'confirmed' | 'failed' | 'not_found'; confirmations: number; blockNumber: number | null; timestamp: number | null; }
+interface GoalProgress { id: string; name: string; description: string; targetUsd: number; currentUsd: number; progressPct: number; remaining: number; priority: number; allocationPct: number; status: string; }
+interface RevenueAllocation { goalId: string; goalName: string; amountUsd: number; pct: number; timestamp: number; source: string; }
+interface RiskItem { risk: string; level: string; mitigation: string; }
+interface PhasesPayload {
+  phases: PhaseStatus[];
+  activePhase: number;
+  txStatuses: TxStatus[];
+  goals: GoalProgress[];
+  recentAllocations: RevenueAllocation[];
+  totalRouted: number;
+  riskRegister: RiskItem[];
+  updatedAt: string;
+}
+
 interface EmpireData {
   ts: string;
   portfolio: {
@@ -513,7 +531,8 @@ export default function CommandCenter() {
   const [data, setData] = useState<EmpireData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<number>(0);
-  const [tab, setTab] = useState<'overview' | 'trades' | 'risk' | 'intelligence' | 'treasury'>('overview');
+  const [tab, setTab] = useState<'overview' | 'trades' | 'risk' | 'intelligence' | 'treasury' | 'phases'>('overview');
+  const [phasesData, setPhasesData] = useState<PhasesPayload | null>(null);
   const [pulseHeader, setPulseHeader] = useState(false);
   const mountedRef = useRef(true);
 
@@ -535,15 +554,27 @@ export default function CommandCenter() {
     }
   }, []);
 
+  const fetchPhases = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/phases', { cache: 'no-store', timeoutMs: 20_000 });
+      if (res.ok && mountedRef.current) {
+        setPhasesData(await res.json());
+      }
+    } catch { /* best-effort */ }
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
     fetchData();
-    const id = setInterval(fetchData, 12000);
+    fetchPhases();
+    const id  = setInterval(fetchData, 12000);
+    const id2 = setInterval(fetchPhases, 60000);
     return () => {
       mountedRef.current = false;
       clearInterval(id);
+      clearInterval(id2);
     };
-  }, [fetchData]);
+  }, [fetchData, fetchPhases]);
 
   useEffect(() => {
     const check = async () => {
@@ -668,6 +699,7 @@ export default function CommandCenter() {
     { key: 'risk' as const, icon: '◆', label: 'RISK' },
     { key: 'intelligence' as const, icon: '◎', label: 'INTEL' },
     { key: 'treasury' as const, icon: '◇', label: 'TREASURY' },
+    { key: 'phases' as const, icon: '◐', label: 'PHASES' },
   ];
 
   /* ─── Render ────────────────────────────────────────────────────────── */
@@ -1535,6 +1567,146 @@ export default function CommandCenter() {
                   <div className="text-[9px] font-mono text-slate-700 mt-1">Data will populate after the next orchestrator cycle</div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Phases Tab ──────────────────────────────────────────────── */}
+        {tab === 'phases' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Header */}
+            <div className="holo-card rounded-2xl p-6 border-cyan-500/15">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full border border-cyan-500/25 flex items-center justify-center">
+                  <div className="w-3 h-3 bg-cyan-400 rounded-sm animate-pulse" />
+                </div>
+                <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-cyan-400/70">Operational Phases · Execution Roadmap</h3>
+              </div>
+              <p className="text-[10px] text-slate-600 font-mono mt-1">
+                Phase completion auto-detected from on-chain data and revenue router state
+              </p>
+            </div>
+
+            {/* Phase Cards */}
+            <div className="space-y-4">
+              {(phasesData?.phases ?? []).map((phase) => {
+                const activePhase = phasesData?.activePhase ?? 1;
+                const isCurrent = phase.id === activePhase;
+                const isComplete = phase.complete;
+                const borderColor = isComplete ? 'border-emerald-500/30' : isCurrent ? 'border-cyan-500/30' : 'border-slate-700/30';
+                const bgColor = isComplete ? 'bg-emerald-950/10' : isCurrent ? 'bg-cyan-950/10' : 'bg-slate-900/20';
+                const badge = isComplete ? '✓ COMPLETE' : isCurrent ? '● ACTIVE' : '○ PENDING';
+                const badgeColor = isComplete ? 'text-emerald-400 bg-emerald-500/10' : isCurrent ? 'text-cyan-400 bg-cyan-500/10 animate-pulse' : 'text-slate-600 bg-slate-800/30';
+                return (
+                  <div key={phase.id} className={`holo-card rounded-2xl p-5 border ${borderColor} ${bgColor}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-mono text-slate-600">{phase.daysRange}</span>
+                          <span className={`text-[9px] font-mono px-2 py-0.5 rounded-full ${badgeColor}`}>{badge}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white mt-1">{phase.name}</h4>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{phase.description}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {phase.milestones.map((m) => (
+                        <div key={m.id} className="flex items-center gap-2">
+                          <span className={`text-xs ${m.done ? 'text-emerald-400' : 'text-slate-600'}`}>
+                            {m.done ? '✓' : '○'}
+                          </span>
+                          <span className={`text-[10px] font-mono ${m.done ? 'text-emerald-300' : 'text-slate-600'}`}>
+                            {m.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {!phasesData && (
+                <div className="holo-card rounded-2xl p-8 text-center">
+                  <div className="text-[10px] font-mono text-slate-600 animate-pulse">Loading phase data…</div>
+                </div>
+              )}
+            </div>
+
+            {/* Tx Tracker */}
+            <div className="holo-card rounded-2xl p-5 border border-purple-500/15">
+              <h4 className="text-xs font-mono uppercase tracking-[0.2em] text-purple-400/60 mb-4">Polygonscan · Transaction Tracker</h4>
+              {phasesData?.txStatuses && phasesData.txStatuses.length > 0 ? (
+                <div className="space-y-2">
+                  {phasesData.txStatuses.map((tx) => (
+                    <div key={tx.hash} className="flex items-center justify-between rounded-xl border border-slate-700/30 bg-slate-800/20 p-3">
+                      <div>
+                        <div className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{tx.hash}</div>
+                        <div className="text-[9px] text-slate-600 mt-0.5">
+                          {tx.blockNumber ? `Block #${tx.blockNumber}` : 'Pending'} · {tx.confirmations} confirmations
+                        </div>
+                      </div>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${tx.status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400' : tx.status === 'failed' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {tx.status.toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] font-mono text-slate-600 text-center py-4">
+                  Set TRACKED_TX_HASHES env var to monitor transactions
+                </div>
+              )}
+            </div>
+
+            {/* Revenue Goals */}
+            <div className="holo-card rounded-2xl p-5 border border-amber-500/15">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xs font-mono uppercase tracking-[0.2em] text-amber-400/60">Revenue Router · Goal Progress</h4>
+                <div className="text-[9px] font-mono text-slate-600">
+                  Total routed: ${(phasesData?.totalRouted ?? 0).toFixed(2)}
+                </div>
+              </div>
+              <div className="space-y-3">
+                {(phasesData?.goals ?? []).map((goal) => (
+                  <div key={goal.id}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-mono text-slate-400">{goal.name}</span>
+                      <span className="text-[9px] font-mono text-slate-600">
+                        ${goal.currentUsd.toFixed(2)} / ${goal.targetUsd.toFixed(2)} · {goal.allocationPct}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-800">
+                      <div
+                        className={`h-full rounded-full transition-all ${goal.status === 'completed' ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                        style={{ width: `${Math.min(100, goal.progressPct)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-0.5">
+                      <span className={`text-[8px] font-mono ${goal.status === 'completed' ? 'text-emerald-500' : 'text-slate-700'}`}>
+                        {goal.status === 'completed' ? '✓ COMPLETE' : `${goal.progressPct}%`}
+                      </span>
+                      <span className="text-[8px] font-mono text-slate-700">${goal.remaining.toFixed(2)} remaining</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Risk Register */}
+            <div className="holo-card rounded-2xl p-5 border border-slate-700/20">
+              <h4 className="text-xs font-mono uppercase tracking-[0.2em] text-slate-500/60 mb-4">Risk Register · Pre-Mitigated</h4>
+              <div className="space-y-2">
+                {(phasesData?.riskRegister ?? []).map((r) => (
+                  <div key={r.risk} className="flex items-start gap-3 rounded-xl border border-slate-700/20 bg-slate-800/10 p-3">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full mt-0.5 whitespace-nowrap ${r.level === 'Low' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-400'}`}>
+                      {r.level}
+                    </span>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400">{r.risk}</div>
+                      <div className="text-[9px] text-slate-600 mt-0.5">{r.mitigation}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
