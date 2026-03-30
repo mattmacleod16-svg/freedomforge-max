@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Classify semver bump
         id: semver
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const title = context.payload.pull_request.title || '';
@@ -35,7 +35,7 @@ jobs:
 
       - name: Ensure changed files are package manifests/lockfiles only
         id: files
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumber = context.payload.pull_request.number;
@@ -57,7 +57,7 @@ jobs:
 
       - name: Auto approve safe patch/minor PR
         if: (steps.semver.outputs.type == 'patch' || steps.semver.outputs.type == 'minor') && steps.files.outputs.safe == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.pulls.createReview({
@@ -70,7 +70,7 @@ jobs:
 
       - name: Enable auto merge after checks pass
         if: (steps.semver.outputs.type == 'patch' || steps.semver.outputs.type == 'minor') && steps.files.outputs.safe == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNodeId = context.payload.pull_request.node_id;

@@ -26,10 +26,10 @@ jobs:
       SELF_HEAL_DRY_RUN: ${{ vars.SELF_HEAL_DRY_RUN || 'false' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
