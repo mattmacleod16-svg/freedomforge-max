@@ -2,12 +2,13 @@
  * Polygonscan Client — On-Chain Transaction Tracker
  * ═══════════════════════════════════════════════════
  *
- * Polls Polygonscan API v2 for transaction confirmation status,
- * token transfers, and yield accrual events.
+ * Uses Etherscan API V2 (chainId=137 for Polygon).
+ * Get a free key at: https://etherscan.io/register
  */
 
-const POLYGONSCAN_API = 'https://api.polygonscan.com/api';
-const API_KEY = process.env.POLYGONSCAN_API_KEY || '';
+const ETHERSCAN_V2  = 'https://api.etherscan.io/v2/api';
+const POLYGON_CHAIN = '137';
+const API_KEY       = process.env.POLYGONSCAN_API_KEY || process.env.ETHERSCAN_API_KEY || '';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,10 +52,11 @@ export interface YieldAccrual {
 
 async function polygonscan<T>(params: Record<string, string>): Promise<T> {
   const qs = new URLSearchParams({
+    chainid: POLYGON_CHAIN,
     ...params,
-    apikey: API_KEY || 'YourApiKeyToken',
+    apikey: API_KEY,
   });
-  const res = await fetch(`${POLYGONSCAN_API}?${qs}`, {
+  const res = await fetch(`${ETHERSCAN_V2}?${qs}`, {
     headers: { 'Accept': 'application/json' },
     next: { revalidate: 10 },
   });

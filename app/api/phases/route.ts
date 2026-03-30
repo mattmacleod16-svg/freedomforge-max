@@ -9,7 +9,7 @@ import { verifySessionToken } from '@/lib/auth/session';
 import { cookies } from 'next/headers';
 
 const TRACKED_TX_HASHES = (process.env.TRACKED_TX_HASHES || '').split(',').filter(Boolean);
-const POLYGON_WALLET    = process.env.POLYGON_WALLET_ADDRESS || '';
+const POLYGON_WALLET    = process.env.POLYGON_WALLET_ADDRESS || '0x42CF77Ce0F1Abb52Ec6A677b2468679a39bB6c4B';
 
 // Phase definitions (driven by env or defaults)
 const PHASES = [
