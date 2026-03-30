@@ -1,5 +1,5 @@
 // lib/guardians/guardian-agent.ts
-import type { GuardianAlert, GuardianConfig, GuardianStatus } from '@/lib/types';
+import type { GuardianAlert, GuardianConfig, GuardianStatus, RawBCIData } from '@/lib/types';
 
 export type MetricFetcher = () => Promise<number>;
 export type AlertHandler = (alert: GuardianAlert) => void;
@@ -34,6 +34,42 @@ export class GuardianAgent {
 
   getAlertHistory(): GuardianAlert[] {
     return this.alerts;
+  }
+
+  /** Manually trigger a metric check outside the polling interval. */
+  async runCheck(): Promise<void> {
+    await this.tick();
+  }
+
+  /** Clear alert state and return the guardian to idle. */
+  resolve(): void {
+    this.status = 'idle' as GuardianStatus;
+  }
+
+  /**
+   * Inspect raw BCI signals and fire an alert if the combined spike/LFP
+   * count exceeds the configured alertThreshold.
+   */
+  async watchAndProtect(rawSignals: RawBCIData): Promise<void> {
+    const spikeCount = rawSignals.neuralinkSpikes?.length ?? 0;
+    const lfpCount   = rawSignals.synchronLfps?.length ?? 0;
+    const value      = spikeCount + lfpCount;
+
+    if (value >= this.config.alertThreshold) {
+      const alert: GuardianAlert = {
+        guardianId: this.id,
+        capability: this.config.capability,
+        severity:   value >= this.config.alertThreshold * 2 ? 'critical' : 'warning',
+        message:    `BCI signal count ${value} exceeded threshold ${this.config.alertThreshold}`,
+        value,
+        threshold:  this.config.alertThreshold,
+        timestamp:  Date.now(),
+      };
+      this.alerts.push(alert);
+      if (this.alerts.length > 200) this.alerts.shift();
+      this.onAlert(alert);
+      this.status = 'alert' as GuardianStatus;
+    }
   }
 
   private async tick(): Promise<void> {

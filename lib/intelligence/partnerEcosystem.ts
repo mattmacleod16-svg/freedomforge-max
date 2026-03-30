@@ -161,7 +161,32 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     forgeIntegration: 'Canister and subnet observability client for distributed task execution and runtime health checks',
   },
 
+  // ─── Trading Venues ──────────────────────────────────────────────────
+  {
+    id: 'nonkyc',
+    name: 'NonKyc.io',
+    category: 'trading',
+    description: 'Privacy-first cryptocurrency exchange — no KYC, no tracking, Basic Auth API',
+    website: 'https://nonkyc.io',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['spot-trading', 'orderbook', 'balances', 'order-management', 'privacy'],
+    forgeIntegration: 'REST trading client with Basic Auth; venue-routed via smart-order-router at 20 bps',
+  },
+
   // ─── DeFi Protocols ─────────────────────────────────────────────────
+  {
+    id: 'compound-v3',
+    name: 'Compound V3',
+    category: 'defi',
+    description: 'Comet-based lending protocol — isolated collateral markets, multi-chain (Ethereum, Base, Polygon)',
+    website: 'https://compound.finance',
+    chain: 'Ethereum, Base, Polygon, Arbitrum',
+    phase: 'live',
+    priority: 0,
+    capabilities: ['lending', 'borrowing', 'supply-apy', 'borrow-apy', 'utilization', 'position-health'],
+    forgeIntegration: 'Public REST client for market APYs, utilization rates, and wallet position health monitoring',
+  },
   {
     id: 'world-liberty-financial',
     name: 'World Liberty Financial',

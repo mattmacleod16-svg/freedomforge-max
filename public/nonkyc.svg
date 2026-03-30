@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
+  <rect width="200" height="60" rx="8" fill="#0d0d0d"/>
+  <!-- Lock icon -->
+  <rect x="12" y="24" width="22" height="18" rx="3" fill="none" stroke="#00e5ff" stroke-width="2"/>
+  <path d="M16 24v-5a7 7 0 0 1 14 0v5" stroke="#00e5ff" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="23" cy="32" r="2" fill="#00e5ff"/>
+  <line x1="23" y1="34" x2="23" y2="38" stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- NonKyc text -->
+  <text x="44" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">Non</text>
+  <text x="80" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#00e5ff">KYC</text>
+  <text x="113" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">.io</text>
+  <!-- Tagline -->
+  <text x="44" y="50" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#666666" letter-spacing="1">PRIVACY-FIRST EXCHANGE</text>
+</svg>

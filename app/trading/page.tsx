@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 type TradingMode = 'paper' | 'live';
-type Exchange = 'coinbase' | 'kraken';
+type Exchange = 'coinbase' | 'kraken' | 'nonkyc';
 type OrderSide = 'buy' | 'sell';
 
 interface TradeRecord {
@@ -111,7 +111,7 @@ export default function TradingPage() {
                 <h1 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-emerald-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent">Trading Command Center</h1>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isPaper ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>{mode}</span>
               </div>
-              <p className="text-zinc-400 text-sm">Multi-exchange autonomous trading · Coinbase + Kraken + ViaBTC Mining</p>
+              <p className="text-zinc-400 text-sm">Multi-exchange autonomous trading · Coinbase + Kraken + NonKyc.io + ViaBTC Mining</p>
             </div>
             <div className="flex items-center gap-3">
               <button onClick={toggleKillSwitch} className={`px-4 py-2 rounded-xl text-sm font-bold transition ${status?.killSwitch ? 'bg-red-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:bg-red-900/50 hover:text-red-400'}`}>
@@ -122,7 +122,7 @@ export default function TradingPage() {
           <div className="grid grid-cols-3 gap-3 mt-6">
             {Object.entries(exchanges).map(([key, ex]) => (
               <div key={key} className={`rounded-xl border p-3 text-center ${ex.configured ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-zinc-700/50 bg-zinc-800/20'}`}>
-                <div className="text-lg mb-1">{key === 'coinbase' ? '🟠' : key === 'kraken' ? '🐙' : '⛏️'}</div>
+                <div className="text-lg mb-1">{key === 'coinbase' ? '🟠' : key === 'kraken' ? '🐙' : key === 'nonkyc' ? '🔓' : '⛏️'}</div>
                 <div className="text-xs font-bold text-white">{ex.name}</div>
                 <div className={`text-[10px] mt-1 ${ex.configured ? 'text-emerald-400' : 'text-zinc-600'}`}>{ex.configured ? '● Connected' : '○ Not configured'}</div>
               </div>
@@ -144,10 +144,10 @@ export default function TradingPage() {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-zinc-800/50 bg-zinc-900/50 backdrop-blur p-6 space-y-4">
               <h2 className="text-lg font-bold text-white flex items-center gap-2"><span>⚡</span> Quick Trade {isPaper && <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PAPER</span>}</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {(['coinbase', 'kraken'] as const).map(ex => (
+              <div className="grid grid-cols-3 gap-2">
+                {(['coinbase', 'kraken', 'nonkyc'] as const).map(ex => (
                   <button key={ex} onClick={() => setExchange(ex)} className={`p-2 rounded-lg text-xs font-bold transition ${exchange === ex ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40' : 'bg-zinc-800/50 text-zinc-500 hover:text-white'}`}>
-                    {ex === 'coinbase' ? '🟠 Coinbase' : '🐙 Kraken'}
+                    {ex === 'coinbase' ? '🟠 Coinbase' : ex === 'kraken' ? '🐙 Kraken' : '🔓 NonKyc'}
                   </button>
                 ))}
               </div>
@@ -211,7 +211,7 @@ export default function TradingPage() {
                 {portfolio.balances.map((b, i) => (
                   <div key={i} className="flex items-center justify-between rounded-xl border border-zinc-700/30 bg-zinc-800/20 p-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-lg">{b.exchange === 'coinbase' ? '🟠' : '🐙'}</span>
+                      <span className="text-lg">{b.exchange === 'coinbase' ? '🟠' : b.exchange === 'nonkyc' ? '🔓' : '🐙'}</span>
                       <div><div className="text-white font-bold text-sm">{b.currency}</div><div className="text-[10px] text-zinc-500">{b.exchange}</div></div>
                     </div>
                     <div className="text-right">

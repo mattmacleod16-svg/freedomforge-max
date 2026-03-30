@@ -202,7 +202,8 @@ describe('Home page', () => {
       const input = screen.getByPlaceholderText('Ask for strategy, prediction, or execution guidance...');
       await userEvent.type(input, 'Test query');
       await userEvent.click(screen.getByRole('button', { name: 'SEND' }));
-      expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+      // fetch is called twice: once for /api/chat, once for /api/tts (ElevenLabs TTS)
+      expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
     });
 
     it('empty input does NOT submit (fetch is not called)', async () => {
