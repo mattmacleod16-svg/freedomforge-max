@@ -27,6 +27,8 @@ const applyKeysRaw = (process.env.APPLY_KEYS || '').trim();
 const patchFile = process.env.OPS_PATCH_FILE || 'ops/recommended-env-overrides.env';
 const dryRun = String(process.env.DRY_RUN || 'false').toLowerCase() === 'true';
 
+const RAILWAY_GQL = 'https://backboard.railway.app/graphql/v2';
+
 function parsePatchFile(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`patch file not found: ${filePath}`);

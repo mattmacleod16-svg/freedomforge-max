@@ -258,6 +258,12 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-3 text-xs text-zinc-300">
+              <Link href="/ai-models" className="rounded-full border border-purple-500/30 px-3 py-1 text-purple-300 hover:bg-purple-500/10 transition">
+                AI Models
+              </Link>
+              <Link href="/token" className="rounded-full border border-amber-500/30 px-3 py-1 text-amber-300 hover:bg-amber-500/10 transition">
+                $FORGE Token
+              </Link>
               <span className="rounded-full border border-zinc-700 px-3 py-1">Mode: Text</span>
             </div>
           </div>
