@@ -1,17 +1,7 @@
 name: Ops Patch Preview Notify
 
 on:
-  pull_request:
-    types: [closed]
   workflow_dispatch:
-
-concurrency:
-  group: ops-patch-preview-notify
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-  actions: write
 
 jobs:
   preview-and-notify:

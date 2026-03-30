@@ -1,22 +1,7 @@
 name: Ensemble Policy Tuner
 
 on:
-  schedule:
-    - cron: '10 * * * *'
   workflow_dispatch:
-    inputs:
-      regime:
-        description: Regime used for tuning update
-        required: false
-        default: neutral
-      limit:
-        description: Diagnostics lookback event limit (100-5000)
-        required: false
-        default: '1200'
-
-concurrency:
-  group: ensemble-policy-tuner
-  cancel-in-progress: true
 
 jobs:
   tune:

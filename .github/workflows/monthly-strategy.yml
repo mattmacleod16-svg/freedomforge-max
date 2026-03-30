@@ -1,13 +1,7 @@
 name: Monthly Strategy Recommendation
 
 on:
-  schedule:
-    - cron: '0 15 1 * *'
   workflow_dispatch:
-
-concurrency:
-  group: monthly-strategy
-  cancel-in-progress: true
 
 jobs:
   strategy:

@@ -1,17 +1,7 @@
 name: Repository Backup Snapshot
 
 on:
-  schedule:
-    - cron: '20 2 * * *'
   workflow_dispatch:
-
-concurrency:
-  group: repository-backup-snapshot
-  cancel-in-progress: false
-
-permissions:
-  contents: read
-  actions: read
 
 jobs:
   backup:

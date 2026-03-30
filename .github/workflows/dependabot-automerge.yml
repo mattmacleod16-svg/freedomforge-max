@@ -1,12 +1,7 @@
 name: Dependabot Auto Merge
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
-
-permissions:
-  contents: write
-  pull-requests: write
+  workflow_dispatch:
 
 jobs:
   automerge:

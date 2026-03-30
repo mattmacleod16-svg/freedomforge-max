@@ -1,13 +1,7 @@
 name: Nightly Daily Check
 
 on:
-  schedule:
-    - cron: '0 14 * * *' # daily check (14:00 UTC = 9:00 AM EST, 10:00 AM EDT)
   workflow_dispatch:
-
-concurrency:
-  group: nightly-daily-check
-  cancel-in-progress: true
 
 jobs:
   check:

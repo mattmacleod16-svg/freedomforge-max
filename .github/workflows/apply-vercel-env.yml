@@ -2,19 +2,6 @@ name: Apply Recommended Env Overrides
 
 on:
   workflow_dispatch:
-    inputs:
-      apply_keys:
-        description: Optional comma-separated keys to apply (blank = all from patch file)
-        required: false
-        default: ''
-      dry_run:
-        description: Preview only (no write)
-        required: true
-        default: true
-        type: boolean
-
-permissions:
-  contents: read
 
 jobs:
   apply:

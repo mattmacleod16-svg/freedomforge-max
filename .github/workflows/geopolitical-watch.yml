@@ -1,16 +1,7 @@
 name: Geopolitical Watch
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'
   workflow_dispatch:
-
-concurrency:
-  group: geopolitical-watch
-  cancel-in-progress: true
-
-permissions:
-  contents: read
 
 jobs:
   watch:

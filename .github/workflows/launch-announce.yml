@@ -1,18 +1,7 @@
 name: Launch Announcement
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
-    inputs:
-      live_post:
-        description: 'Post to X and Discord for real (true = live, false = dry-run)'
-        required: false
-        default: 'false'
-
-env:
-  APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge.one' }}
-  NODE_VERSION: '20'
 
 jobs:
   # ── Pre-launch health check ───────────────────────────────────────────────────

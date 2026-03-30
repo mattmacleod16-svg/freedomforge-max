@@ -2,19 +2,6 @@ name: Ping Discord Alert
 
 on:
   workflow_dispatch:
-    inputs:
-      endpoint_url:
-        description: Ping endpoint URL
-        required: true
-        default: https://freedomforge-max.up.railway.app/api/status/ping-discord
-      source:
-        description: Source label included in alert
-        required: true
-        default: github-actions
-      note:
-        description: Optional note appended to alert
-        required: false
-        default: manual-discord-smoke-test
 
 jobs:
   ping:

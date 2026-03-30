@@ -1,16 +1,7 @@
 name: Continuous Learning Loop
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'
   workflow_dispatch:
-
-concurrency:
-  group: continuous-learning-loop
-  cancel-in-progress: true
-
-permissions:
-  contents: read
 
 jobs:
   learn:

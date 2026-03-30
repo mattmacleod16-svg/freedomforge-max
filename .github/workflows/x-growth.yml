@@ -1,26 +1,7 @@
 name: X Growth Automation
 
 on:
-  schedule:
-    - cron: '15 */6 * * *'
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: Run in dry-run mode
-        required: false
-        default: 'true'
-      force:
-        description: Force posting even if cooldown/limit blocks
-        required: false
-        default: 'false'
-      trend_hint:
-        description: Optional trend/topic hint for generated post
-        required: false
-        default: ''
-
-concurrency:
-  group: x-growth-automation
-  cancel-in-progress: true
 
 jobs:
   post:

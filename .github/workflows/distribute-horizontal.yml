@@ -1,18 +1,7 @@
 name: Distribute revenue (horizontal bots)
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
   workflow_dispatch:
-    inputs:
-      bot_shards:
-        description: Number of bot shards to run (1-4)
-        required: false
-        default: "2"
-
-concurrency:
-  group: distribute-revenue-horizontal
-  cancel-in-progress: true
 
 jobs:
   distribute:

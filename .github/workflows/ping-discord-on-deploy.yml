@@ -1,7 +1,7 @@
 name: Ping Discord On Deploy
 
 on:
-  deployment_status:
+  workflow_dispatch:
 
 jobs:
   ping:

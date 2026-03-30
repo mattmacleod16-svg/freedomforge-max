@@ -1,16 +1,7 @@
 name: Daily KPI Report
 
 on:
-  schedule:
-    - cron: '20 14 * * *'
   workflow_dispatch:
-
-concurrency:
-  group: daily-kpi-report
-  cancel-in-progress: true
-
-permissions:
-  contents: read
 
 jobs:
   report:

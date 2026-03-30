@@ -1,27 +1,7 @@
 name: Sync All Environments
 
 on:
-  push:
-    branches:
-      - main
-      - 'claude/**'
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
-    inputs:
-      skip_alchemy:
-        description: 'Skip Alchemy live RPC check'
-        required: false
-        default: 'false'
-
-concurrency:
-  group: sync-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://freedomforge.one' }}
-  NODE_VERSION: '20'
 
 jobs:
   # ── Job 1: Lint, Test, Build ─────────────────────────────────────────────────

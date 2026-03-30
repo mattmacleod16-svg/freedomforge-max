@@ -1,17 +1,7 @@
 name: Daily Health Snapshot
 
 on:
-  schedule:
-    - cron: '30 14 * * *'
   workflow_dispatch:
-
-concurrency:
-  group: daily-health-snapshot
-  cancel-in-progress: true
-
-permissions:
-  actions: read
-  contents: read
 
 jobs:
   snapshot:

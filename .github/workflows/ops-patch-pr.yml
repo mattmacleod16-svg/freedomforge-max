@@ -1,17 +1,7 @@
 name: Monthly Ops Patch PR
 
 on:
-  schedule:
-    - cron: '20 15 1 * *'
   workflow_dispatch:
-
-concurrency:
-  group: monthly-ops-patch-pr
-  cancel-in-progress: true
-
-permissions:
-  contents: write
-  pull-requests: write
 
 jobs:
   propose:
