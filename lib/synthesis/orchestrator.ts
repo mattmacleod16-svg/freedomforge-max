@@ -129,6 +129,12 @@ export function isLowStakesQuery(query: string) {
   return false;
 }
 
+export function isCodingQuery(query: string) {
+  return /(code|debug|function|class|implement|refactor|script|algorithm|typescript|javascript|python|api endpoint|unit test|bug fix|snippet|regex|sql query|shell command|dockerfile|lint|compile|build error)/i.test(
+    query
+  );
+}
+
 export function estimateComplexityScore(input: {
   userQuery: string;
   maxMode: boolean;
@@ -613,6 +619,10 @@ export async function synthesizeAnswer(userQuery: string): Promise<SynthesisResu
 
     if (maxMode) {
       routing.modelCount = Math.max(routing.modelCount, Math.min(5, Math.max(3, getAvailableModels().length)));
+    }
+
+    if (isCodingQuery(userQuery)) {
+      routing.preferredModels = ['blackbox', ...routing.preferredModels];
     }
 
     const reasoningProfile = buildReasoningProfile({

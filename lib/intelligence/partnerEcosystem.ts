@@ -17,8 +17,10 @@ export type PartnerCategory =
   | 'defi'
   | 'depin'
   | 'ai-compute'
+  | 'ai-network'
   | 'data'
   | 'trading'
+  | 'prediction-markets'
   | 'payments'
   | 'identity'
   | 'investigative'
@@ -197,6 +199,18 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     capabilities: ['prediction-markets', 'clob', 'market-data', 'gamma-api'],
     forgeIntegration: 'Core prediction market trading, forecast calibration data',
   },
+  {
+    id: 'azuro',
+    name: 'Azuro Protocol',
+    category: 'prediction-markets',
+    description: 'Decentralized prediction market protocol — sports, finance, crypto events with shared liquidity pool model',
+    website: 'https://azuro.org',
+    token: 'AZUR',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['prediction-markets', 'liquidity-pools', 'sports-betting', 'on-chain-odds', 'graphql-subgraph'],
+    forgeIntegration: 'Real-time prediction market odds and event data for AI-driven trading signals and sentiment analysis',
+  },
 
   // ─── DePIN Infrastructure ───────────────────────────────────────────
   {
@@ -233,7 +247,31 @@ export const PARTNER_ECOSYSTEM: Partner[] = [
     phase: 'live',
     priority: 1,
     capabilities: ['cloud-marketplace', 'gpu-compute', 'cpu-compute', 'storage'],
-    forgeIntegration: 'Cost-optimized compute for batch ML training and non-latency-critical inference',
+    forgeIntegration: 'Decentralized inference fallback via AkashML serverless (chatapi.akash.network)',
+  },
+  {
+    id: 'ionet',
+    name: 'io.net',
+    category: 'ai-compute',
+    description: 'Solana-based DePIN GPU network — 130+ countries, sub-90s cluster spin-up',
+    website: 'https://io.net',
+    token: 'IO',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['gpu-compute', 'distributed-inference', 'ray-clusters', 'depin'],
+    forgeIntegration: 'Decentralized inference fallback; geographic redundancy for burst workloads',
+  },
+  {
+    id: 'zerog',
+    name: '0G (Zero Gravity)',
+    category: 'ai-compute',
+    description: 'TEE-verified sealed inference + on-chain settlement for private AI compute',
+    website: 'https://0g.ai',
+    token: '0G',
+    phase: 'live',
+    priority: 1,
+    capabilities: ['tee-inference', 'sealed-compute', 'on-chain-settlement', 'privacy-first'],
+    forgeIntegration: 'Privacy-sensitive inference fallback; verifiable compute proofs for compliance',
   },
   {
     id: 'ionet',
