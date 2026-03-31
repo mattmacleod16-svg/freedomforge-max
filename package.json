@@ -111,7 +111,9 @@
     "token:verify": "node scripts/verify-token-launch.js",
     "taskmasters:deploy": "node scripts/deploy-taskmasters.js",
     "launch:sequence": "node scripts/launch-sequence.js",
-    "launch:sequence:live": "node scripts/launch-sequence.js --live"
+    "launch:sequence:live": "node scripts/launch-sequence.js --live",
+    "test:integration": "node tests/integration/ff-exchange-integration-suite.js",
+    "test:all": "npm test && npm run test:integration"
   },
   "dependencies": {
     "@alch/alchemy-sdk": "^1.2.0",
