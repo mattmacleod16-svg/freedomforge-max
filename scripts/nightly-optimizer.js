@@ -27,8 +27,8 @@ require('dotenv').config();
 process.env.TRADING_MODE  = 'paper';
 process.env.SIGNAL_BUS_MODE = 'file';
 
-const RAILWAY_API_KEY  = process.env.RAILWAY_API_KEY || '';
-const RAILWAY_ENV_ID   = process.env.RAILWAY_ENV_ID  || '';
+const RAILWAY_API_KEY  = process.env.RAILYWAY_TOKEN || process.env.RAILWAY_API_KEY || '';
+const RAILWAY_ENV_ID   = process.env.RAILWAY_ENV_ID || process.env.RAILWAY_ENVIRONMENT_ID || '';
 const RESULTS_DIR      = path.resolve(process.cwd(), 'data/backtest-results');
 const OPT_HISTORY_FILE = path.resolve(process.cwd(), 'data/optimizer-history.json');
 const ASSETS           = (process.env.OPTIMIZER_ASSETS || 'BTC-USD,ETH-USD,SOL-USD,XRP-USD').split(',');
@@ -293,47 +293,42 @@ function detectRegime(candles) {
 // ── Railway env push ──────────────────────────────────────────────────────────
 async function pushToRailway(vars) {
   if (!RAILWAY_API_KEY || !RAILWAY_ENV_ID) {
-    warn('Railway push skipped — RAILWAY_API_KEY or RAILWAY_ENV_ID not set');
+    warn('Railway push skipped — RAILYWAY_TOKEN or RAILWAY_ENVIRONMENT_ID not set');
     return false;
   }
 
-  const query = `
-    mutation upsertVariables($input: VariableCollectionUpsertInput!) {
-      variableCollectionUpsert(input: $input)
-    }
-  `;
+  const projId = process.env.RAILWAY_PROJECT_ID || '';
+  const svcId  = process.env.RAILWAY_SERVICE_ID  || '';
+  let pushed = 0;
+  let failed = 0;
 
-  const variables = {
-    input: {
-      environmentId: RAILWAY_ENV_ID,
-      variables: vars,
-    },
-  };
-
-  try {
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15000);
-    const res   = await fetch('https://backboard.railway.app/graphql/v2', {
-      method:  'POST',
-      headers: {
-        'Authorization': `Bearer ${RAILWAY_API_KEY}`,
-        'Content-Type':  'application/json',
-      },
-      body:   JSON.stringify({ query, variables }),
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    const json = await res.json();
-    if (json.errors) {
-      warn(`Railway push errors: ${JSON.stringify(json.errors)}`);
-      return false;
+  for (const [name, value] of Object.entries(vars)) {
+    try {
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const res   = await fetch('https://backboard.railway.app/graphql/v2', {
+        method:  'POST',
+        headers: {
+          'Authorization': `Bearer ${RAILWAY_API_KEY}`,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({
+          query: `mutation { variableUpsert(input: { projectId: "${projId}", environmentId: "${RAILWAY_ENV_ID}", serviceId: "${svcId}", name: "${name}", value: "${value}" }) }`
+        }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      const json = await res.json();
+      if (json.data?.variableUpsert === true) { pushed++; }
+      else { failed++; warn(`Railway var failed: ${name} — ${JSON.stringify(json.errors)}`); }
+    } catch (e) {
+      failed++;
+      warn(`Railway push failed for ${name}: ${e.message}`);
     }
-    done(`Railway env vars updated: ${Object.keys(vars).join(', ')}`);
-    return true;
-  } catch (e) {
-    warn(`Railway push failed: ${e.message}`);
-    return false;
   }
+
+  if (pushed > 0) done(`Railway: ${pushed} vars updated, ${failed} failed`);
+  return pushed > 0;
 }
 
 // ── Save history ──────────────────────────────────────────────────────────────
