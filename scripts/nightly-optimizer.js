@@ -36,6 +36,10 @@ let kellySizer, crossAsset, regimeForecaster;
 try { kellySizer       = require('./kelly-sizer'); } catch {}
 try { crossAsset       = require('./cross-asset-regime'); } catch {}
 try { regimeForecaster = require('./regime-transition-forecaster'); } catch {}
+let drawdownIntel;
+try { drawdownIntel = require('./drawdown-intelligence'); } catch {}
+let alphaScore;
+try { alphaScore = require('./alpha-score'); } catch {}
 
 process.env.TRADING_MODE    = 'paper';
 process.env.SIGNAL_BUS_MODE = 'file';

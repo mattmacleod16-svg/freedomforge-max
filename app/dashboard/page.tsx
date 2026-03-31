@@ -237,6 +237,18 @@ interface EmpireData {
     };
   };
   intelligence: {
+    alpha?: {
+      score: number;
+      grade: string;
+      advice: string;
+      signal: number | null;
+      regime: number | null;
+      kelly: number | null;
+      vol: number | null;
+      brain: number | null;
+      crossAsset: number | null;
+      timestamp: string;
+    } | null;
     kelly: {
       winRate: number;
       oddsRatio: number;

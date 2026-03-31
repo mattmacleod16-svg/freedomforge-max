@@ -391,6 +391,21 @@ export async function GET(req: Request) {
     const miningOverview = await getMiningOverview().catch(() => null);
     const exchangeStatus = getExchangeStatus();
 
+    // Alpha Score — composite edge quality indicator
+    let alphaScore: { score: number; grade: string; advice: string; components: Record<string, any>; timestamp: string } | null = null;
+    try {
+      const { getCachedAlphaScore, computeAlphaScore } = require('@/lib/alpha-score') as any;
+      const cached = getCachedAlphaScore();
+      if (cached) {
+        alphaScore = cached;
+      } else {
+        alphaScore = await Promise.race([
+          computeAlphaScore(),
+          new Promise<null>(res => setTimeout(() => res(null), 3000)),
+        ]);
+      }
+    } catch {}
+
     // Live pool data — try cached state first (avoid 10s per request), refresh if stale
     let livePools: import('@/lib/mining/pools').PoolLiveData[] | null = null;
     let totalMiningDailyUsd = 0;
