@@ -21,6 +21,7 @@ const MORE_ITEMS = [
   { href: '/ai-models', label: 'Models', icon: '🔮' },
   { href: '/cipher-lab', label: 'Cipher', icon: '🔬' },
   { href: '/token', label: '$FORGE', icon: '🪙' },
+  { href: '/command', label: '🎯 Income', icon: '💰', color: 'text-amber-400' },
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/marketing', label: 'Marketing', icon: '📣' },
 ];
