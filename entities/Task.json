@@ -1,0 +1,89 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Task title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full task description"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "description": "Task priority"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "in_progress",
+        "review",
+        "done",
+        "blocked"
+      ],
+      "description": "Current status"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Person assigned to this task"
+    },
+    "due_date": {
+      "type": "string",
+      "description": "Due date (ISO string)"
+    },
+    "estimated_hours": {
+      "type": "number",
+      "description": "Estimated hours to complete"
+    },
+    "required_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Skills needed"
+    },
+    "campaign": {
+      "type": "string",
+      "description": "Campaign or project this belongs to"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags"
+    },
+    "source_app": {
+      "type": "string",
+      "description": "Where this task came from"
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Original task ID in source app"
+    },
+    "synced_at": {
+      "type": "string",
+      "description": "Last sync timestamp"
+    },
+    "ff_notes": {
+      "type": "string",
+      "description": "FreedomForge-specific notes added here"
+    },
+    "ff_linked": {
+      "type": "boolean",
+      "description": "Whether this is linked to a FreedomForge project or trade goal"
+    }
+  },
+  "required": [
+    "title",
+    "status"
+  ],
+  "name": "Task"
+}

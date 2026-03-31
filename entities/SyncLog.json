@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "sync_type": {
+      "type": "string",
+      "description": "auto or manual"
+    },
+    "source_app": {
+      "type": "string"
+    },
+    "tasks_found": {
+      "type": "number"
+    },
+    "tasks_created": {
+      "type": "number"
+    },
+    "tasks_updated": {
+      "type": "number"
+    },
+    "tasks_skipped": {
+      "type": "number"
+    },
+    "errors": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sync_type",
+    "source_app"
+  ],
+  "name": "SyncLog"
+}
