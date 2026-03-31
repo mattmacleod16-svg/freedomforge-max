@@ -89,6 +89,10 @@ let mlPipeline;
 try { mlPipeline = require('../lib/ml-pipeline'); } catch { mlPipeline = null; }
 let exitManager;
 try { exitManager = require('../lib/exit-manager'); } catch { exitManager = null; }
+let nexusBrain;
+try { nexusBrain = require('../lib/nexus-brain'); } catch { nexusBrain = null; }
+let nexusFeedback;
+try { nexusFeedback = require('../lib/nexus-feedback'); } catch { nexusFeedback = null; }
 let _exitLoopHandle = null; // Handle for exit-manager background loop (used in graceful shutdown)
 let _reducedSizeActive = false; // Set by brain.shouldTradeNow() time-of-day filter
 
@@ -667,6 +671,24 @@ async function phaseSignalGeneration(assets) {
         _reducedSizeActive = false;
       }
     } catch (err) { log('warn', `Brain time check error: ${err?.message || err}`); }
+  }
+
+
+  // ── NEXUS Brain Cycle ────────────────────────────────────────────────────
+  // Run NEXUS to fetch fresh microstructure data (funding, OB, L/S, F&G)
+  // This feeds into edge-detector.getCompositeSignal via the NEXUS overlay
+  if (nexusBrain && typeof nexusBrain.runNexusCycle === 'function') {
+    try {
+      const nexusResult = await nexusBrain.runNexusCycle();
+      if (nexusResult) {
+        const topNexus = nexusResult.signals.filter(s => s.side !== 'neutral' && s.confidence > 0.65);
+        if (topNexus.length > 0) {
+          log('info', `NEXUS: ${topNexus.slice(0,3).map(s => `${s.asset} ${s.side.toUpperCase()} ${(s.confidence*100).toFixed(0)}%`).join(' | ')} | F&G:${nexusResult.fearGreed.value}`);
+        }
+      }
+    } catch (nexusErr) {
+      log('warn', `NEXUS cycle error: ${nexusErr.message}`);
+    }
   }
 
   const signals = [];
