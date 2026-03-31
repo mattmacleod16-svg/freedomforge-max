@@ -93,6 +93,8 @@ let nexusBrain;
 try { nexusBrain = require('../lib/nexus-brain'); } catch { nexusBrain = null; }
 let nexusFeedback;
 try { nexusFeedback = require('../lib/nexus-feedback'); } catch { nexusFeedback = null; }
+let stockIntelligence;
+try { stockIntelligence = require('../lib/stock-intelligence'); } catch { stockIntelligence = null; }
 let _exitLoopHandle = null; // Handle for exit-manager background loop (used in graceful shutdown)
 let _reducedSizeActive = false; // Set by brain.shouldTradeNow() time-of-day filter
 
