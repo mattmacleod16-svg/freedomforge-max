@@ -31,6 +31,12 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(process.cwd(), '.env.local') });
 require('dotenv').config();
 
+// ── Intelligence modules (Kelly + Cross-Asset + Forecaster) ───────────────────
+let kellySizer, crossAsset, regimeForecaster;
+try { kellySizer       = require('./kelly-sizer'); } catch {}
+try { crossAsset       = require('./cross-asset-regime'); } catch {}
+try { regimeForecaster = require('./regime-transition-forecaster'); } catch {}
+
 process.env.TRADING_MODE    = 'paper';
 process.env.SIGNAL_BUS_MODE = 'file';
 
@@ -39,7 +45,9 @@ const RAILWAY_API_KEY  = process.env.RAILYWAY_TOKEN || process.env.RAILWAY_API_K
 const RAILWAY_ENV_ID   = process.env.RAILWAY_ENV_ID || process.env.RAILWAY_ENVIRONMENT_ID || '';
 const RESULTS_DIR      = path.resolve(process.cwd(), 'data/backtest-results');
 const OPT_HISTORY_FILE = path.resolve(process.cwd(), 'data/optimizer-history.json');
-const ASSETS           = (process.env.OPTIMIZER_ASSETS || 'BTC-USD,ETH-USD,SOL-USD,XRP-USD').split(',');
+const _ASSETS_RAW      = (process.env.OPTIMIZER_ASSETS || 'BTC-USD,ETH-USD,SOL-USD,XRP-USD').split(',');
+// Run alts first so cross-asset regime data is available when BTC block runs
+const ASSETS           = [..._ASSETS_RAW.filter(a => a !== 'BTC-USD'), ..._ASSETS_RAW.filter(a => a === 'BTC-USD')];
 
 // Bayesian optimizer settings
 const BAYES_INIT_SAMPLES = 12;   // random exploration before GP kicks in
@@ -553,6 +561,7 @@ async function main() {
   info(`Loaded ${history.length} historical observations for warm-starting`);
 
   const report       = { timestamp: new Date().toISOString(), method: 'bayesian', assets: {} };
+  const altRegimes   = {};  // Collect ETH/SOL/XRP regimes for cross-asset analysis
   const railwayVars  = {};
   const summaryLines = [];
 
@@ -594,8 +603,53 @@ async function main() {
     // Persist to history
     saveHistory({ timestamp: new Date().toISOString(), sym, regime: regime.mode, best, composite: best.composite });
 
+    // Store regime for cross-asset correlation (used in BTC block)
+    const assetKey = sym.replace('-USD', '');
+    if (assetKey !== 'BTC') altRegimes[assetKey] = regime;
+
     // Push BTC params to Railway
     if (sym === 'BTC-USD') {
+      // ── Kelly Criterion sizing ─────────────────────────────────────────────
+      let kellyResult = null;
+      if (kellySizer) {
+        kellyResult = kellySizer.kellySize({
+          accountUsd: Number(process.env.TRADING_ACCOUNT_USD) || 1000,
+          confidence: best.minConf,
+          regime,
+          asset: 'BTC',
+        });
+        info(`Kelly: $${kellyResult.sizeUsd} (${(kellyResult.details.kellyFraction*100).toFixed(2)}% of account) | WR=${kellyResult.details.calibration.winRate} | usingPriors=${kellyResult.details.usingPriors}`);
+      }
+
+      // ── Cross-asset regime correlation ─────────────────────────────────────
+      let crossAssetResult = null;
+      if (crossAsset && Object.keys(altRegimes).length > 0) {
+        crossAssetResult = crossAsset.crossAssetMultiplier({ btcRegime: regime, altRegimes });
+        info(`Cross-asset: ${crossAssetResult.multiplier}x | consensus=${crossAssetResult.consensus} | leadLag=${crossAssetResult.leadLag?.detected}`);
+      }
+
+      // ── Regime transition forecast ─────────────────────────────────────────
+      let forecast = null;
+      if (regimeForecaster) {
+        forecast = regimeForecaster.forecastNextRegime({
+          currentRegime: regime.mode,
+          adx:           regime.adx,
+          adxTrend:      regime.adx && regime.adx < 20 ? 'falling' : 'stable',
+          crossAsset:    crossAssetResult,
+        });
+        info(`Forecast: ${forecast.currentRegime} → ${forecast.nextRegime} (${(forecast.probability*100).toFixed(0)}%) | signal=${forecast.signal} | horizon=${forecast.horizon}`);
+        // Record transition if regime changed from last run
+        const prevHistory = history.filter(h => h.sym === 'BTC-USD').slice(0, 1)[0];
+        if (prevHistory && prevHistory.regime !== regime.mode) {
+          regimeForecaster.recordTransition(prevHistory.regime, regime.mode);
+        }
+      }
+
+      // Combined final position size
+      const baseSize    = kellyResult?.sizeUsd || 15;
+      const crossMult   = crossAssetResult?.multiplier || 1.0;
+      const finalSize   = parseFloat((baseSize * crossMult).toFixed(2));
+      if (kellyResult) info(`Final position size: $${finalSize} ($${baseSize} × ${crossMult}x cross-asset)`);
       railwayVars['EDGE_EMA_FAST']            = String(best.fastEma);
       railwayVars['EDGE_EMA_SLOW']            = String(best.slowEma);
       railwayVars['COINBASE_MIN_CONFIDENCE']  = String(best.minConf);
@@ -607,6 +661,25 @@ async function main() {
       railwayVars['OPTIMIZER_LAST_RUN']       = new Date().toISOString();
       railwayVars['OPTIMIZER_COMPOSITE']      = String(best.composite);
       railwayVars['OPTIMIZER_METHOD']         = 'bayesian';
+      // Kelly + Cross-Asset + Forecast vars
+      if (kellyResult) {
+        railwayVars['KELLY_WIN_RATE']          = String(kellyResult.details.calibration.winRate);
+        railwayVars['KELLY_ODDS_RATIO']        = String(kellyResult.details.calibration.oddsRatio);
+        railwayVars['KELLY_BASE_SIZE_USD']     = String(kellyResult.sizeUsd);
+        railwayVars['KELLY_FRACTION']          = String(kellyResult.details.kellyFraction.toFixed(4));
+      }
+      if (crossAssetResult) {
+        railwayVars['CROSS_ASSET_MULTIPLIER']  = String(crossAssetResult.multiplier);
+        railwayVars['CROSS_ASSET_CONSENSUS']   = String(crossAssetResult.consensus);
+      }
+      if (forecast) {
+        railwayVars['REGIME_NEXT_FORECAST']    = forecast.nextRegime;
+        railwayVars['REGIME_NEXT_PROBABILITY'] = String(forecast.probability);
+        railwayVars['REGIME_FORECAST_SIGNAL']  = forecast.signal;
+        railwayVars['REGIME_FORECAST_HORIZON'] = forecast.horizon;
+      }
+      const finalSz = kellyResult ? parseFloat((kellyResult.sizeUsd * (crossAssetResult?.multiplier || 1)).toFixed(2)) : 15;
+      railwayVars['OPTIMAL_POSITION_SIZE_USD'] = String(finalSz);
     }
 
     // Save per-asset results
