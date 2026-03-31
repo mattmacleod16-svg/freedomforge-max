@@ -215,6 +215,24 @@ interface EmpireData {
       onlineDevices: number;
       totalDevices: number;
       estimatedDailyUSD: number;
+      connectedPools: number;
+      totalUnpaidUSD: number;
+      estimatedMonthlyUSD: number;
+      pools: Array<{
+        pool: string;
+        coin: string;
+        hashrate: number;
+        hashrateUnit: string;
+        workers: number;
+        unpaidBalance: number;
+        unpaidUsd: number;
+        estimatedDailyUsd: number;
+        estimatedDailyCoins: number;
+        efficiency: number;
+        status: string;
+        error?: string;
+      }>;
+      summary: string;
       note: string | null;
     };
   };
@@ -1657,6 +1675,56 @@ export default function CommandCenter() {
                 </div>
               </div>
             </div>
+
+            {/* Live Pool Data */}
+            {(data.integrations?.mining?.pools || []).filter((p: any) => p.status === 'connected').length > 0 && (
+              <div className="holo-card rounded-2xl p-5 border border-emerald-500/15">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400/50">◉ Live Pool Data</h3>
+                  <span className="text-[9px] font-mono text-emerald-500/50">{data.integrations?.mining?.summary}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10px] font-mono">
+                    <thead>
+                      <tr className="border-b border-slate-700/40">
+                        <th className="text-left pb-2 text-slate-600 font-normal">POOL</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">COIN</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">HASHRATE</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">WORKERS</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">UNPAID</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">EST/DAY</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">EFF</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.integrations?.mining?.pools || []).map((p: any) => (
+                        <tr key={p.pool} className="border-b border-slate-700/20 hover:bg-white/[0.01]">
+                          <td className="py-2 font-bold text-slate-300 flex items-center gap-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${p.status === 'connected' ? 'bg-emerald-400 animate-pulse' : p.status === 'error' ? 'bg-red-400' : 'bg-slate-600'}`} />
+                            {p.pool}
+                          </td>
+                          <td className="py-2 text-right text-amber-300">{p.coin}</td>
+                          <td className="py-2 text-right text-purple-300">{p.hashrate > 0 ? `${p.hashrate.toFixed(1)} ${p.hashrateUnit}` : '—'}</td>
+                          <td className="py-2 text-right text-slate-400">{p.workers}</td>
+                          <td className="py-2 text-right">
+                            <div className="text-slate-300">{p.unpaidBalance.toFixed(4)} {p.coin}</div>
+                            <div className="text-[8px] text-slate-600">${p.unpaidUsd.toFixed(2)}</div>
+                          </td>
+                          <td className="py-2 text-right text-emerald-400 font-bold">${p.estimatedDailyUsd.toFixed(2)}</td>
+                          <td className="py-2 text-right text-slate-400">{p.efficiency > 0 ? `${(p.efficiency * 100).toFixed(1)}%` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {(data.integrations?.mining?.totalUnpaidUSD ?? 0) > 0 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-500/10 flex justify-between text-[10px] font-mono">
+                    <span className="text-slate-600">TOTAL UNPAID</span>
+                    <span className="text-emerald-400 font-bold">${(data.integrations?.mining?.totalUnpaidUSD || 0).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Your 5 Rigs */}
             <div className="holo-card rounded-2xl p-5">

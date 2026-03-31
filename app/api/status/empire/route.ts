@@ -12,6 +12,7 @@ import path from 'path';
 import { requireAuth } from '@/lib/auth/apiGuard';
 import { getAggregatedPortfolio, getExchangeStatus } from '@/lib/trading/engine';
 import { getMiningOverview } from '@/lib/mining/monitor';
+import { fetchAllPools } from '@/lib/mining/pools';
 // Intelligence modules — data read via readJsonSafe from state files
 
 export const runtime = 'nodejs';
@@ -390,6 +391,47 @@ export async function GET(req: Request) {
     const miningOverview = await getMiningOverview().catch(() => null);
     const exchangeStatus = getExchangeStatus();
 
+    // Live pool data — try cached state first (avoid 10s per request), refresh if stale
+    let livePools: import('@/lib/mining/pools').PoolLiveData[] | null = null;
+    let totalMiningDailyUsd = 0;
+    let totalMiningUnpaidUsd = 0;
+    let poolSummary = '';
+    try {
+      const cachedPools = readJsonSafe('data/mining-state.json');
+      const cacheAge = cachedPools ? Date.now() - (cachedPools.ts || 0) : Infinity;
+      if (cacheAge < 15 * 60 * 1000) {
+        // Use cache (< 15 min old)
+        livePools = cachedPools?.pools || null;
+        totalMiningDailyUsd = cachedPools?.totalDailyUsd || 0;
+        totalMiningUnpaidUsd = cachedPools?.totalUnpaidUsd || 0;
+        poolSummary = cachedPools?.summary || '';
+      } else {
+        // Fetch fresh (async, non-blocking fallback to cache on timeout)
+        const freshPools = await Promise.race([
+          fetchAllPools(),
+          new Promise<null>(res => setTimeout(() => res(null), 8_000)),
+        ]);
+        if (freshPools) {
+          livePools = freshPools.pools;
+          totalMiningDailyUsd = freshPools.totalDailyUsd;
+          totalMiningUnpaidUsd = freshPools.totalUnpaidUsd;
+          poolSummary = freshPools.summary;
+          // Write cache
+          const { writeFileSync, mkdirSync } = await import('fs');
+          const { resolve } = await import('path');
+          try {
+            mkdirSync(resolve(process.cwd(), 'data'), { recursive: true });
+            writeFileSync(resolve(process.cwd(), 'data/mining-state.json'), JSON.stringify({ pools: livePools, totalDailyUsd: totalMiningDailyUsd, totalUnpaidUsd: totalMiningUnpaidUsd, summary: poolSummary, ts: Date.now() }, null, 2));
+          } catch {}
+        } else if (cachedPools) {
+          livePools = cachedPools.pools;
+          totalMiningDailyUsd = cachedPools.totalDailyUsd || 0;
+          totalMiningUnpaidUsd = cachedPools.totalUnpaidUsd || 0;
+          poolSummary = cachedPools.summary || '';
+        }
+      }
+    } catch {}
+
     const liveCoinbaseUsd = (livePortfolio?.balances || [])
       .filter((b: any) => b.exchange === 'coinbase')
       .reduce((sum: number, b: any) => sum + (b.usdValue || 0), 0);
@@ -682,13 +724,18 @@ export async function GET(req: Request) {
         exchanges: exchangeStatus,
         livePortfolioDiagnostics: livePortfolio?.diagnostics || null,
         mining: {
-          viabtcConnected: !!livePortfolio?.diagnostics?.viabtc?.connected,
-          configuredPools: miningOverview?.pools?.length || 0,
+          viabtcConnected: !!livePortfolio?.diagnostics?.viabtc?.connected || (livePools?.some(p => p.pool === 'ViaBTC' && p.status === 'connected') ?? false),
+          configuredPools: livePools?.filter(p => p.status !== 'no_config').length ?? miningOverview?.pools?.length ?? 0,
+          connectedPools: livePools?.filter(p => p.status === 'connected').length ?? 0,
           onlineDevices: miningOverview?.onlineDevices || 0,
-          totalDevices: miningOverview?.totalDevices || 0,
-          estimatedDailyUSD: miningOverview?.estimatedDailyUSD || 0,
-          note: !miningOverview || (miningOverview.totalDevices === 0 && miningOverview.pools.length === 0)
-            ? 'No MINING_DEVICES/MINING_POOLS configured yet'
+          totalDevices: miningOverview?.totalDevices || 5, // 5 known rigs
+          estimatedDailyUSD: totalMiningDailyUsd || miningOverview?.estimatedDailyUSD || 0,
+          totalUnpaidUSD: totalMiningUnpaidUsd,
+          estimatedMonthlyUSD: (totalMiningDailyUsd || miningOverview?.estimatedDailyUSD || 0) * 30,
+          pools: livePools || [],
+          summary: poolSummary,
+          note: (!livePools || livePools.every(p => p.status === 'no_config'))
+            ? 'Set NICEHASH_API_KEY / VIABTC_ACCESS_KEY / F2POOL_API_KEY / GEODNET_WALLET_ADDRESS to enable live data'
             : null,
         },
       },
