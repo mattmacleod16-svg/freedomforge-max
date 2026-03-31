@@ -2,7 +2,13 @@
  * Telegram Webhook — Matty's TM Bot (@MattyTM_bot)
  */
 
+import { createClient } from 'npm:@base44/sdk@0.8.23';
+
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
+const APP_ID = Deno.env.get('BASE44_APP_ID') || '';
+
+// Service role client — no user auth needed
+const base44 = createClient({ appId: APP_ID });
 
 async function sendMessage(chatId: number, text: string, parseMode = 'HTML') {
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -12,48 +18,7 @@ async function sendMessage(chatId: number, text: string, parseMode = 'HTML') {
   });
   const data = await res.json();
   if (!data.ok) console.error('Telegram send error:', JSON.stringify(data));
-}
-
-async function fetchTasks(status = 'open') {
-  const APP_ID = Deno.env.get('BASE44_APP_ID') || '';
-  const res = await fetch(`https://api.base44.com/api/apps/${APP_ID}/entities/Task/query`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-service-role': 'true',
-    },
-    body: JSON.stringify({ filter: { status } }),
-  });
-  if (!res.ok) throw new Error(`Task fetch failed: ${res.status}`);
-  return await res.json();
-}
-
-async function createTask(data: object) {
-  const APP_ID = Deno.env.get('BASE44_APP_ID') || '';
-  const res = await fetch(`https://api.base44.com/api/apps/${APP_ID}/entities/Task`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-service-role': 'true',
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(`Task create failed: ${res.status}`);
-  return await res.json();
-}
-
-async function updateTask(id: string, data: object) {
-  const APP_ID = Deno.env.get('BASE44_APP_ID') || '';
-  const res = await fetch(`https://api.base44.com/api/apps/${APP_ID}/entities/Task/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-service-role': 'true',
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(`Task update failed: ${res.status}`);
-  return await res.json();
+  return data;
 }
 
 async function handleMessage(chatId: number, text: string) {
@@ -74,7 +39,7 @@ async function handleMessage(chatId: number, text: string) {
 
   if (lower === '/tasks') {
     try {
-      const tasks = await fetchTasks('open');
+      const tasks = await base44.asServiceRole.entities.Task.filter({ status: 'open' });
       if (!tasks || tasks.length === 0) {
         await sendMessage(chatId, '✅ No open tasks right now.');
         return;
@@ -85,7 +50,8 @@ async function handleMessage(chatId: number, text: string) {
       });
       await sendMessage(chatId, `📋 <b>Open Tasks (${tasks.length})</b>\n\n${lines.join('\n\n')}`);
     } catch (e: any) {
-      await sendMessage(chatId, `❌ Error: ${e.message}`);
+      console.error('Tasks error:', e);
+      await sendMessage(chatId, `❌ Error fetching tasks: ${e.message}`);
     }
     return;
   }
@@ -94,7 +60,7 @@ async function handleMessage(chatId: number, text: string) {
     const title = text.slice(5).trim();
     if (!title) { await sendMessage(chatId, '❌ Usage: /add &lt;task title&gt;'); return; }
     try {
-      const task = await createTask({
+      const task = await base44.asServiceRole.entities.Task.create({
         title,
         status: 'open',
         priority: 'medium',
@@ -103,6 +69,7 @@ async function handleMessage(chatId: number, text: string) {
       });
       await sendMessage(chatId, `✅ Task added!\n<b>${title}</b>\nID: <code>${task.id.slice(-6)}</code>`);
     } catch (e: any) {
+      console.error('Create task error:', e);
       await sendMessage(chatId, `❌ Error: ${e.message}`);
     }
     return;
@@ -112,12 +79,13 @@ async function handleMessage(chatId: number, text: string) {
     const fragment = text.slice(5).trim();
     if (!fragment) { await sendMessage(chatId, '❌ Usage: /done &lt;id&gt;'); return; }
     try {
-      const tasks = await fetchTasks('open');
+      const tasks = await base44.asServiceRole.entities.Task.filter({ status: 'open' });
       const match = tasks.find((t: any) => t.id.endsWith(fragment) || t.id.includes(fragment));
       if (!match) { await sendMessage(chatId, `❌ No open task found with ID <code>${fragment}</code>`); return; }
-      await updateTask(match.id, { status: 'done' });
+      await base44.asServiceRole.entities.Task.update(match.id, { status: 'done' });
       await sendMessage(chatId, `✅ Done! <b>${match.title}</b> marked complete.`);
     } catch (e: any) {
+      console.error('Done task error:', e);
       await sendMessage(chatId, `❌ Error: ${e.message}`);
     }
     return;
@@ -136,17 +104,18 @@ async function handleMessage(chatId: number, text: string) {
     return;
   }
 
-  // Anything else — log as task
+  // Anything else — log as quick task
   try {
-    await createTask({
+    const task = await base44.asServiceRole.entities.Task.create({
       title: text.slice(0, 120),
       status: 'open',
       priority: 'medium',
       source_app: 'telegram',
       ff_notes: `Quick note via Telegram: ${text}`,
     });
-    await sendMessage(chatId, `📝 Logged as a task! Type /tasks to see all open items.`);
-  } catch {
+    await sendMessage(chatId, `📝 Logged as a task!\n<b>${text.slice(0, 60)}</b>\nID: <code>${task.id.slice(-6)}</code>\n\nType /tasks to see all open items.`);
+  } catch (e: any) {
+    console.error('Fallback create error:', e);
     await sendMessage(chatId, `📨 Got it! Type /help for available commands.`);
   }
 }
@@ -167,7 +136,6 @@ Deno.serve(async (req) => {
 
     console.log(`Message from ${chatId}: ${text}`);
 
-    // Fire and forget — always return 200 fast
     (async () => {
       try {
         await handleMessage(chatId, text);
