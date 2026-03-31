@@ -218,6 +218,57 @@ interface EmpireData {
       note: string | null;
     };
   };
+  intelligence: {
+    kelly: {
+      winRate: number;
+      oddsRatio: number;
+      rawKelly: number;
+      clampedKelly: number;
+      expectancy: number;
+      profitFactor: number;
+      tradeCount: number;
+      usingPriors: boolean;
+      accountUsd: number;
+    } | null;
+    crossAsset: {
+      multiplier: number;
+      consensus: number;
+      btcMode: string;
+      allBearish: boolean;
+      anyExtreme: boolean;
+      leadLag: { detected: boolean; signal?: string; ethNewMode?: string; lagCandles?: number } | null;
+      altDetails: Record<string, { mode: string; score: number; agreement: number; weight: number }>;
+      ts: number;
+    } | null;
+    forecast: {
+      currentRegime: string;
+      nextRegime: string;
+      probability: number;
+      changeProbability: number;
+      signal: string;
+      horizon: string;
+      confidence: number;
+      durationCandles: number;
+      alternatives: Array<{ regime: string; prob: number }>;
+      totalObservations: number;
+      timestamp: string;
+    } | null;
+    optimizer: {
+      method: string;
+      timestamp: string;
+      assets: Record<string, {
+        regime: string;
+        return: number;
+        sharpe: number;
+        winRate: number;
+        drawdown: number;
+        composite: number;
+        fastEma: number;
+        slowEma: number;
+        confidence: number;
+      }>;
+    } | null;
+  } | null;
 }
 
 /* ─── Utility ─────────────────────────────────────────────────────────────── */
@@ -531,7 +582,7 @@ export default function CommandCenter() {
   const [data, setData] = useState<EmpireData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<number>(0);
-  const [tab, setTab] = useState<'overview' | 'trades' | 'risk' | 'intelligence' | 'treasury' | 'phases'>('overview');
+  const [tab, setTab] = useState<'overview' | 'trades' | 'risk' | 'intelligence' | 'mining' | 'alpha' | 'treasury' | 'phases'>('overview');
   const [phasesData, setPhasesData] = useState<PhasesPayload | null>(null);
   const [pulseHeader, setPulseHeader] = useState(false);
   const mountedRef = useRef(true);
@@ -698,6 +749,8 @@ export default function CommandCenter() {
     { key: 'trades' as const, icon: '◉', label: 'TRADES' },
     { key: 'risk' as const, icon: '◆', label: 'RISK' },
     { key: 'intelligence' as const, icon: '◎', label: 'INTEL' },
+    { key: 'mining' as const, icon: '⛏', label: 'MINING' },
+    { key: 'alpha' as const, icon: '⚡', label: 'ALPHA' },
     { key: 'treasury' as const, icon: '◇', label: 'TREASURY' },
     { key: 'phases' as const, icon: '◐', label: 'PHASES' },
   ];
@@ -841,20 +894,20 @@ export default function CommandCenter() {
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               <div className="rounded-xl border border-slate-700/40 bg-slate-900/35 p-3">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Mining Devices</div>
-                <div className="mt-1 text-sm text-slate-200">{data.integrations.mining?.onlineDevices || 0}/{data.integrations.mining?.totalDevices || 0} online</div>
+                <div className="mt-1 text-sm text-slate-200">{data.integrations?.mining?.onlineDevices || 0}/{data.integrations?.mining?.totalDevices || 0} online</div>
               </div>
               <div className="rounded-xl border border-slate-700/40 bg-slate-900/35 p-3">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Mining Pools</div>
-                <div className="mt-1 text-sm text-slate-200">{data.integrations.mining?.configuredPools || 0} configured</div>
+                <div className="mt-1 text-sm text-slate-200">{data.integrations?.mining?.configuredPools || 0} configured</div>
               </div>
               <div className="rounded-xl border border-slate-700/40 bg-slate-900/35 p-3">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Est. Daily Mining</div>
-                <div className="mt-1 text-sm text-slate-200">{fmt$(data.integrations.mining?.estimatedDailyUSD || 0)}</div>
+                <div className="mt-1 text-sm text-slate-200">{fmt$(data.integrations?.mining?.estimatedDailyUSD || 0)}</div>
               </div>
             </div>
 
-            {data.integrations.mining?.note && (
-              <div className="mt-3 text-[11px] text-amber-300/85">{data.integrations.mining.note}</div>
+            {data.integrations?.mining?.note && (
+              <div className="mt-3 text-[11px] text-amber-300/85">{data.integrations?.mining.note}</div>
             )}
           </div>
         )}
@@ -1568,6 +1621,300 @@ export default function CommandCenter() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+
+        {/* ═══ MINING TAB ═════════════════════════════════════════════════ */}
+        {tab === 'mining' && (
+          <div className="space-y-5 animate-fadeIn">
+            {/* Mining Fleet Header */}
+            <div className="holo-card rounded-2xl p-5 border border-amber-500/20">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-black phoenix-title tracking-wide">⛏ MINING FLEET</h3>
+                  <div className="text-[9px] font-mono text-amber-500/40 uppercase tracking-[0.2em] mt-0.5">5 Active Rigs · Passive Income Engine</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] font-mono text-slate-600 uppercase tracking-wider">Est. Monthly</div>
+                  <div className="text-xl font-black text-amber-400">${((data.integrations?.mining?.estimatedDailyUSD || 0) * 30).toFixed(0)}</div>
+                </div>
+              </div>
+              {/* Income summary bar */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                  <div className="text-[9px] font-mono text-amber-500/50 uppercase tracking-wider mb-1">Daily Estimate</div>
+                  <div className="text-lg font-black text-amber-300">${(data.integrations?.mining?.estimatedDailyUSD || 0).toFixed(2)}</div>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                  <div className="text-[9px] font-mono text-emerald-500/50 uppercase tracking-wider mb-1">Rigs Online</div>
+                  <div className="text-lg font-black text-emerald-300">{data.integrations?.mining?.onlineDevices || 0}/{data.integrations?.mining?.totalDevices || 5}</div>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
+                  <div className="text-[9px] font-mono text-purple-500/50 uppercase tracking-wider mb-1">Combined Income</div>
+                  <div className="text-lg font-black text-purple-300">${((data.integrations?.mining?.estimatedDailyUSD || 0) + Math.max(0, data.portfolio.netPnl)).toFixed(2)}</div>
+                  <div className="text-[8px] font-mono text-purple-400/40">mining + trading</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Your 5 Rigs */}
+            <div className="holo-card rounded-2xl p-5">
+              <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400/50 mb-4">⛏ Rig Status — Your Fleet</h3>
+              <div className="space-y-3">
+                {[
+                  { name: 'Fluminer T3', algo: 'SHA-256', unit: 'TH/s', hashrate: '186', power: 3400, efficiency: '18.3 J/TH', icon: '🔷', color: 'blue' },
+                  { name: 'Elphapex DG1+', algo: 'X11 / HybridScrypt', unit: 'GH/s', hashrate: '2800', power: 2650, efficiency: '0.95 J/GH', icon: '🔶', color: 'orange' },
+                  { name: 'Avalon Nano 3s', algo: 'SHA-256', unit: 'TH/s', hashrate: '4.1', power: 140, efficiency: '34 J/TH', icon: '🟢', color: 'green' },
+                  { name: 'Geopulse Node', algo: 'DePIN / PoC', unit: 'pts/day', hashrate: '—', power: 12, efficiency: 'Ultra low', icon: '🌐', color: 'purple' },
+                  { name: 'Geodnet Triple CM', algo: 'GNSS / DePIN', unit: 'GEOD/day', hashrate: '3× CM', power: 18, efficiency: 'Ultra low', icon: '📡', color: 'cyan' },
+                ].map((rig) => (
+                  <div key={rig.name} className={`flex items-center justify-between p-3 rounded-xl border transition-all hover:bg-white/[0.02] ${
+                    rig.color === 'blue' ? 'border-blue-500/15 bg-blue-500/[0.03]' :
+                    rig.color === 'orange' ? 'border-orange-500/15 bg-orange-500/[0.03]' :
+                    rig.color === 'green' ? 'border-emerald-500/15 bg-emerald-500/[0.03]' :
+                    rig.color === 'purple' ? 'border-purple-500/15 bg-purple-500/[0.03]' :
+                    'border-cyan-500/15 bg-cyan-500/[0.03]'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">{rig.icon}</span>
+                      <div>
+                        <div className="text-xs font-bold text-slate-200">{rig.name}</div>
+                        <div className="text-[9px] font-mono text-slate-600">{rig.algo} · {rig.efficiency}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-right">
+                      <div>
+                        <div className="text-[9px] font-mono text-slate-600 uppercase">Hashrate</div>
+                        <div className="text-xs font-bold text-slate-300">{rig.hashrate} <span className="text-[9px] text-slate-600">{rig.unit}</span></div>
+                      </div>
+                      <div>
+                        <div className="text-[9px] font-mono text-slate-600 uppercase">Power</div>
+                        <div className="text-xs font-bold text-slate-300">{rig.power}W</div>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[9px] font-mono text-emerald-400">ONLINE</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Income Projection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="holo-card rounded-2xl p-5 border border-amber-500/10">
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400/50 mb-4">◈ Income Projection</h3>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Daily Mining Est.', value: data.integrations?.mining?.estimatedDailyUSD || 0, color: 'amber' },
+                    { label: 'Weekly Mining Est.', value: (data.integrations?.mining?.estimatedDailyUSD || 0) * 7, color: 'amber' },
+                    { label: 'Monthly Mining Est.', value: (data.integrations?.mining?.estimatedDailyUSD || 0) * 30, color: 'orange' },
+                    { label: 'Trading Daily PnL', value: data.risk.dailyPnl?.pnl || 0, color: data.risk.dailyPnl?.pnl >= 0 ? 'emerald' : 'red' },
+                    { label: 'Trading Total PnL', value: data.portfolio.netPnl, color: data.portfolio.netPnl >= 0 ? 'emerald' : 'red' },
+                  ].map(row => (
+                    <div key={row.label} className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-slate-500">{row.label}</span>
+                      <span className={`text-[10px] font-bold font-mono ${
+                        row.color === 'amber' ? 'text-amber-300' :
+                        row.color === 'orange' ? 'text-orange-300' :
+                        row.color === 'emerald' ? 'text-emerald-400' :
+                        row.color === 'red' ? 'text-red-400' : 'text-slate-300'
+                      }`}>{row.value >= 0 ? '+' : ''}{fmt$(row.value)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-amber-500/10 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono font-bold text-slate-400">COMBINED MONTHLY EST.</span>
+                      <span className="text-sm font-black text-amber-400">${((data.integrations?.mining?.estimatedDailyUSD || 0) * 30 + Math.max(0, data.portfolio.netPnl)).toFixed(0)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="holo-card rounded-2xl p-5 border border-purple-500/10">
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/50 mb-4">◎ Portfolio Breakdown</h3>
+                <div className="space-y-3">
+                  <div className="text-[10px] font-mono text-slate-500 mb-2">Allocation by income source:</div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-mono mb-1">
+                      <span className="text-amber-400">Mining</span>
+                      <span className="text-amber-300">Passive · 24/7</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-800/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full" style={{ width: '60%' }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-[10px] font-mono mb-1">
+                      <span className="text-purple-400">AI Trading</span>
+                      <span className="text-purple-300">Active · Bayesian</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-800/60 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full" style={{ width: '40%' }} />
+                    </div>
+                  </div>
+                  <div className="border-t border-purple-500/10 pt-3 text-[9px] font-mono text-slate-600">
+                    Two uncorrelated income streams. Mining hedges bear markets, trading accelerates in bull.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ ALPHA TAB ══════════════════════════════════════════════════ */}
+        {tab === 'alpha' && (
+          <div className="space-y-5 animate-fadeIn">
+            {/* Kelly Criterion */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className="holo-card rounded-2xl p-5 border border-emerald-500/20">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-5 h-5 rounded-full border border-emerald-500/40 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </div>
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400/70">Kelly Criterion Sizer</h3>
+                </div>
+                {data.intelligence?.kelly ? (
+                  <div className="space-y-2.5 text-[10px] font-mono">
+                    <div className="flex justify-between"><span className="text-slate-600">ACCOUNT SIZE</span><span className="text-emerald-300">${data.intelligence.kelly.accountUsd.toLocaleString()}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">WIN RATE</span><span className={data.intelligence.kelly.winRate >= 0.54 ? 'text-emerald-400' : 'text-amber-400'}>{(data.intelligence.kelly.winRate * 100).toFixed(1)}%</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">ODDS RATIO</span><span className="text-purple-300">{data.intelligence.kelly.oddsRatio.toFixed(2)}×</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">RAW KELLY</span><span className="text-slate-300">{(data.intelligence.kelly.rawKelly * 100).toFixed(1)}%</span></div>
+                    <div className="border-t border-emerald-500/10 pt-2.5">
+                      <div className="flex justify-between"><span className="text-slate-500">KELLY FRACTION</span><span className="text-emerald-400 font-bold">{(data.intelligence.kelly.clampedKelly * 100).toFixed(2)}%</span></div>
+                    </div>
+                    <div className="flex justify-between"><span className="text-slate-600">EXPECTANCY</span><span className={data.intelligence.kelly.expectancy >= 0 ? 'text-emerald-400' : 'text-red-400'}>{(data.intelligence.kelly.expectancy * 100).toFixed(2)}%</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">PROFIT FACTOR</span><span className={data.intelligence.kelly.profitFactor >= 1 ? 'text-emerald-400' : 'text-red-400'}>{data.intelligence.kelly.profitFactor.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">TRADES USED</span><span className="text-slate-400">{data.intelligence.kelly.tradeCount} {data.intelligence.kelly.usingPriors ? '(priors)' : '(live)'}</span></div>
+                  </div>
+                ) : <div className="text-[10px] font-mono text-slate-600">Calibrating from trade history...</div>}
+              </div>
+
+              {/* Cross-Asset Regime */}
+              <div className="holo-card rounded-2xl p-5 border border-blue-500/20">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-5 h-5 rounded-full border border-blue-500/40 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-blue-400" style={{ clipPath: 'polygon(50% 0%, 100% 100%, 0% 100%)' }} />
+                  </div>
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-blue-400/70">Cross-Asset Correlation</h3>
+                </div>
+                {data.intelligence?.crossAsset ? (
+                  <div className="space-y-2.5 text-[10px] font-mono">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-slate-600">SIZING MULT</span>
+                      <span className={`text-lg font-black ${data.intelligence.crossAsset.multiplier >= 1 ? 'text-emerald-400' : data.intelligence.crossAsset.multiplier >= 0.7 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {data.intelligence.crossAsset.multiplier.toFixed(3)}×
+                      </span>
+                    </div>
+                    <div className="flex justify-between"><span className="text-slate-600">CONSENSUS</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-slate-800/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(data.intelligence.crossAsset.consensus * 100).toFixed(0)}%` }} />
+                        </div>
+                        <span className="text-blue-300">{(data.intelligence.crossAsset.consensus * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                    {Object.entries(data.intelligence.crossAsset.altDetails || {}).map(([alt, d]: any) => (
+                      <div key={alt} className="flex justify-between items-center">
+                        <span className="text-slate-600">{alt}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded ${d.mode === 'bullTrend' ? 'bg-emerald-500/15 text-emerald-400' : d.mode === 'bearTrend' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>{d.mode}</span>
+                          <span className={d.agreement >= 0.7 ? 'text-emerald-400' : d.agreement >= 0.4 ? 'text-amber-400' : 'text-red-400'}>{(d.agreement * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                    {data.intelligence.crossAsset.leadLag?.detected && (
+                      <div className="border-t border-blue-500/10 pt-2.5 text-[9px] text-amber-300">
+                        ⚡ Lead/lag: ETH→{data.intelligence.crossAsset.leadLag.ethNewMode} ({data.intelligence.crossAsset.leadLag.lagCandles} candles ahead)
+                      </div>
+                    )}
+                  </div>
+                ) : <div className="text-[10px] font-mono text-slate-600">Run nightly optimizer to populate...</div>}
+              </div>
+
+              {/* Regime Forecast */}
+              <div className="holo-card rounded-2xl p-5 border border-purple-500/20">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-5 h-5 rounded-full border border-purple-500/40 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-purple-400" />
+                  </div>
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-purple-400/70">Regime Forecaster</h3>
+                </div>
+                {data.intelligence?.forecast ? (
+                  <div className="space-y-2.5 text-[10px] font-mono">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <div className="text-[9px] text-slate-600 mb-0.5">CURRENT → NEXT</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-400">{data.intelligence.forecast.currentRegime}</span>
+                          <span className="text-slate-600">→</span>
+                          <span className={`font-bold ${data.intelligence.forecast.nextRegime === 'bullTrend' ? 'text-emerald-400' : data.intelligence.forecast.nextRegime === 'bearTrend' ? 'text-red-400' : 'text-amber-400'}`}>{data.intelligence.forecast.nextRegime}</span>
+                        </div>
+                      </div>
+                      <span className="text-2xl font-black text-purple-300">{(data.intelligence.forecast.probability * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex justify-between"><span className="text-slate-600">SIGNAL</span><span className={`${data.intelligence.forecast.signal === 'regime_stable' ? 'text-emerald-400' : data.intelligence.forecast.signal === 'trend_exhaustion' ? 'text-red-400' : 'text-amber-400'}`}>{data.intelligence.forecast.signal.replace(/_/g, ' ')}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">HORIZON</span><span className="text-purple-300">{data.intelligence.forecast.horizon}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">CONFIDENCE</span><span className="text-slate-300">{(data.intelligence.forecast.confidence * 100).toFixed(0)}%</span></div>
+                    <div className="flex justify-between"><span className="text-slate-600">DURATION</span><span className="text-slate-500">{data.intelligence.forecast.durationCandles} candles</span></div>
+                    <div className="border-t border-purple-500/10 pt-2.5">
+                      <div className="text-[9px] text-slate-600 mb-1.5">Alternatives:</div>
+                      {(data.intelligence.forecast.alternatives || []).slice(0, 3).map((a: any) => (
+                        <div key={a.regime} className="flex justify-between text-[9px]">
+                          <span className="text-slate-600">{a.regime}</span>
+                          <span className="text-slate-500">{(a.prob * 100).toFixed(0)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : <div className="text-[10px] font-mono text-slate-600">Run nightly optimizer to populate...</div>}
+              </div>
+            </div>
+
+            {/* Bayesian Optimizer Results */}
+            {data.intelligence?.optimizer && (
+              <div className="holo-card rounded-2xl p-5">
+                <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400/50 mb-1">⚡ Bayesian Optimizer — Last Run</h3>
+                <div className="text-[9px] font-mono text-slate-600 mb-4">
+                  {data.intelligence.optimizer.method?.toUpperCase()} · {data.intelligence.optimizer.timestamp ? new Date(data.intelligence.optimizer.timestamp).toLocaleString() : '—'}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[10px] font-mono">
+                    <thead>
+                      <tr className="border-b border-slate-700/40">
+                        <th className="text-left pb-2 text-slate-600 font-normal">ASSET</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">REGIME</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">RETURN</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">WIN RATE</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">SHARPE</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">DRAWDOWN</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">COMPOSITE</th>
+                        <th className="text-right pb-2 text-slate-600 font-normal">EMA</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(data.intelligence.optimizer.assets || {}).map(([sym, a]: any) => (
+                        <tr key={sym} className="border-b border-slate-700/20 hover:bg-white/[0.01]">
+                          <td className="py-2 font-bold text-slate-300">{sym.replace('-USD', '')}</td>
+                          <td className="py-2 text-right">
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] ${a.regime === 'bullTrend' ? 'bg-emerald-500/15 text-emerald-400' : a.regime === 'bearTrend' ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'}`}>{a.regime || '—'}</span>
+                          </td>
+                          <td className={`py-2 text-right font-bold ${a.return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{a.return != null ? `${a.return.toFixed(2)}%` : '—'}</td>
+                          <td className="py-2 text-right text-slate-300">{a.winRate != null ? `${a.winRate.toFixed(1)}%` : '—'}</td>
+                          <td className={`py-2 text-right ${a.sharpe >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'}`}>{a.sharpe != null ? a.sharpe.toFixed(3) : '—'}</td>
+                          <td className="py-2 text-right text-red-400/70">{a.drawdown != null ? `${a.drawdown.toFixed(1)}%` : '—'}</td>
+                          <td className="py-2 text-right">
+                            <span className="text-amber-300 font-bold">{a.composite != null ? a.composite.toFixed(4) : '—'}</span>
+                          </td>
+                          <td className="py-2 text-right text-slate-500">{a.fastEma}/{a.slowEma}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

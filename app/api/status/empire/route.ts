@@ -12,6 +12,7 @@ import path from 'path';
 import { requireAuth } from '@/lib/auth/apiGuard';
 import { getAggregatedPortfolio, getExchangeStatus } from '@/lib/trading/engine';
 import { getMiningOverview } from '@/lib/mining/monitor';
+// Intelligence modules — data read via readJsonSafe from state files
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -524,6 +525,69 @@ export async function GET(req: Request) {
       else confBuckets[0]++;
     }
 
+    // ─── Kelly / Cross-Asset / Forecast State ────────────────────────
+    const kellyState     = readJsonSafe('data/kelly-state.json');
+    const crossAssetState = readJsonSafe('data/cross-asset-state.json');
+    const forecastState  = readJsonSafe('data/regime-forecast-state.json');
+    const optimizerState = readJsonSafe('data/backtest-results/optimizer-run-latest.json');
+    const regimeState    = readJsonSafe('data/regime-detector-state.json');
+
+    const kellyIntel = kellyState ? {
+      winRate:       kellyState.calibration?.winRate     || 0.54,
+      oddsRatio:     kellyState.calibration?.oddsRatio   || 0,
+      rawKelly:      kellyState.calibration?.rawKelly    || 0,
+      clampedKelly:  kellyState.calibration?.clampedKelly || 0,
+      expectancy:    kellyState.calibration?.expectancy  || 0,
+      profitFactor:  kellyState.calibration?.profitFactor || 0,
+      tradeCount:    kellyState.calibration?.tradeCount  || 0,
+      usingPriors:   kellyState.calibration?.usingPriors !== false,
+      accountUsd:    kellyState.accountUsd || 1000,
+    } : null;
+
+    const crossAssetIntel = crossAssetState?.latest ? {
+      multiplier:  crossAssetState.latest.multiplier,
+      consensus:   crossAssetState.latest.consensus,
+      btcMode:     crossAssetState.latest.btcMode,
+      allBearish:  crossAssetState.latest.allBearish,
+      anyExtreme:  crossAssetState.latest.anyExtreme,
+      leadLag:     crossAssetState.latest.leadLag,
+      altDetails:  crossAssetState.latest.altDetails,
+      ts:          crossAssetState.latest.ts,
+    } : null;
+
+    const forecastIntel = forecastState?.lastForecast ? {
+      currentRegime:      forecastState.lastForecast.currentRegime,
+      nextRegime:         forecastState.lastForecast.nextRegime,
+      probability:        forecastState.lastForecast.probability,
+      changeProbability:  forecastState.lastForecast.changeProbability,
+      signal:             forecastState.lastForecast.signal,
+      horizon:            forecastState.lastForecast.horizon,
+      confidence:         forecastState.lastForecast.confidence,
+      durationCandles:    forecastState.lastForecast.durationCandles,
+      alternatives:       forecastState.lastForecast.alternatives,
+      totalObservations:  forecastState.totalTransitions || 0,
+      timestamp:          forecastState.lastForecast.timestamp,
+    } : null;
+
+    const optimizerIntel = optimizerState ? {
+      method:    optimizerState.method,
+      timestamp: optimizerState.timestamp,
+      assets:    Object.entries(optimizerState.assets || {}).reduce((acc: any, [sym, a]: any) => {
+        acc[sym] = {
+          regime:      a.regime?.mode,
+          return:      a.best?.totalReturn,
+          sharpe:      a.best?.sharpe,
+          winRate:     a.best?.winRate,
+          drawdown:    a.best?.maxDrawdown,
+          composite:   a.best?.composite,
+          fastEma:     a.best?.fastEma,
+          slowEma:     a.best?.slowEma,
+          confidence:  a.best?.minConf,
+        };
+        return acc;
+      }, {}),
+    } : null;
+
     return NextResponse.json({
       ts: new Date().toISOString(),
       portfolio: {
@@ -607,6 +671,13 @@ export async function GET(req: Request) {
         };
       })(),
       agents: agentRoster,
+      intelligence: {
+        kelly:      kellyIntel,
+        crossAsset: crossAssetIntel,
+        forecast:   forecastIntel,
+        optimizer:  optimizerIntel,
+        regime:     regimeState || null,
+      },
       integrations: {
         exchanges: exchangeStatus,
         livePortfolioDiagnostics: livePortfolio?.diagnostics || null,
