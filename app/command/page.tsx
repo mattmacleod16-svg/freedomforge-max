@@ -192,7 +192,7 @@ export default function CommandPage() {
           {income.target && (
             <div className="mb-5">
               <div className="flex justify-between text-xs text-slate-500 mb-1">
-                <span>Today's progress</span>
+                <span>Today&apos;s progress</span>
                 <span>{fmtD(todayP)} / {fmtD(daily)}</span>
               </div>
               <div className="h-2 bg-slate-800 rounded-full overflow-hidden">

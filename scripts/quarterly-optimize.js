@@ -5,7 +5,7 @@
  * Reviews engine performance over the past quarter and proposes
  * parameter adjustments for risk limits, venue weights, and model routing.
  *
- * Triggered by: .github/workflows/quarterly-optimize.yml (cron: 0 0 1 */3 *)
+ * Triggered by: .github/workflows/quarterly-optimize.yml (cron: 0 0 1 of every 3rd month)
  * Can also run manually: node scripts/quarterly-optimize.js
  *
  * SQDIP 2.0 output:
