@@ -84,7 +84,7 @@ function OnboardingInner() {
           <div className="text-center">
             <div className="text-6xl mb-4">⚡</div>
             <h1 className="text-2xl font-bold mb-2">Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!</h1>
-            <p className="text-zinc-400 mb-6">Let's set up your autonomous income engine. Takes about 3 minutes.</p>
+            <p className="text-zinc-400 mb-6">Let&apos;s set up your autonomous income engine. Takes about 3 minutes.</p>
             <div className="space-y-3 text-left mb-8">
               {[['🏦', 'Connect your exchanges', 'Coinbase + Kraken API keys for live trading'],['🎯','Set your income target','Tell the system what you want to earn'],['📱','Link Telegram','Get real-time alerts and control via chat']].map(([icon,title,desc]) => (
                 <div key={title as string} className="flex gap-3 items-start p-3 bg-zinc-800/50 rounded-xl">
@@ -139,7 +139,7 @@ function OnboardingInner() {
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">/month</span>
             </div>
             <div className="p-3 bg-amber-900/20 border border-amber-500/20 rounded-xl text-xs text-amber-300 mb-6">
-              ⚡ That's <strong>${(parseFloat(monthly || '0') / 30).toFixed(0)}/day</strong> — the system will tune itself to hit this automatically.
+              ⚡ That&apos;s <strong>${(parseFloat(monthly || '0') / 30).toFixed(0)}/day</strong> — the system will tune itself to hit this automatically.
             </div>
             <button onClick={saveTarget} disabled={saving} className="w-full bg-gradient-to-r from-purple-600 to-amber-500 text-white font-bold rounded-xl py-3.5 text-sm disabled:opacity-50">{saving ? 'Setting target...' : 'Set Target & Continue →'}</button>
           </div>
@@ -167,7 +167,7 @@ function OnboardingInner() {
         {step === 'done' && (
           <div className="text-center">
             <div className="text-6xl mb-4">🚀</div>
-            <h2 className="text-2xl font-bold mb-2">You're live!</h2>
+            <h2 className="text-2xl font-bold mb-2">You&apos;re live!</h2>
             <p className="text-zinc-400 mb-8">FreedomForge is active and working toward your income target 24/7.</p>
             <div className="space-y-2 mb-8">
               {[['📊', 'Dashboard', '/dashboard', 'Monitor performance'],['🎯', 'Income Command', '/command', 'Set targets & track progress'],['💱', 'Trading', '/trading', 'Live positions & history']].map(([icon,label,href,desc]) => (

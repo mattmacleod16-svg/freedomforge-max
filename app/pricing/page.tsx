@@ -121,7 +121,7 @@ export default function PricingPage() {
         </div>
 
         <div className="mt-16 text-center">
-          <p className="text-zinc-500 text-sm mb-4">Questions? We're here to help.</p>
+          <p className="text-zinc-500 text-sm mb-4">Questions? We&apos;re here to help.</p>
           <div className="flex flex-wrap justify-center gap-8 text-xs text-zinc-500">
             {['🔒 AES-256 encrypted API keys', '🛡️ Kill switch & loss limits built in', '📊 Full audit trail', '💳 Cancel anytime'].map(t => <span key={t}>{t}</span>)}
           </div>
