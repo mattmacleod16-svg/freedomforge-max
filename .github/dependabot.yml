@@ -7,9 +7,11 @@ updates:
       day: monday
       time: "09:00"
       timezone: "UTC"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     groups:
       npm-patch-minor:
+        patterns:
+          - "*"
         update-types:
           - patch
           - minor
@@ -21,4 +23,12 @@ updates:
       day: monday
       time: "09:15"
       timezone: "UTC"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
+    groups:
+      github-actions-all:
+        patterns:
+          - "*"
+        update-types:
+          - major
+          - minor
+          - patch

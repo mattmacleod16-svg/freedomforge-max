@@ -3,6 +3,10 @@ name: Weekly Profitability Summary
 on:
   workflow_dispatch:
 
+concurrency:
+  group: weekly-summary
+  cancel-in-progress: true
+
 jobs:
   summary:
     runs-on: ubuntu-latest

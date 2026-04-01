@@ -3,6 +3,10 @@ name: Profit Scorecard
 on:
   workflow_dispatch:
 
+concurrency:
+  group: profit-scorecard
+  cancel-in-progress: true
+
 jobs:
   scorecard:
     runs-on: ubuntu-latest

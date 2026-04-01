@@ -3,6 +3,10 @@ name: Continuous Learning Loop
 on:
   workflow_dispatch:
 
+concurrency:
+  group: continuous-learning
+  cancel-in-progress: true
+
 jobs:
   learn:
     runs-on: ubuntu-latest

@@ -3,6 +3,10 @@ name: Distribute revenue (horizontal bots)
 on:
   workflow_dispatch:
 
+concurrency:
+  group: distribute-horizontal
+  cancel-in-progress: true
+
 jobs:
   distribute:
     runs-on: ubuntu-latest

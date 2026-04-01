@@ -3,6 +3,10 @@ name: Quarterly Self-Optimization
 on:
   workflow_dispatch:
 
+concurrency:
+  group: quarterly-optimize
+  cancel-in-progress: true
+
 jobs:
   optimize:
     name: Quarterly Engine Optimization

@@ -2,6 +2,10 @@ name: Distribute revenue
 on:
   workflow_dispatch:
 
+concurrency:
+  group: distribute-revenue
+  cancel-in-progress: true
+
 jobs:
   send:
     runs-on: ubuntu-latest

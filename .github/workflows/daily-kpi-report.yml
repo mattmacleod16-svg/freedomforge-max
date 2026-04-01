@@ -3,6 +3,10 @@ name: Daily KPI Report
 on:
   workflow_dispatch:
 
+concurrency:
+  group: daily-kpi-report
+  cancel-in-progress: true
+
 jobs:
   report:
     runs-on: ubuntu-latest

@@ -3,6 +3,10 @@ name: Launch Announcement
 on:
   workflow_dispatch:
 
+concurrency:
+  group: launch-announce
+  cancel-in-progress: true
+
 jobs:
   # ── Pre-launch health check ───────────────────────────────────────────────────
   sync-check:
