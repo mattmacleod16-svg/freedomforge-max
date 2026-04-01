@@ -15,6 +15,7 @@ const testQueueFile = path.join(testDataDir, 'task-queue-state.json');
 const testFeedbackFile = path.join(testDataDir, 'task-feedback.json');
 
 // Clean up test files
+// Errors are expected when files don't exist or are being cleaned up by other tests
 function cleanupTestFiles() {
   try {
     // Remove main state files
@@ -28,7 +29,7 @@ function cleanupTestFiles() {
       if (fs.existsSync(feedbackBackup)) fs.unlinkSync(feedbackBackup);
     }
   } catch {
-    // Ignore cleanup errors
+    // Expected: files may not exist or may be locked during concurrent test cleanup
   }
 }
 
@@ -138,7 +139,7 @@ describe('Task Queue Automation', () => {
       taskQueue.scheduleTask('healthCheck');
 
       const status = taskQueue.getStatus();
-      assert.strictEqual(status.queued, initialQueued + 2, `Expected ${initialQueued + 2} queued tasks, got ${status.queued}`);
+      assert.strictEqual(status.queued, initialQueued + 2, 'Queued count should reflect scheduled tasks');
     });
   });
 
