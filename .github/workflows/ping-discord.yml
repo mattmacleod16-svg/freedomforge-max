@@ -3,6 +3,10 @@ name: Ping Discord Alert
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ping-discord
+  cancel-in-progress: true
+
 jobs:
   ping:
     runs-on: ubuntu-latest

@@ -3,6 +3,10 @@ name: Monthly Strategy Recommendation
 on:
   workflow_dispatch:
 
+concurrency:
+  group: monthly-strategy
+  cancel-in-progress: true
+
 jobs:
   strategy:
     runs-on: ubuntu-latest

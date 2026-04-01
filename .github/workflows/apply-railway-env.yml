@@ -3,6 +3,10 @@ name: Apply Recommended Railway Env
 on:
   workflow_dispatch:
 
+concurrency:
+  group: apply-railway-env
+  cancel-in-progress: true
+
 jobs:
   apply:
     runs-on: ubuntu-latest

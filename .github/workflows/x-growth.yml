@@ -3,6 +3,10 @@ name: X Growth Automation
 on:
   workflow_dispatch:
 
+concurrency:
+  group: x-growth
+  cancel-in-progress: true
+
 jobs:
   post:
     runs-on: ubuntu-latest

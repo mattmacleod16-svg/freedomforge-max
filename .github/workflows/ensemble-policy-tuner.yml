@@ -3,6 +3,10 @@ name: Ensemble Policy Tuner
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ensemble-policy-tuner
+  cancel-in-progress: true
+
 jobs:
   tune:
     runs-on: ubuntu-latest

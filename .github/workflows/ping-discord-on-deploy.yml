@@ -3,6 +3,10 @@ name: Ping Discord On Deploy
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ping-discord-deploy
+  cancel-in-progress: true
+
 jobs:
   ping:
     if: github.event.deployment_status.state == 'success'

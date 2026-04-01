@@ -3,6 +3,10 @@ name: Monthly Ops Patch PR
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ops-patch-pr
+  cancel-in-progress: true
+
 jobs:
   propose:
     runs-on: ubuntu-latest

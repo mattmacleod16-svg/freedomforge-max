@@ -3,6 +3,10 @@ name: Apply Recommended Env Overrides
 on:
   workflow_dispatch:
 
+concurrency:
+  group: apply-env-overrides
+  cancel-in-progress: true
+
 jobs:
   apply:
     runs-on: ubuntu-latest

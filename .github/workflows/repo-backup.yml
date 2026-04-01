@@ -3,6 +3,10 @@ name: Repository Backup Snapshot
 on:
   workflow_dispatch:
 
+concurrency:
+  group: repo-backup
+  cancel-in-progress: true
+
 jobs:
   backup:
     runs-on: ubuntu-latest

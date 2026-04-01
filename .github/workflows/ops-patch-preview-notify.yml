@@ -3,6 +3,10 @@ name: Ops Patch Preview Notify
 on:
   workflow_dispatch:
 
+concurrency:
+  group: ops-patch-preview
+  cancel-in-progress: true
+
 jobs:
   preview-and-notify:
     if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'automation/monthly-ops-patch')

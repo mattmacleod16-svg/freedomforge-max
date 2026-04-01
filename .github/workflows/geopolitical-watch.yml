@@ -3,6 +3,10 @@ name: Geopolitical Watch
 on:
   workflow_dispatch:
 
+concurrency:
+  group: geopolitical-watch
+  cancel-in-progress: true
+
 jobs:
   watch:
     runs-on: ubuntu-latest

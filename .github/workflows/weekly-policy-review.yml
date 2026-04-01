@@ -3,6 +3,10 @@ name: Weekly Policy Review
 on:
   workflow_dispatch:
 
+concurrency:
+  group: weekly-policy-review
+  cancel-in-progress: true
+
 jobs:
   tune:
     runs-on: ubuntu-latest

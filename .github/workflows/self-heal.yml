@@ -3,6 +3,10 @@ name: Self Heal Bot
 on:
   workflow_dispatch:
 
+concurrency:
+  group: self-heal
+  cancel-in-progress: true
+
 jobs:
   heal:
     runs-on: ubuntu-latest

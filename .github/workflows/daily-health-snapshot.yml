@@ -3,6 +3,10 @@ name: Daily Health Snapshot
 on:
   workflow_dispatch:
 
+concurrency:
+  group: daily-health-snapshot
+  cancel-in-progress: true
+
 jobs:
   snapshot:
     runs-on: ubuntu-latest
