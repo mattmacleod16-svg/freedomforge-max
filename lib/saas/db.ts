@@ -84,10 +84,30 @@ const memKeys  = new Map<string, UserKeys>();
 // ─── Postgres Client ────────────────────────────────────────────────────────
 
 let pgPool: any = null;
+let pgModule: any = null;
+
 async function getPool() {
   if (!IS_POSTGRES) return null;
+  
+  // Dynamically load pg module only when DATABASE_URL is set
+  // Use indirect require to prevent Turbopack static analysis
+  if (!pgModule) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const requireFn = typeof require !== 'undefined' ? require : null;
+      if (requireFn) {
+        pgModule = requireFn(/* webpackIgnore: true */ 'pg');
+      }
+    } catch {
+      console.warn('[db] pg module not installed — using in-memory store');
+      return null;
+    }
+  }
+  
+  if (!pgModule) return null;
+  
   if (!pgPool) {
-    const { Pool } = await import('pg' as any);
+    const { Pool } = pgModule;
     pgPool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
     await initSchema(pgPool);
   }
