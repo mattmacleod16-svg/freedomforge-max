@@ -90,21 +90,15 @@ async function getPool() {
   if (!IS_POSTGRES) return null;
   
   // Dynamically load pg module only when DATABASE_URL is set
-  // Use indirect require to prevent Turbopack static analysis
   if (!pgModule) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const requireFn = typeof require !== 'undefined' ? require : null;
-      if (requireFn) {
-        pgModule = requireFn(/* webpackIgnore: true */ 'pg');
-      }
+      pgModule = require('pg');
     } catch {
-      console.warn('[db] pg module not installed — using in-memory store');
+      // pg module not installed — use in-memory store (no logging to avoid circular deps)
       return null;
     }
   }
-  
-  if (!pgModule) return null;
   
   if (!pgPool) {
     const { Pool } = pgModule;
