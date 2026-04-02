@@ -54,7 +54,7 @@ export interface IIoTDataPoint {
   quality: 'good' | 'bad' | 'uncertain';
   sourceTimestamp?: Date;
   serverTimestamp?: Date;
-  engineering_units?: string;
+  engineeringUnits?: string;
   min?: number;
   max?: number;
   deadband?: number;
