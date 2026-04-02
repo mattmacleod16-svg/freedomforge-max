@@ -1142,3 +1142,4 @@ export interface BuildingAutomationConfig {
     notificationChannels: ('email' | 'sms' | 'webhook' | 'bacnet')[];
   };
 }
+

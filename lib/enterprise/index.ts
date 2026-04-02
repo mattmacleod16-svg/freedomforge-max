@@ -4,6 +4,9 @@
    Unified access to enterprise PLM/MES system integrations:
    - Apriso (DELMIA) — MES, Shop Floor, Quality
    - Oracle — ERP, Manufacturing, Analytics
+   - Building Automation — BACnet, Modbus, Trane Tracer
+   - Compliance — ASHRAE Guideline 36
+   - CMMS — IBM Maximo, ServiceNow
    - Windchill — PLM, BOM, ECN (future)
    - NextGenPLM — PLM (future)
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -40,6 +43,36 @@ export type {
   OraclePurchaseRequisition,
   OraclePurchaseRequisitionLine,
 } from './connectors/oracle-connector';
+
+// CMMS Connectors (IBM Maximo, ServiceNow)
+export {
+  MaximoConnector,
+  ServiceNowConnector,
+  AlarmToWorkOrderIntegration,
+  createCMSSConnector,
+} from './connectors/cmms-connector';
+export type {
+  CMSSConnector,
+  CMSSConnectorConfig,
+  CMSSAsset,
+  CMSSLocation,
+  CMSSWorkOrder,
+  CMSSWorkOrderStatus,
+  CMSSWorkOrderType,
+  CMSSWorkOrderPriority,
+  WorkOrderMaterial,
+  PreventiveMaintenanceSchedule,
+  ServiceRequest,
+  MaximoConfig,
+  ServiceNowConfig,
+  AlarmWorkOrderConfig,
+} from './connectors/cmms-connector';
+
+// Building Automation System
+export * from './building-automation';
+
+// Compliance Frameworks
+export * from './compliance';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enterprise Manager — Singleton for managing all connectors
