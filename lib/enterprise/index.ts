@@ -7,6 +7,8 @@
    - Building Automation — BACnet, Modbus, Trane Tracer
    - Compliance — ASHRAE Guideline 36
    - CMMS — IBM Maximo, ServiceNow
+   - Energy Management — ISO 50001 compliant EnMS
+   - IIoT Protocols — OPC-UA, MQTT, Sparkplug B, Unified Namespace
    - Windchill — PLM, BOM, ECN (future)
    - NextGenPLM — PLM (future)
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -73,6 +75,29 @@ export * from './building-automation';
 
 // Compliance Frameworks
 export * from './compliance';
+
+// Energy Management (ISO 50001)
+export {
+  ISO50001Engine,
+  createISO50001Engine,
+  EnergyPerformanceCalculator,
+} from './energy-management';
+export type {
+  EnergySource,
+  EnergyMeter as ISO50001EnergyMeter,
+  EnergyReading,
+  EnergyBaseline,
+  EnergyTarget,
+  SignificantEnergyUser,
+  EnergyOpportunity,
+  EnergyPerformanceIndicator,
+  EnPIValue,
+  EnergyAudit,
+  ISO50001Config,
+} from './energy-management';
+
+// IIoT Protocols (OPC-UA, MQTT, Sparkplug B)
+export * from './iiot';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enterprise Manager — Singleton for managing all connectors
