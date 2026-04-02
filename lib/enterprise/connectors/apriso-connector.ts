@@ -85,6 +85,91 @@ export interface AprisoProductionMetrics {
   downtimeMinutes?: number;
 }
 
+// OEE-related types (based on DSI Innovations / Ignition SCADA patterns)
+export interface AprisoOEEData {
+  equipmentId: string;
+  equipmentName: string;
+  period: DateRange;
+  oee: number;
+  availability: number;
+  performance: number;
+  quality: number;
+  plannedTimeMinutes: number;
+  operatingTimeMinutes: number;
+  downtimeMinutes: number;
+  idealCycleTimeSeconds: number;
+  totalProduced: number;
+  goodUnits: number;
+  defectUnits: number;
+}
+
+export interface AprisoDowntimeEvent {
+  id: string;
+  equipmentId: string;
+  startTime: Date;
+  endTime?: Date;
+  durationMinutes: number;
+  reasonCode: string;
+  reasonDescription?: string;
+  isPlanned: boolean;
+  notes?: string;
+  recordedBy?: string;
+}
+
+export interface AprisoEquipmentState {
+  equipmentId: string;
+  equipmentName: string;
+  state: 'running' | 'idle' | 'setup' | 'faulted' | 'maintenance' | 'offline';
+  stateChangedAt: Date;
+  currentWorkOrder?: string;
+  currentOperator?: string;
+  cycleCount?: number;
+  lastCycleTimeSeconds?: number;
+}
+
+// API response types for OEE
+interface AprisoApiOEEData {
+  EquipmentId: string;
+  EquipmentName: string;
+  StartDate: string;
+  EndDate: string;
+  OEE: number;
+  Availability: number;
+  Performance: number;
+  Quality: number;
+  PlannedTimeMinutes: number;
+  OperatingTimeMinutes: number;
+  DowntimeMinutes: number;
+  IdealCycleTimeSeconds: number;
+  TotalProduced: number;
+  GoodUnits: number;
+  DefectUnits: number;
+}
+
+interface AprisoApiDowntimeEvent {
+  EventId: string;
+  EquipmentId: string;
+  StartTime: string;
+  EndTime?: string;
+  DurationMinutes: number;
+  ReasonCode: string;
+  ReasonDescription?: string;
+  IsPlanned: boolean;
+  Notes?: string;
+  RecordedBy?: string;
+}
+
+interface AprisoApiEquipmentState {
+  EquipmentId: string;
+  EquipmentName: string;
+  State: string;
+  StateChangedAt: string;
+  CurrentWorkOrder?: string;
+  CurrentOperator?: string;
+  CycleCount?: number;
+  LastCycleTimeSeconds?: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Apriso API Response Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -611,6 +696,110 @@ export class AprisoConnector {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // OEE (Overall Equipment Effectiveness) Methods
+  // Based on DSI Innovations / Ignition SCADA / Sepasoft MES patterns
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get OEE data for equipment/line
+   * OEE = Availability × Performance × Quality
+   */
+  async getOEEData(params: {
+    equipmentId: string;
+    dateRange: DateRange;
+    shift?: string;
+  }): Promise<AprisoOEEData> {
+    const response = await this.rest.get<AprisoApiResponse<AprisoApiOEEData>>(
+      '/api/v1/metrics/oee',
+      {
+        equipmentId: params.equipmentId,
+        startDate: params.dateRange.start.toISOString(),
+        endDate: params.dateRange.end.toISOString(),
+        shift: params.shift,
+      }
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error ?? 'Failed to fetch OEE data');
+    }
+
+    return this.mapOEEData(response.data);
+  }
+
+  /**
+   * Get downtime events for OEE calculation
+   */
+  async getDowntimeEvents(params: {
+    equipmentId?: string;
+    workCenter?: string;
+    dateRange: DateRange;
+  }): Promise<AprisoDowntimeEvent[]> {
+    const response = await this.rest.get<AprisoApiResponse<AprisoApiDowntimeEvent[]>>(
+      '/api/v1/downtime/events',
+      {
+        equipmentId: params.equipmentId,
+        workCenter: params.workCenter,
+        startDate: params.dateRange.start.toISOString(),
+        endDate: params.dateRange.end.toISOString(),
+      }
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error ?? 'Failed to fetch downtime events');
+    }
+
+    return response.data.map(this.mapDowntimeEvent);
+  }
+
+  /**
+   * Record a downtime event
+   */
+  async recordDowntimeEvent(event: {
+    equipmentId: string;
+    startTime: Date;
+    endTime?: Date;
+    reasonCode: string;
+    isPlanned: boolean;
+    notes?: string;
+    recordedBy: string;
+  }): Promise<string> {
+    const response = await this.rest.post<AprisoApiResponse<{ eventId: string }>>(
+      '/api/v1/downtime/events',
+      {
+        EquipmentId: event.equipmentId,
+        StartTime: event.startTime.toISOString(),
+        EndTime: event.endTime?.toISOString(),
+        ReasonCode: event.reasonCode,
+        IsPlanned: event.isPlanned,
+        Notes: event.notes,
+        RecordedBy: event.recordedBy,
+      }
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error ?? 'Failed to record downtime event');
+    }
+
+    return response.data.eventId;
+  }
+
+  /**
+   * Get equipment/machine states (for real-time OEE)
+   */
+  async getEquipmentStates(workCenter?: string): Promise<AprisoEquipmentState[]> {
+    const response = await this.rest.get<AprisoApiResponse<AprisoApiEquipmentState[]>>(
+      '/api/v1/equipment/states',
+      { workCenter }
+    );
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error ?? 'Failed to fetch equipment states');
+    }
+
+    return response.data.map(this.mapEquipmentState);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // Mapping Functions
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -727,6 +916,71 @@ export class AprisoConnector {
       'BYPASSED': 'skipped',
     };
     return map[status.toUpperCase()] ?? 'pending';
+  }
+
+  // OEE Mapping Functions
+  private mapOEEData = (api: AprisoApiOEEData): AprisoOEEData => ({
+    equipmentId: api.EquipmentId,
+    equipmentName: api.EquipmentName,
+    period: {
+      start: new Date(api.StartDate),
+      end: new Date(api.EndDate),
+    },
+    oee: api.OEE,
+    availability: api.Availability,
+    performance: api.Performance,
+    quality: api.Quality,
+    plannedTimeMinutes: api.PlannedTimeMinutes,
+    operatingTimeMinutes: api.OperatingTimeMinutes,
+    downtimeMinutes: api.DowntimeMinutes,
+    idealCycleTimeSeconds: api.IdealCycleTimeSeconds,
+    totalProduced: api.TotalProduced,
+    goodUnits: api.GoodUnits,
+    defectUnits: api.DefectUnits,
+  });
+
+  private mapDowntimeEvent = (api: AprisoApiDowntimeEvent): AprisoDowntimeEvent => ({
+    id: api.EventId,
+    equipmentId: api.EquipmentId,
+    startTime: new Date(api.StartTime),
+    endTime: api.EndTime ? new Date(api.EndTime) : undefined,
+    durationMinutes: api.DurationMinutes,
+    reasonCode: api.ReasonCode,
+    reasonDescription: api.ReasonDescription,
+    isPlanned: api.IsPlanned,
+    notes: api.Notes,
+    recordedBy: api.RecordedBy,
+  });
+
+  private mapEquipmentState = (api: AprisoApiEquipmentState): AprisoEquipmentState => ({
+    equipmentId: api.EquipmentId,
+    equipmentName: api.EquipmentName,
+    state: this.mapEquipmentStateFromApriso(api.State),
+    stateChangedAt: new Date(api.StateChangedAt),
+    currentWorkOrder: api.CurrentWorkOrder,
+    currentOperator: api.CurrentOperator,
+    cycleCount: api.CycleCount,
+    lastCycleTimeSeconds: api.LastCycleTimeSeconds,
+  });
+
+  private mapEquipmentStateFromApriso(state: string): AprisoEquipmentState['state'] {
+    const map: Record<string, AprisoEquipmentState['state']> = {
+      'RUNNING': 'running',
+      'RUN': 'running',
+      'ACTIVE': 'running',
+      'IDLE': 'idle',
+      'STANDBY': 'idle',
+      'SETUP': 'setup',
+      'CHANGEOVER': 'setup',
+      'FAULTED': 'faulted',
+      'FAULT': 'faulted',
+      'ALARM': 'faulted',
+      'MAINTENANCE': 'maintenance',
+      'PM': 'maintenance',
+      'OFFLINE': 'offline',
+      'DOWN': 'offline',
+    };
+    return map[state.toUpperCase()] ?? 'idle';
   }
 }
 

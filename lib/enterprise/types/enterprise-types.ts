@@ -331,6 +331,183 @@ export interface ProductionOrder {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OEE (Overall Equipment Effectiveness) Types — Industry Best Practice
+// Based on SCADA/MES integration patterns (DSI Innovations, Ignition, Sepasoft)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * OEE = Availability × Performance × Quality
+ * - Availability: Actual Runtime / Planned Runtime
+ * - Performance: Actual Output / Theoretical Output (at standard rate)
+ * - Quality: Good Units / Total Units Produced
+ */
+export interface OEEMetrics {
+  /** Overall OEE percentage (0-100) */
+  oee: number;
+  /** Availability percentage (runtime vs planned time) */
+  availability: number;
+  /** Performance percentage (actual vs theoretical speed) */
+  performance: number;
+  /** Quality percentage (good units vs total units) */
+  quality: number;
+  /** Timestamp of calculation */
+  calculatedAt: Date;
+  /** Time period for the calculation */
+  period: DateRange;
+  /** Equipment/line identifier */
+  equipmentId: string;
+  equipmentName?: string;
+}
+
+export interface OEEBreakdown {
+  metrics: OEEMetrics;
+  /** Planned production time in minutes */
+  plannedTime: number;
+  /** Actual operating time in minutes */
+  operatingTime: number;
+  /** Downtime in minutes */
+  downtime: number;
+  /** Ideal cycle time per unit in seconds */
+  idealCycleTime: number;
+  /** Actual cycle time per unit in seconds */
+  actualCycleTime: number;
+  /** Total units produced */
+  totalProduced: number;
+  /** Good units produced */
+  goodUnits: number;
+  /** Defective/scrapped units */
+  defectUnits: number;
+  /** Downtime events */
+  downtimeEvents: DowntimeEvent[];
+  /** Quality events (defects, NCRs) */
+  qualityEvents: QualityEvent[];
+}
+
+export interface DowntimeEvent {
+  id: string;
+  equipmentId: string;
+  startTime: Date;
+  endTime?: Date;
+  durationMinutes: number;
+  /** Categorized downtime reason */
+  reasonCode: DowntimeReasonCode;
+  reasonDescription?: string;
+  /** Whether this was planned (scheduled maintenance) or unplanned */
+  isPlanned: boolean;
+  /** Operator who recorded or acknowledged */
+  recordedBy?: string;
+  notes?: string;
+}
+
+export type DowntimeReasonCode =
+  | 'scheduled_maintenance'
+  | 'unscheduled_maintenance'
+  | 'breakdown'
+  | 'changeover'
+  | 'setup'
+  | 'material_shortage'
+  | 'operator_unavailable'
+  | 'quality_hold'
+  | 'no_orders'
+  | 'utilities'
+  | 'other';
+
+export interface QualityEvent {
+  id: string;
+  equipmentId: string;
+  timestamp: Date;
+  defectCode: string;
+  defectDescription?: string;
+  quantity: number;
+  partNumber?: string;
+  workOrderId?: string;
+  disposition?: NCRDisposition;
+  recordedBy?: string;
+}
+
+export interface OEEFilters {
+  equipmentId?: string;
+  equipmentIds?: string[];
+  productionLine?: string;
+  workCenter?: string;
+  period: DateRange;
+  shift?: string;
+  product?: string;
+}
+
+export interface OEETrend {
+  period: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  dataPoints: OEEDataPoint[];
+  averageOEE: number;
+  bestOEE: number;
+  worstOEE: number;
+  trend: 'improving' | 'declining' | 'stable';
+}
+
+export interface OEEDataPoint {
+  timestamp: Date;
+  oee: number;
+  availability: number;
+  performance: number;
+  quality: number;
+  productionCount?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCADA/Shop Floor Data Types (for real-time integration)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MachineState {
+  equipmentId: string;
+  equipmentName: string;
+  state: EquipmentState;
+  stateChangedAt: Date;
+  currentOperator?: string;
+  currentWorkOrder?: string;
+  currentOperation?: string;
+  cycleCount?: number;
+  lastCycleTime?: number;
+  alarms?: MachineAlarm[];
+}
+
+export type EquipmentState =
+  | 'running'
+  | 'idle'
+  | 'setup'
+  | 'changeover'
+  | 'faulted'
+  | 'maintenance'
+  | 'offline'
+  | 'unknown';
+
+export interface MachineAlarm {
+  id: string;
+  equipmentId: string;
+  code: string;
+  message: string;
+  severity: 'info' | 'warning' | 'critical';
+  timestamp: Date;
+  acknowledged: boolean;
+  acknowledgedBy?: string;
+  acknowledgedAt?: Date;
+  cleared: boolean;
+  clearedAt?: Date;
+}
+
+export interface ProductionCount {
+  equipmentId: string;
+  workOrderId?: string;
+  partNumber?: string;
+  shiftDate: Date;
+  shift?: string;
+  goodCount: number;
+  rejectCount: number;
+  setupCount?: number;
+  targetCount?: number;
+  lastUpdated: Date;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Analytics Types
 // ─────────────────────────────────────────────────────────────────────────────
 
