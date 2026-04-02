@@ -99,6 +99,9 @@ export type {
 // IIoT Protocols (OPC-UA, MQTT, Sparkplug B)
 export * from './iiot';
 
+// Predictive Maintenance (ML-powered)
+export * from './predictive-maintenance';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Enterprise Manager — Singleton for managing all connectors
 // ─────────────────────────────────────────────────────────────────────────────
