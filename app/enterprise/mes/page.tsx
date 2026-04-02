@@ -47,9 +47,13 @@ interface InventoryItem {
   description: string;
   onHandQuantity: number;
   availableQuantity: number;
+  reorderPoint?: number;
   plant: string;
   warehouse?: string;
 }
+
+// Default reorder point threshold when item-specific value is not set
+const DEFAULT_REORDER_POINT = 50;
 
 type Tab = 'workorders' | 'operations' | 'quality' | 'inventory' | 'schedule';
 
@@ -374,7 +378,8 @@ function MESPageContent() {
               </thead>
               <tbody>
                 {inventory.map(item => {
-                  const isLow = item.availableQuantity < 50;
+                  const threshold = item.reorderPoint ?? DEFAULT_REORDER_POINT;
+                  const isLow = item.availableQuantity < threshold;
                   return (
                     <tr key={item.id} className="border-b border-zinc-800/30 hover:bg-zinc-800/30 transition">
                       <td className="py-3 px-4 text-cyan-400 font-mono font-bold">{item.itemNumber}</td>

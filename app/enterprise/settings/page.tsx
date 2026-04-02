@@ -45,7 +45,7 @@ export default function EnterpriseSettingsPage() {
             { name: 'APRISO_PLANT', description: 'Default plant code', required: false, secret: false },
             { name: 'APRISO_TIMEOUT', description: 'Request timeout in ms', required: false, secret: false },
           ],
-          docUrl: 'https://help.3ds.com/HelpProductsDS.aspx?lvl=1&amp;area=DELMIA',
+          docUrl: 'https://help.3ds.com/HelpProductsDS.aspx?lvl=1&area=DELMIA',
           status: data.enterprise?.connectors?.apriso?.status === 'connected' ? 'connected' :
                   data.enterprise?.connectors?.apriso ? 'error' : 'not_configured',
         },
