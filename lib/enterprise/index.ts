@@ -9,8 +9,10 @@
    - CMMS — IBM Maximo, ServiceNow
    - Energy Management — ISO 50001 compliant EnMS
    - IIoT Protocols — OPC-UA, MQTT, Sparkplug B, Unified Namespace
+   - Trane Employee Assistant (TEA) — knowledge base, RAG engine, prompt templates
+   - Oracle SQL/PL/SQL Builder — type-safe query construction
+   - Oracle ERP Module Catalog — Financials, SCM, HCM, Reporting
    - Windchill — PLM, BOM, ECN (future)
-   - NextGenPLM — PLM (future)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 // Types
@@ -101,6 +103,72 @@ export * from './iiot';
 
 // Predictive Maintenance (ML-powered)
 export * from './predictive-maintenance';
+
+// Trane Employee Assistant (TEA) — knowledge base + RAG engine
+export {
+  ALL_KNOWLEDGE_CHUNKS,
+  KNOWLEDGE_INDEX,
+  QA_DATASET,
+  APRISO_CHUNKS,
+  ORACLE_DB_CHUNKS,
+  ORACLE_ERP_CHUNKS,
+  INTEGRATION_CHUNKS,
+  retrieveChunks,
+  retrieveQA,
+  getChunksByCategory,
+  TEAAssistant,
+  teaAssistant,
+  askTEA,
+  classifyIntent,
+  buildRAGContext,
+  fillTemplate,
+  TEA_PERSONA,
+  TEA_SYSTEM_PROMPT,
+  PROMPT_TEMPLATES,
+} from './assistant';
+export type {
+  KnowledgeChunk,
+  KnowledgeCategory,
+  QAPair,
+  TEARequest,
+  TEAResponse,
+  RAGContext,
+  QueryIntent,
+  PromptTemplateName,
+} from './assistant';
+
+// Oracle SQL/PL/SQL Builder + ERP Module Catalog
+export {
+  OracleQueryBuilder,
+  OracleStr,
+  OracleDate,
+  OracleNum,
+  OracleConv,
+  OracleAgg,
+  OracleWin,
+  PLSQL_PACKAGES,
+  DATA_DICTIONARY_VIEWS,
+  MANUFACTURING_QUERIES,
+  getPLSQLPackage,
+  getViewsByScope,
+  ALL_ERP_MODULES,
+  FINANCIALS_MODULES,
+  SCM_MODULES,
+  HCM_MODULES,
+  REPORTING_MODULES,
+  getERPModule,
+  getModulesBySuite,
+  getModulesWithAprisoIntegration,
+} from './oracle';
+export type {
+  OracleDateFormat,
+  OracleDataType,
+  WindowSpec,
+  PLSQLPackageInfo,
+  DataDictionaryView,
+  ERPModule,
+  ERPModuleInfo,
+} from './oracle';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Enterprise Manager — Singleton for managing all connectors

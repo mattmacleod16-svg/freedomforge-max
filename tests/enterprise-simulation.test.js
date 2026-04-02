@@ -396,7 +396,7 @@ describe('3. ASHRAE Guideline 36 Compliance', () => {
 
     it('clamps at SPmin', () => {
       let sp = 55.1;
-      for (let i = 0; i < 20; i++) sp = trimAndRespond(sp, 0, {});
+      for (let cycle = 0; cycle < 20; cycle++) sp = trimAndRespond(sp, 0, {});
       assert.equal(sp, 55);
     });
 
