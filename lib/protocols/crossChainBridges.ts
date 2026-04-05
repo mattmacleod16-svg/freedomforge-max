@@ -22,10 +22,10 @@ import { createHash } from 'crypto';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
-export type BridgeProvider = 'wormhole' | 'layerzero' | 'hyperlane' | 'axelar' | 'debridge' | 'across' | 'stargate' | 'squid' | 'cctp';
+export type BridgeProvider = 'wormhole' | 'layerzero' | 'hyperlane' | 'axelar' | 'debridge' | 'across' | 'stargate' | 'squid' | 'cctp' | 'ibc';
 export type ChainEcosystem = 'evm' | 'solana' | 'cosmos' | 'sui' | 'aptos' | 'near' | 'sei' | 'stellar' | 'algorand' | 'bitcoin';
 export type MessageStatus = 'submitted' | 'signed' | 'relayed' | 'delivered' | 'failed' | 'timed_out';
-export type VerificationModel = 'guardian' | 'oracle_relayer' | 'ism' | 'validator_set' | 'optimistic' | 'burn_mint';
+export type VerificationModel = 'guardian' | 'oracle_relayer' | 'ism' | 'validator_set' | 'optimistic' | 'burn_mint' | 'light_client';
 
 export interface SupportedChain {
   chainId: number | string;
@@ -163,6 +163,18 @@ export interface BridgeAggregatorQuote {
   savingsVsWorst: number;
 }
 
+/** IBC v2 packet (ICS-04 with timeout_timestamp as per IBC v2 spec) */
+export interface IBCv2Packet {
+  sequence: number;
+  sourceChannel: string;
+  destChannel: string;
+  sender: string;
+  receiver: string;
+  data: string;
+  timeoutTimestampNs: bigint;
+  fee?: { recvFee: string; ackFee: string; timeoutFee: string };
+}
+
 /* ─── Constants ───────────────────────────────────────────────────────────── */
 
 const WORMHOLE_GUARDIAN_COUNT = 19;
@@ -189,9 +201,9 @@ const SUPPORTED_CHAINS: SupportedChain[] = [
   { chainId: 'aptos', name: 'Aptos', ecosystem: 'aptos', wormholeChainId: 22, lzChainId: 30126, nativeToken: 'APT', blockTimeMs: 1000, finality: '~1 sec', bridgeProviders: ['wormhole', 'layerzero'] },
   { chainId: 'near', name: 'NEAR', ecosystem: 'near', wormholeChainId: 15, lzChainId: 0, nativeToken: 'NEAR', blockTimeMs: 1000, finality: '~2 sec', bridgeProviders: ['wormhole'] },
   { chainId: 'sei', name: 'Sei', ecosystem: 'sei', wormholeChainId: 32, lzChainId: 30280, nativeToken: 'SEI', blockTimeMs: 400, finality: '~400ms', bridgeProviders: ['wormhole', 'layerzero', 'axelar'] },
-  { chainId: 'injective', name: 'Injective', ecosystem: 'cosmos', wormholeChainId: 19, lzChainId: 0, nativeToken: 'INJ', blockTimeMs: 1500, finality: '~1.5 sec', bridgeProviders: ['wormhole', 'axelar'] },
-  { chainId: 'osmosis', name: 'Osmosis', ecosystem: 'cosmos', wormholeChainId: 20, lzChainId: 0, nativeToken: 'OSMO', blockTimeMs: 6000, finality: '~6 sec', bridgeProviders: ['wormhole', 'axelar'] },
-  { chainId: 'celestia', name: 'Celestia', ecosystem: 'cosmos', wormholeChainId: 0, lzChainId: 0, nativeToken: 'TIA', blockTimeMs: 12000, finality: '~12 sec', bridgeProviders: ['hyperlane'] },
+  { chainId: 'injective', name: 'Injective', ecosystem: 'cosmos', wormholeChainId: 19, lzChainId: 0, nativeToken: 'INJ', blockTimeMs: 1500, finality: '~1.5 sec', bridgeProviders: ['wormhole', 'axelar', 'ibc'] },
+  { chainId: 'osmosis', name: 'Osmosis', ecosystem: 'cosmos', wormholeChainId: 20, lzChainId: 0, nativeToken: 'OSMO', blockTimeMs: 6000, finality: '~6 sec', bridgeProviders: ['wormhole', 'axelar', 'ibc'] },
+  { chainId: 'celestia', name: 'Celestia', ecosystem: 'cosmos', wormholeChainId: 0, lzChainId: 0, nativeToken: 'TIA', blockTimeMs: 12000, finality: '~12 sec', bridgeProviders: ['hyperlane', 'ibc'] },
   { chainId: 'algorand', name: 'Algorand', ecosystem: 'algorand', wormholeChainId: 8, lzChainId: 0, nativeToken: 'ALGO', blockTimeMs: 3300, finality: '~3.3 sec', bridgeProviders: ['wormhole'] },
   { chainId: 'bitcoin', name: 'Bitcoin', ecosystem: 'bitcoin', wormholeChainId: 0, lzChainId: 0, nativeToken: 'BTC', blockTimeMs: 600000, finality: '~60 min (6 conf)', bridgeProviders: [] },
 ];
@@ -204,6 +216,7 @@ const vaas: Map<string, WormholeVAA> = new Map();
 const lzPackets: Map<string, LayerZeroPacket> = new Map();
 const hyperlaneDispatches: Map<string, HyperlaneDispatch> = new Map();
 const nttTransfers: Map<string, NTTTransfer> = new Map();
+const ibcPackets: Map<number, IBCv2Packet> = new Map();
 
 let messageNonce = 0;
 
@@ -496,12 +509,12 @@ export function bridgeTokens(input: {
   const feeMap: Record<BridgeProvider, number> = {
     wormhole: 0.0001, layerzero: 0.0005, hyperlane: 0.0003,
     axelar: 0.001, debridge: 0.0008, across: 0.0006,
-    stargate: 0.0006, squid: 0.001, cctp: 0,
+    stargate: 0.0006, squid: 0.001, cctp: 0, ibc: 0,
   };
   const timeMap: Record<BridgeProvider, number> = {
     wormhole: 900_000, layerzero: 120_000, hyperlane: 60_000,
     axelar: 180_000, debridge: 60_000, across: 30_000,
-    stargate: 15_000, squid: 120_000, cctp: 900_000,
+    stargate: 15_000, squid: 120_000, cctp: 900_000, ibc: 60_000,
   };
 
   const fee = input.amount * (feeMap[input.provider] || 0.001);
@@ -552,17 +565,17 @@ export function getBridgeQuote(input: {
   const feeRates: Record<BridgeProvider, number> = {
     wormhole: 0.0001, layerzero: 0.0005, hyperlane: 0.0003,
     axelar: 0.001, debridge: 0.0008, across: 0.0004,
-    stargate: 0.0006, squid: 0.001, cctp: 0,
+    stargate: 0.0006, squid: 0.001, cctp: 0, ibc: 0,
   };
   const speedMs: Record<BridgeProvider, number> = {
     wormhole: 900_000, layerzero: 120_000, hyperlane: 60_000,
     axelar: 180_000, debridge: 60_000, across: 30_000,
-    stargate: 15_000, squid: 120_000, cctp: 900_000,
+    stargate: 15_000, squid: 120_000, cctp: 900_000, ibc: 60_000,
   };
   const securityScores: Record<BridgeProvider, number> = {
     wormhole: 95, layerzero: 90, hyperlane: 88,
     axelar: 87, debridge: 82, across: 85,
-    stargate: 86, squid: 80, cctp: 98,
+    stargate: 86, squid: 80, cctp: 98, ibc: 96,
   };
 
   const routes: BridgeRoute[] = commonProviders.map((provider) => ({
@@ -627,6 +640,66 @@ export function getTransfer(transferId: string): TokenBridgeTransfer | null {
   return tokenTransfers.get(transferId) || null;
 }
 
+/* ─── IBC v2 ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Send an IBC v2 packet (ICS-04 with timeout_timestamp semantics).
+ * IBC v2 replaces timeout_height with a nanosecond UNIX timestamp, enabling
+ * uniform finality across heterogeneous chains.
+ */
+export function ibcV2Send(input: {
+  sourceChain: string;
+  destChain: string;
+  sourceChannel: string;
+  destChannel: string;
+  sender: string;
+  receiver: string;
+  data: string;
+  /** Timeout duration from now in milliseconds (default: 5 minutes) */
+  timeoutMs?: number;
+  fee?: { recvFee: string; ackFee: string; timeoutFee: string };
+}): { packet: IBCv2Packet; crossChainMsg: CrossChainMessage } {
+  const seq = ++messageNonce;
+  const timeoutMs = input.timeoutMs ?? 5 * 60 * 1000;
+  const timeoutTimestampNs = BigInt(Date.now() + timeoutMs) * BigInt(1_000_000);
+
+  const packet: IBCv2Packet = {
+    sequence: seq,
+    sourceChannel: input.sourceChannel,
+    destChannel: input.destChannel,
+    sender: input.sender,
+    receiver: input.receiver,
+    data: input.data,
+    timeoutTimestampNs,
+    fee: input.fee,
+  };
+
+  const crossChainMsg: CrossChainMessage = {
+    id: `ibc2_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+    provider: 'ibc',
+    sourceChain: input.sourceChain,
+    destChain: input.destChain,
+    sender: input.sender,
+    receiver: input.receiver,
+    payload: input.data,
+    nonce: seq,
+    status: 'submitted',
+    verification: 'light_client',
+    fee: input.fee
+      ? (parseFloat(input.fee.recvFee) || 0) + (parseFloat(input.fee.ackFee) || 0) + (parseFloat(input.fee.timeoutFee) || 0)
+      : 0,
+    sentAt: Date.now(),
+  };
+
+  ibcPackets.set(seq, packet);
+  messages.set(crossChainMsg.id, crossChainMsg);
+  return { packet, crossChainMsg };
+}
+
+export function getIBCv2Packet(sequence: number): IBCv2Packet | null {
+  return ibcPackets.get(sequence) || null;
+}
+
 /* ─── Protocol Summary ────────────────────────────────────────────────────── */
 
 export function getCrossChainSummary() {
@@ -654,6 +727,7 @@ export function getCrossChainSummary() {
       layerzero: { chains: getChainsByBridge('layerzero').length, features: ['OFT (Omnichain Fungible Token)', 'ONFT', 'Composed messaging', 'DVN verification'] },
       hyperlane: { chains: getChainsByBridge('hyperlane').length, features: ['Permissionless deployment', 'Interchain Security Modules (ISM)', 'Warp Routes', 'Hooks'] },
       axelar: { chains: getChainsByBridge('axelar').length, features: ['General Message Passing (GMP)', 'Cosmos gateway', 'Interchain Token Service'] },
+      ibc: { chains: getChainsByBridge('ibc').length, features: ['IBC v2 light-client verification', 'ICS-04 channels', 'timeout_timestamp', 'ICS-29 fee middleware'] },
       across: { chains: getChainsByBridge('across').length, features: ['Intent-based bridging', 'Optimistic verification', 'Fast fills'] },
       stargate: { chains: getChainsByBridge('stargate').length, features: ['Unified liquidity', 'Instant finality', 'Delta algorithm'] },
       cctp: { chains: getChainsByBridge('cctp').length, features: ['Native USDC burn-and-mint', 'Zero slippage', 'Circle attestation'] },
@@ -669,11 +743,12 @@ export function getCrossChainSummary() {
     },
     features: [
       '22 chains across 8 ecosystems (EVM, Solana, Cosmos, Sui, Aptos, NEAR, Sei, Bitcoin)',
-      '9 bridge providers with best-route aggregation',
+      '10 bridge providers with best-route aggregation',
       'Wormhole VAA guardian messaging + NTT',
       'LayerZero OFT omnichain token standard + composed messaging',
       'Hyperlane permissionless ISM + warp routes',
       'Axelar General Message Passing with Cosmos gateway',
+      'IBC v2 light-client verified packets with timeout_timestamp',
       'Circle CCTP native USDC burn-and-mint',
       'Across intent-based fast bridging',
       'Stargate unified liquidity with instant finality',
