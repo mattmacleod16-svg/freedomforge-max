@@ -33,7 +33,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const userId = String(body.userId ?? 'anonymous').slice(0, 128);
-  const state = String(body.state ?? '').slice(0, 4).toUpperCase();
+  const state = String(body.state ?? '').slice(0, 2).toUpperCase();
   const location = String(body.location ?? '').slice(0, 256);
   const topK = Math.max(1, Math.min(10, Number(body.topK ?? 5)));
 

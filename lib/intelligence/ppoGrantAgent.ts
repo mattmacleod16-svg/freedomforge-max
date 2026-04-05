@@ -76,7 +76,10 @@ export interface PPOGrantResult {
   timestamp: string;
 }
 
-// ─── Grant Database ────────────────────────────────────────────────────────────
+// Scales raw (maxAmount × baseApprovalRate × matchScore) to a dollar estimate.
+// matchScore is a probability in [0, 1/n] where n is the number of candidates,
+// so multiplying by this factor brings the estimate to a meaningful USD range.
+const ESTIMATED_VALUE_SCALE_FACTOR = 10;
 
 export const GRANT_DATABASE: GrantOpportunity[] = [
   // ── Federal ──────────────────────────────────────────────────────────────
@@ -391,7 +394,7 @@ export function runPPOGrantAgent(opts: RunPPOGrantAgentOptions): PPOGrantResult 
   const matches: GrantMatch[] = candidates
     .map((grant, i) => {
       const matchScore = finalProbs[i];
-      const estimatedValue = Math.round(grant.maxAmount * grant.baseApprovalRate * matchScore * 10);
+      const estimatedValue = Math.round(grant.maxAmount * grant.baseApprovalRate * matchScore * ESTIMATED_VALUE_SCALE_FACTOR);
       const actionRecommendation = buildActionRecommendation(grant, matchScore);
       return {
         grant,
