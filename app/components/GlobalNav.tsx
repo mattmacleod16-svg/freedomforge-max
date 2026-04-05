@@ -13,6 +13,7 @@ const NAV_ITEMS = [
 ];
 
 const MORE_ITEMS = [
+  { href: '/grants', label: 'Grants', icon: '🏆', color: 'text-amber-400' },
   { href: '/trading', label: 'Trading', icon: '📈' },
   { href: '/industrial', label: 'Industrial', icon: '🏭' },
   { href: '/watchdog', label: 'Watchdog', icon: '👁️' },
@@ -23,6 +24,7 @@ const MORE_ITEMS = [
   { href: '/token', label: '$FORGE', icon: '🪙' },
   { href: '/command', label: '🎯 Income', icon: '💰', color: 'text-amber-400' },
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { href: '/admin', label: 'Admin', icon: '⚙️' },
   { href: '/marketing', label: 'Marketing', icon: '📣' },
 ];
 
