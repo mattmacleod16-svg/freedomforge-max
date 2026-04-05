@@ -56,8 +56,8 @@ export async function initializeModels() {
   lastInitializedAt = Date.now();
   models.length = 0;
 
-  // Grok (primary - Grok API)
-  const grokKey = firstEnv('GROK_API_KEY');
+  // Grok / xAI (primary - Grok API; accepts GROK_API_KEY or XAI_API_KEY)
+  const grokKey = firstEnv('GROK_API_KEY', 'XAI_API_KEY');
   if (grokKey) {
     upsertModel({
       name: 'grok',
