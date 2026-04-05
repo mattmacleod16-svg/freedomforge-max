@@ -28,6 +28,8 @@ export default function AdminDashboard() {
   const [applications, setApplications] = useState<JobApplication[]>([]);
 
   useEffect(() => {
+    const MAX_EVENTS = 100;
+
     // Realtime funds + job applications tracking
     const fundsChannel = supabase
       .channel('funds')
@@ -35,7 +37,14 @@ export default function AdminDashboard() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'funds_flow' },
         (payload) => {
-          setFunds((prev) => [payload.new as FundEvent, ...prev]);
+          if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as FundEvent;
+            setFunds((prev) => prev.filter((e) => e.id !== deleted.id));
+          } else {
+            setFunds((prev) =>
+              [payload.new as FundEvent, ...prev].slice(0, MAX_EVENTS)
+            );
+          }
         }
       )
       .subscribe();
@@ -46,7 +55,14 @@ export default function AdminDashboard() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'job_applications' },
         (payload) => {
-          setApplications((prev) => [payload.new as JobApplication, ...prev]);
+          if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as JobApplication;
+            setApplications((prev) => prev.filter((a) => a.id !== deleted.id));
+          } else {
+            setApplications((prev) =>
+              [payload.new as JobApplication, ...prev].slice(0, MAX_EVENTS)
+            );
+          }
         }
       )
       .subscribe();
