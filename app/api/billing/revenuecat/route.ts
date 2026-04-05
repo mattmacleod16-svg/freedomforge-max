@@ -26,7 +26,12 @@ interface RevenueCatEvent {
 }
 
 function verifyRevenueCatSignature(body: string, authHeader: string | null): boolean {
-  if (!REVENUECAT_WEBHOOK_SECRET) return true; // Allow if not configured (for testing)
+  if (!REVENUECAT_WEBHOOK_SECRET) {
+    // In production, always require the secret to be configured
+    if (process.env.NODE_ENV === 'production') return false;
+    // Allow in non-production only if no secret is set (dev/testing)
+    return true;
+  }
   if (!authHeader) return false;
   // RevenueCat uses a simple Authorization header with the secret
   return crypto.timingSafeEqual(

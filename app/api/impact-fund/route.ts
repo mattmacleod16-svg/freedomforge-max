@@ -22,7 +22,10 @@ export async function GET() {
     const ibcSummary = ibcClient.getSummary();
 
     // Optionally fetch live wallet balance
-    const walletBalance = await getImpactWalletBalance().catch(() => null);
+    const walletBalance = await getImpactWalletBalance().catch((err) => {
+      console.error('[api/impact-fund] wallet balance fetch failed', err);
+      return null;
+    });
 
     return NextResponse.json({
       fund: {

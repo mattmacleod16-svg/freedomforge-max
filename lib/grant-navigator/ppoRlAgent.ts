@@ -11,6 +11,14 @@
 
 import type { Grant } from './grokGrantClient';
 
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const WEIGHT_CLIP_MIN = -5;
+const WEIGHT_CLIP_MAX = 5;
+const DEFAULT_MAX_RESULTS = 8;
+
+export { DEFAULT_MAX_RESULTS };
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface GrantFeatures {
@@ -245,7 +253,7 @@ function ppoPolicyUpdate(
       for (let j = 0; j < newWeights.length; j++) {
         newWeights[j] += gradScale * (f[j] ?? 0) * newProb * (1 - newProb);
         // Clip weights to prevent explosion
-        newWeights[j] = Math.max(-5, Math.min(5, newWeights[j]));
+        newWeights[j] = Math.max(WEIGHT_CLIP_MIN, Math.min(WEIGHT_CLIP_MAX, newWeights[j]));
       }
     }
   }
@@ -355,7 +363,7 @@ export class PPORLAgent {
       const err = target - pred;
       for (let j = 0; j < this.state.valueFn.length; j++) {
         this.state.valueFn[j] += this.config.learningRate * err * t.features[j];
-        this.state.valueFn[j] = Math.max(-5, Math.min(5, this.state.valueFn[j]));
+        this.state.valueFn[j] = Math.max(WEIGHT_CLIP_MIN, Math.min(WEIGHT_CLIP_MAX, this.state.valueFn[j]));
       }
     }
 

@@ -149,14 +149,27 @@ export class IBCv2Client {
       const ch = data.channel;
       if (!ch) return null;
 
+      const VALID_STATES: IBCChannel['state'][] = ['OPEN', 'CLOSED', 'INIT', 'TRYOPEN'];
+      const VALID_ORDERINGS: IBCChannel['ordering'][] = ['ORDERED', 'UNORDERED'];
+
+      const rawState = ch.state?.toUpperCase();
+      const rawOrdering = ch.ordering?.toUpperCase();
+
+      const state: IBCChannel['state'] = VALID_STATES.includes(rawState as IBCChannel['state'])
+        ? (rawState as IBCChannel['state'])
+        : 'OPEN';
+      const ordering: IBCChannel['ordering'] = VALID_ORDERINGS.includes(rawOrdering as IBCChannel['ordering'])
+        ? (rawOrdering as IBCChannel['ordering'])
+        : 'UNORDERED';
+
       return {
         channelId,
         counterpartyChannelId: ch.counterparty?.channel_id || '',
         sourceChain,
         destChain: '', // resolved from counterparty
         portId: 'transfer',
-        state: (ch.state as IBCChannel['state']) || 'OPEN',
-        ordering: (ch.ordering as IBCChannel['ordering']) || 'UNORDERED',
+        state,
+        ordering,
       };
     } catch {
       return null;

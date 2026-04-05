@@ -54,7 +54,9 @@ function loadState(): ImpactFundState {
       const raw = fs.readFileSync(IMPACT_FUND_FILE, 'utf8');
       return JSON.parse(raw) as ImpactFundState;
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.error('[impactFund] failed to load state, starting fresh', err);
+  }
   return {
     totalAllocatedUsd: 0,
     totalConfirmedUsd: 0,

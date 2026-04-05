@@ -118,8 +118,9 @@ export default function GrantsPage() {
     }
   }, [query, location, category, budget]);
 
-  // Initial load
-  useEffect(() => { search(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Initial load — intentionally runs once on mount only; subsequent searches are user-triggered
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { search(); }, []);
 
   const getGuidance = async (grant: Grant) => {
     setSelectedGrant(grant);

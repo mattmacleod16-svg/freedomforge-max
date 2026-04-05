@@ -145,6 +145,9 @@ describe('GAE Advantage Estimation', () => {
 // ─── Solana Impact Fund Tests ─────────────────────────────────────────────────
 
 describe('Solana Impact Fund', () => {
+  // 10% allocation = 1000 basis points (same as IMPACT_BPS in solanaImpactFund.ts)
+  const IMPACT_BPS = 1000;
+
   before(setup);
   after(cleanup);
 
@@ -156,13 +159,13 @@ describe('Solana Impact Fund', () => {
       // We'll test the allocation math directly since the module is TypeScript
       impactFund = {
         recordRevenueAllocation: function(params) {
-          const allocationUsd = (params.grossAmountUsd * 1000) / 10_000; // 10% = 1000 bps
+          const allocationUsd = (params.grossAmountUsd * IMPACT_BPS) / 10_000;
           return {
             id: `impact_${Date.now()}`,
             revenueSourceId: params.revenueSourceId,
             grossAmountUsd: params.grossAmountUsd,
             allocationUsd,
-            allocationBps: 1000,
+            allocationBps: IMPACT_BPS,
             status: 'pending',
             cause: params.cause || 'Forest Acres economic mobility',
             createdAt: Date.now(),
@@ -172,30 +175,32 @@ describe('Solana Impact Fund', () => {
           };
         },
       };
-    } catch {}
+    } catch (err) {
+      // Log loading errors to assist debugging but allow tests to proceed with mock
+      console.warn('[grant-navigator.test] impactFund module load skipped:', err?.message);
+    }
   });
 
   it('allocates exactly 10% of revenue (1000 bps)', () => {
     const grossAmountUsd = 100;
-    const allocationBps  = 1000;
-    const expected = (grossAmountUsd * allocationBps) / 10_000;
+    const expected = (grossAmountUsd * IMPACT_BPS) / 10_000;
     assert.strictEqual(expected, 10, '10% of $100 = $10');
   });
 
   it('allocates 10% of $500 gross revenue', () => {
     const gross = 500;
-    const allocation = (gross * 1000) / 10_000;
+    const allocation = (gross * IMPACT_BPS) / 10_000;
     assert.strictEqual(allocation, 50, '10% of $500 = $50');
   });
 
   it('allocates correctly for fractional amounts', () => {
     const gross = 37.50;
-    const allocation = (gross * 1000) / 10_000;
+    const allocation = (gross * IMPACT_BPS) / 10_000;
     assert.ok(Math.abs(allocation - 3.75) < 0.001, '10% of $37.50 ≈ $3.75');
   });
 
   it('calculates allocation bps as 1000 (10%)', () => {
-    assert.strictEqual(1000 / 10_000, 0.10, '1000 bps = 10%');
+    assert.strictEqual(IMPACT_BPS / 10_000, 0.10, '1000 bps = 10%');
   });
 
   it('records allocation with correct cause', () => {

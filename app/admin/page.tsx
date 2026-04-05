@@ -107,7 +107,8 @@ export default function AdminPage() {
     }
   }, [router]);
 
-  useEffect(() => { load(); const id = setInterval(load, 30_000); return () => clearInterval(id); }, [load]);
+  const REFRESH_INTERVAL_MS = 30_000;
+  useEffect(() => { load(); const id = setInterval(load, REFRESH_INTERVAL_MS); return () => clearInterval(id); }, [load]);
 
   if (loading) {
     return (
