@@ -3,7 +3,7 @@
 # Usage: ./deploy.sh
 set -euo pipefail
 
-echo "FreedomForge Max — Deploying to freedomforge.one..."
+echo "Deploying FreedomForge.one unified system..."
 
 # 1. Install dependencies
 echo "Installing dependencies..."
@@ -17,8 +17,8 @@ npm run build
 echo "Running type check..."
 npm run type-check || echo "Type check warnings (non-blocking)"
 
-# 4. Deploy to Railway
-echo "Deploying via Railway..."
-railway up
+# 4. Deploy to Vercel
+echo "Deploying via Vercel..."
+vercel --prod
 
-echo "Deployed to https://freedomforge.one"
+echo "Domain freedomforge.one is now live with unified RL agent, payments, IBC v2, and impact fund."
