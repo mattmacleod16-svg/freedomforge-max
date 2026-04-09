@@ -62,6 +62,13 @@ export default function LifeDashboard() {
   const [newGoal, setNewGoal] = useState('');
   const [newGoalCat, setNewGoalCat] = useState('financial');
 
+  // PPO Grant Agent state
+  const [ppoLocation, setPpoLocation] = useState('');
+  const [ppoState, setPpoState] = useState('');
+  const [ppoResult, setPpoResult] = useState<import('@/lib/intelligence/ppoGrantAgent').PPOGrantResult | null>(null);
+  const [ppoLoading, setPpoLoading] = useState(false);
+  const [ppoError, setPpoError] = useState('');
+
   useEffect(() => {
     setProfile(loadProfile());
   }, []);
@@ -156,6 +163,35 @@ export default function LifeDashboard() {
       updateProfile({ goals: profile.goals.filter((g) => g.id !== id) });
     }
   };
+
+  // ── PPO Grant Agent ──────────────────────────────────────────────────────
+  const runPPOAgent = useCallback(async () => {
+    if (!ppoLocation.trim()) {
+      setPpoError('Enter your city/state (e.g. Forest Acres, SC)');
+      return;
+    }
+    setPpoLoading(true);
+    setPpoError('');
+    setPpoResult(null);
+    try {
+      const res = await fetch('/api/ppo-grant-agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: profile.name || 'anonymous',
+          state: ppoState,
+          location: ppoLocation,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setPpoResult(data);
+    } catch (e) {
+      setPpoError(e instanceof Error ? e.message : 'Failed to fetch grants');
+    } finally {
+      setPpoLoading(false);
+    }
+  }, [ppoLocation, ppoState, profile.name]);
 
   const onlineCount = systems.filter((s) => s.status === 'online').length;
   const totalCount = systems.length;
@@ -285,6 +321,140 @@ export default function LifeDashboard() {
                   <span className="text-sm font-semibold text-white">{action.label}</span>
                 </Link>
               ))}
+            </div>
+
+            {/* PPO Grant Agent — Liquid Glass Card */}
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl shadow-xl shadow-black/40">
+              {/* Liquid glass shimmer overlay */}
+              <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.08] via-transparent to-cyan-500/5" />
+              <div className="relative z-10 space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-2xl">🎯</span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-cyan-400/70">PPO Grant Agent</p>
+                    <h2 className="text-base font-black text-white leading-tight">Find Your Optimal Grants</h2>
+                  </div>
+                  <span className="ml-auto rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-cyan-300">
+                    PPO · Clipped Surrogate
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Powered by Proximal Policy Optimization — the agent surfaces the highest-value grant
+                  opportunities for your location using the clipped surrogate objective
+                  L<sub>CLIP</sub>(θ)&nbsp;=&nbsp;𝔼[min(r·Â,&nbsp;clip(r,&nbsp;1−ε,&nbsp;1+ε)·Â)].
+                </p>
+
+                {/* Location inputs */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={ppoLocation}
+                    onChange={(e) => setPpoLocation(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && runPPOAgent()}
+                    placeholder="City, State — e.g. Forest Acres, SC"
+                    className="flex-1 rounded-xl border border-zinc-700 bg-black/40 px-3 py-2 text-sm text-white placeholder-zinc-600 outline-none focus:border-cyan-500 backdrop-blur"
+                  />
+                  <input
+                    type="text"
+                    value={ppoState}
+                    onChange={(e) => setPpoState(e.target.value.toUpperCase().slice(0, 2))}
+                    placeholder="ST"
+                    maxLength={2}
+                    className="w-20 rounded-xl border border-zinc-700 bg-black/40 px-3 py-2 text-sm text-center uppercase text-white placeholder-zinc-600 outline-none focus:border-cyan-500"
+                  />
+                  <button
+                    onClick={runPPOAgent}
+                    disabled={ppoLoading}
+                    className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-cyan-500 disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {ppoLoading ? '⏳ Running PPO…' : '▶ Run Agent'}
+                  </button>
+                </div>
+                {ppoError && <p className="text-xs text-red-400">{ppoError}</p>}
+
+                {/* Results */}
+                {ppoResult && (
+                  <div className="space-y-3">
+                    {/* Top action */}
+                    <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-4">
+                      <p className="text-[10px] uppercase tracking-widest text-cyan-400/60 mb-1">Recommended Action</p>
+                      <p className="text-sm text-cyan-100 leading-relaxed">{ppoResult.ppo_action}</p>
+                      <div className="mt-3 flex flex-wrap gap-3 text-[10px]">
+                        <span className="text-zinc-500">Confidence:&nbsp;
+                          <span className="font-bold text-white">{(ppoResult.confidence * 100).toFixed(1)}%</span>
+                        </span>
+                        <span className="text-zinc-500">Total Value:&nbsp;
+                          <span className="font-bold text-emerald-400">${ppoResult.totalPotentialValue.toLocaleString()}</span>
+                        </span>
+                        <span className="text-zinc-500">Matches:&nbsp;
+                          <span className="font-bold text-white">{ppoResult.topMatches.length}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Algorithm trace */}
+                    <details className="group">
+                      <summary className="cursor-pointer select-none text-[10px] uppercase tracking-widest text-zinc-500 transition hover:text-zinc-300">
+                        ⚙ PPO Algorithm Trace&nbsp;<span className="group-open:hidden">(expand)</span>
+                      </summary>
+                      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {[
+                          { label: 'Clip ε', value: String(ppoResult.algorithm.clipEpsilon) },
+                          { label: 'Iterations', value: String(ppoResult.algorithm.iterations) },
+                          { label: 'Surrogate L', value: ppoResult.algorithm.surrogateObjective.toFixed(5) },
+                          { label: 'Entropy H', value: ppoResult.algorithm.entropy.toFixed(4) },
+                        ].map((m) => (
+                          <div key={m.label} className="rounded-lg border border-zinc-800 bg-black/30 p-2 text-center">
+                            <p className="text-[9px] text-zinc-600">{m.label}</p>
+                            <p className="text-xs font-bold text-zinc-200">{m.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-[10px]">
+                        <span className={`rounded-full px-2 py-0.5 font-bold ${ppoResult.algorithm.convergence ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                          {ppoResult.algorithm.convergence ? '✓ Converged' : '⚠ Not converged'}
+                        </span>
+                        <span className="text-zinc-600">ε-bound satisfied within {ppoResult.algorithm.iterations} iters</span>
+                      </div>
+                    </details>
+
+                    {/* Optimised grant matches */}
+                    <div className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-widest text-zinc-500">Optimized Matches</p>
+                      {ppoResult.topMatches.map((match) => (
+                        <a
+                          key={match.grant.id}
+                          href={match.grant.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-3 rounded-xl border border-zinc-800/60 bg-black/30 p-3 backdrop-blur transition hover:border-cyan-500/30 hover:bg-cyan-950/10"
+                        >
+                          <span className="mt-0.5 text-base">
+                            {match.grant.category === 'federal' ? '🏛' :
+                             match.grant.category === 'state'   ? '🏷' :
+                             match.grant.category === 'local'   ? '📍' : '🤝'}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold text-white">{match.grant.name}</p>
+                            <p className="truncate text-[10px] text-zinc-500">{match.grant.provider}</p>
+                            <p className="mt-0.5 text-[10px] text-zinc-400">{match.actionRecommendation}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-xs font-bold text-emerald-400">${match.grant.maxAmount.toLocaleString()}</p>
+                            <p className="text-[9px] text-zinc-600">max award</p>
+                            <div className="mt-1 h-1.5 w-16 overflow-hidden rounded-full bg-zinc-800">
+                              <div
+                                className="h-full rounded-full bg-cyan-500"
+                                style={{ width: `${Math.round(match.matchScore * 100 / (ppoResult.topMatches[0]?.matchScore || 1))}%` }}
+                              />
+                            </div>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
