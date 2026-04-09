@@ -169,6 +169,26 @@ declare namespace NodeJS {
     MVX_TIMEOUT_MS?: string;
     MVX_STATE_FILE?: string;
 
+    // ─── Supabase ─────────────────────────────────────────────────────
+    NEXT_PUBLIC_SUPABASE_URL?: string;
+    NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+    SUPABASE_SERVICE_ROLE_KEY?: string;
+
+    // ─── SaaS / Billing ───────────────────────────────────────────────
+    STRIPE_SECRET_KEY?: string;
+    STRIPE_WEBHOOK_SECRET?: string;
+    STRIPE_PRICE_PRO?: string;
+    STRIPE_PRICE_ELITE?: string;
+    REVENUECAT_API_KEY?: string;
+    REVENUECAT_WEBHOOK_SECRET?: string;
+
+    // ─── xAI / Grok ───────────────────────────────────────────────────
+    XAI_API_KEY?: string;
+
+    // ─── Impact Fund ──────────────────────────────────────────────────
+    IMPACT_FUND_WALLET?: string;
+    IMPACT_FUND_PCT?: string;
+
     // ─── Solana ───────────────────────────────────────────────────────
     SOLANA_RPC_URL?: string;
     SOLANA_WALLET_ADDRESS?: string;
