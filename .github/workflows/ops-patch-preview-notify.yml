@@ -102,7 +102,7 @@ jobs:
       - name: Enforce required approval label
         id: label_gate
         if: steps.preview.outputs.exit_code == '0' && env.AUTO_APPLY_ENABLED == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const required = (process.env.AUTO_APPLY_REQUIRED_LABEL || '').trim();
@@ -201,7 +201,7 @@ jobs:
 
       - name: Dispatch real apply workflow
         if: steps.preview.outputs.exit_code == '0' && env.AUTO_APPLY_ENABLED == 'true' && steps.approved.outputs.keys != '' && steps.label_gate.outputs.allow == 'true' && steps.policy.outputs.allow == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.actions.createWorkflowDispatch({
