@@ -19,7 +19,7 @@ export async function GET() {
       timestamp: new Date().toISOString(),
       agent_state: agentState,
       models_available: modelsAvailable,
-      queue_depth: 0, // TODO: integrate with agent scheduler if available
+      queue_depth: 0, // BLACKBOX: integrate with agent scheduler if available
       models: [
         'gpt-4-turbo',
         'gpt-4o',

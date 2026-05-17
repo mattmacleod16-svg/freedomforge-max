@@ -108,9 +108,71 @@ The phrase "that's not my domain" is not in a FreedomForge agent's vocabulary. Y
 
 - **Name**: FreedomForge
 - **Type**: Autonomous AI-powered trading & revenue generation platform
-- **Stack**: Next.js 16 (TypeScript/React 19), Node.js, Ethers.js v5+v6, Capacitor (iOS), Prometheus/Grafana
+- **Stack**: Next.js 16 (App Router) + React 19 + TypeScript 5, Tailwind CSS 4, Node.js, Ethers.js v5+v6, Capacitor (iOS), Prometheus/Grafana
+- **AI Backend**: OpenRouter multi-model routing (26 MAX + 10 Advisor models)
+- **Auth**: HMAC-SHA256 sessions (Edge + Node dual implementation)
 - **Repo**: `mattmacleod16-svg/freedomforge-max`
-- **Deployments**: Railway (primary), Oracle Cloud VMs
+- **Deployments**: Railway (primary, see `railway.toml`), Oracle Cloud VMs
+
+---
+
+## Development Setup
+
+### Quick Start
+
+```bash
+npm ci
+cp .env.example .env.local   # populate required API keys / secrets
+npm run dev                  # start Next.js development server (http://localhost:3000)
+```
+
+### Essential Commands
+
+| Command | Purpose |
+|---------|---------|
+| `npm run build` | Production build — must complete with **zero errors** before merging |
+| `npm test` | Run all tests — all must pass (`node --test tests/*.test.js`) |
+| `npm run lint` | ESLint check — no new warnings allowed |
+| `npm run dev` | Start development server |
+| `npm run smoke:prod` | Smoke-test production endpoints |
+
+### Key Source Files
+
+| File | Purpose |
+|------|---------|
+| `app/api/chat/route.ts` | MAX chatbot streaming API (SSE, 32K context) |
+| `app/api/advisor/route.ts` | Freedom Advisor streaming API (64K context) |
+| `app/api/dashboard/route.ts` | OCI backend proxy (7 parallel fetches) |
+| `app/page.tsx` | MAX chatbot UI (voice + text, streaming) |
+| `app/advisor/page.tsx` | Freedom Advisor UI (15 quick-topic tiles) |
+| `app/dashboard/page.tsx` | Command Center dashboard (6-tab layout) |
+| `lib/ucfee-virtues.ts` | UCFEE-2.0 behavioral framework (40 protocol directives) |
+| `lib/models.ts` | AI model registry (26 MAX + 10 Advisor) |
+| `lib/session.ts` | HMAC-SHA256 session management |
+| `middleware.ts` | Edge middleware — auth, rate limiting, CSRF |
+| `tests/core.test.js` | Primary test suite |
+
+### Environment Variables
+
+All secrets live in `.env.local` (gitignored). Required variables include:
+- `OPENROUTER_API_KEY` — AI model routing
+- `SESSION_SECRET` — HMAC session signing
+- `OCI_*` — Oracle Cloud trading backend credentials
+- See `.env.example` for the full list
+
+### Testing
+
+- Tests live in `tests/` (`*.test.js`)
+- Run `npm test` before every commit — all tests must pass
+- Add regression tests for every bug fix; add unit tests for new modules
+- Test coverage targets: all `lib/` modules and API routes
+
+### API Conventions
+
+- All AI calls route through OpenRouter (`https://openrouter.ai/api/v1/chat/completions`)
+- API routes use Server-Sent Events (SSE) for streaming responses
+- All mutating endpoints have CSRF protection
+- Rate limits: 5 login attempts / 15 min per IP, 30 AI requests / min per IP
 
 ---
 
